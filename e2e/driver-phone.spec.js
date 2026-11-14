@@ -65,7 +65,7 @@ test('a driver opens stops and pickups from buttons on Today',async({page})=>{
  await phone(page);
  await page.goto('/staff');
  await expect(page).toHaveURL(/\/driver-phone$/);
- await expect(page.getByRole('heading',{name:/Dana$/})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Today',exact:true})).toBeVisible();
  await expect(page.getByText('Bus 12',{exact:true})).toBeVisible();
  await expect(page.getByText('Not on shift',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Start shift'})).toBeVisible();

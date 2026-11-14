@@ -79,7 +79,7 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]) {
   await page.route('**/api.open-meteo.com/**',r=>r.fulfill({json:{current:{temperature_2m:29,weather_code:0}}}));
   await page.goto('/');
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole('heading',{name:'Your journey, connected.'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Your bus, live from pickup to drop-off'})).toBeVisible();
   await expect(page.getByRole('link',{name:'Create an account',exact:true})).toHaveAttribute('href','/register');
   await expect(page.locator('.tt-welcome-art')).toHaveJSProperty('complete',true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
