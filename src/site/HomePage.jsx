@@ -17,7 +17,7 @@ export default function HomePage() {
     <>
       <section className="mcs-hero mcs-dark" aria-labelledby="hero-title">
         <div className="mcs-hero-media">
-          <img src="/images/transit-welcome.webp" alt="" width="1599" height="900" fetchpriority="high" decoding="async" />
+          <img src="/images/mcsween-van.webp" alt="" width="1280" height="720" fetchpriority="high" decoding="async" />
         </div>
         <div className="mcs-wrap">
           <div className="mcs-hero-body">

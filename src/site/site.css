@@ -131,7 +131,7 @@
    side of the photo. */
 .mcs-hero { position: relative; isolation: isolate; overflow: hidden; }
 .mcs-hero-media { position: relative; }
-.mcs-hero-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: 78% 60%; }
+.mcs-hero-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: 42% 60%; }
 .mcs-hero-media::after { content: ""; position: absolute; inset: auto 0 0 0; height: 45%; background: linear-gradient(to top, var(--ink), rgba(11, 46, 53, 0)); }
 .mcs-hero-body { position: relative; padding: 0 0 clamp(2.5rem, 7vw, 3.5rem); margin-top: -2.5rem; }
 .mcs-hero h1 {
@@ -147,7 +147,7 @@
 @media (min-width: 56rem) {
   .mcs-hero { min-height: min(86vh, 50rem); display: grid; align-items: center; }
   .mcs-hero-media { position: absolute; inset: 0; z-index: -1; }
-  .mcs-hero-media img { height: 100%; aspect-ratio: auto; object-position: 66% 58%; }
+  .mcs-hero-media img { height: 100%; aspect-ratio: auto; object-position: 50% 58%; }
   .mcs-hero-media::after {
     inset: 0; height: auto;
     background:

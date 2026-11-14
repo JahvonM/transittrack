@@ -10,7 +10,7 @@ const bookHref = () => (typeof window !== "undefined" && isSiteHost(window.locat
 export default function WelcomeHero() {
   return (
     <section className="tt-welcome-hero" aria-label="Welcome to McSween Transport">
-      <img src="/images/transit-welcome.webp" alt="White shuttle bus on a Caribbean coastal road at dusk" className="tt-welcome-art" fetchPriority="high" />
+      <img src="/images/mcsween-van.webp" alt="A white McSween Transport van at a lookout above a Grenada beach" className="tt-welcome-art" fetchPriority="high" />
       <div className="tt-welcome-copy">
         <p className="tt-welcome-kicker">Staff transfers · Airport pickups · Taxi service</p>
         <h1>Your journey,<br /><span className="text-primary">Connected.</span></h1>
