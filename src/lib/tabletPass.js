@@ -1,6 +1,7 @@
 // How a paired tablet's pass stands, as the server reports it to Admin
-// (KioskDevice.pass). A pass lasts 90 days and is renewed only by giving the
-// tablet a new pairing code, so Admin warns 30 days ahead.
+// (KioskDevice.pass). A pass lasts 90 days. In its last 30 days Admin warns,
+// and an admin can renew it (manageAccessCodes renew_pass) for a tablet still
+// in use; once it has ended, or the tablet moved, it needs a new pairing code.
 
 const DAY = 86400_000;
 const day = (iso) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -16,8 +17,8 @@ export function passNote(pass, now = Date.now()) {
       return { tone: "danger", needsCode: true, label: "Pass expired",
         text: "It can't connect. Press New code and enter the code on the tablet." };
     case "expiring":
-      return { tone: "warning", soon: true, label: `Pass ends ${day(pass.expires_at)}`,
-        text: `${left === 1 ? "Tomorrow" : `In ${left} days`}. Before then, sync or export its saved work, press New code and enter the code on the tablet, or it stops connecting.` };
+      return { tone: "warning", soon: true, renewable: true, label: `Pass ends ${day(pass.expires_at)}`,
+        text: `${left === 1 ? "Tomorrow" : `In ${left} days`}. Before then, press Renew pass if the tablet is still in use, or it stops connecting.` };
     case "none":
       return { tone: "warning", label: "Old pairing",
         text: "Paired before tablet passes existed. Give it a new pairing code when it's convenient." };

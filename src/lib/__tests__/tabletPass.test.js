@@ -71,6 +71,9 @@ describe("what Admin shows for a pass", () => {
     expect(passNote({ state: "expired", expires_at: at(-2) }, NOW)).toMatchObject({ tone: "danger", needsCode: true, label: "Pass expired" });
     expect(passNote({ state: "expiring", expires_at: at(12) }, NOW)).toMatchObject({ tone: "warning", soon: true, label: "Pass ends 20 Nov 2026" });
     expect(passNote({ state: "expiring", expires_at: at(12) }, NOW).text).toMatch(/^In 12 days\./);
+    // Renew pass is offered only in the last 30 days, never once it has ended or the tablet moved.
+    expect(passNote({ state: "expiring", expires_at: at(12) }, NOW).renewable).toBe(true);
+    for (const state of ["expired", "moved", "none", "ok"]) expect(passNote({ state, expires_at: at(state === "expired" ? -2 : 60) }, NOW)?.renewable).toBeFalsy();
     expect(passNote({ state: "ok", expires_at: at(79) }, NOW)).toEqual({ tone: "neutral", label: null, text: "Pass until 26 Jan 2027" });
     expect(passNote({ state: "none" }, NOW).label).toBe("Old pairing");
     expect(passNote(null, NOW)).toBeNull();

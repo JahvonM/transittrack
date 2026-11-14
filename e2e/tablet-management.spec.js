@@ -167,3 +167,37 @@ test("each paired tablet says how its pass stands, and the top line counts the o
   await expect(page.getByText("In 12 days.", { exact: false })).toBeVisible();
   await expect(page.getByText(/^Pass until /)).toBeVisible();
 });
+
+test("an admin renews a pass in its last 30 days after confirming, and only that tablet offers it", async ({ page }) => {
+  const day = (n) => new Date(Date.now() + n * 86400000).toISOString();
+  const tablet = (id, label, pass) => ({ id, label, company_id: "a", kiosk_type: "bus_boarding", vehicle_id: "bus-a", vehicle_name: "Bus A", status: "active", paired: true, last_seen: new Date().toISOString(), pass });
+  const ending = tablet("soon", "Ending tablet", { state: "expiring", expires_at: day(12) });
+  await setup(page, { others: [
+    tablet("moved", "Moved tablet", { state: "moved", expires_at: day(40) }),
+    ending,
+    tablet("gone", "Ended tablet", { state: "expired", expires_at: day(-2) }),
+    tablet("fine", "Fine tablet", { state: "ok", expires_at: day(80) }),
+  ] });
+  const renewals = [];
+  await page.route("**/functions/manageAccessCodes", (r) => {
+    renewals.push(r.request().postDataJSON());
+    ending.pass = { state: "ok", expires_at: day(90) };
+    return r.fulfill({ json: { ok: true, expires_at: day(90) } });
+  });
+  await page.goto("/admin/kiosks");
+  await expect(page.getByRole("button", { name: /^Renew pass for / })).toHaveCount(1);
+  // Backing out changes nothing.
+  await page.getByRole("button", { name: "Renew pass for Ending tablet" }).click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText("Renew Ending tablet's pass?");
+  await expect(confirm).toContainText("90 more days");
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(confirm).toBeHidden();
+  expect(renewals).toEqual([]);
+  // Confirming renews only that tablet.
+  await page.getByRole("button", { name: "Renew pass for Ending tablet" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Renew pass" }).click();
+  await expect.poll(() => renewals).toEqual([{ action: "renew_pass", device_id: "soon" }]);
+  await expect(page.getByText("Pass renewed", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Renew pass for / })).toHaveCount(0);
+});

@@ -2,6 +2,14 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 const PAIR_TTL_MS=15*60_000;
 // A driver's own phone: the driver installs the store app first, so its code lasts longer.
 const OWN_PHONE_TTL_MS=7*86400_000;
+// A tablet pass (DeviceCredential) lasts 90 days from pairing. An administrator
+// may renew it in its last 30 days, for a tablet still on the bus and company
+// it was paired for and online this week. Anything else needs a new pairing code.
+const PASS_MS=90*86400_000,RENEW_WINDOW_MS=30*86400_000,SEEN_WITHIN_MS=7*86400_000;
+async function digest(value) {
+ const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
+ return Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
+}
 function fail(status,message){throw Object.assign(new Error(message),{status});}
 function randomAccessCode() {
  const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let code='';
@@ -49,6 +57,26 @@ export default async function(req) {
    const code=await uniqueAccessCode(db,'Company','access_code');
    await db.Company.update(company.id,{access_code:code});
    return Response.json({code,permanent:true});
+  }
+  if(body.action==='renew_pass') {
+   if(user.role!=='admin')fail(403,'Only admins can renew a tablet pass');
+   if(typeof body.device_id!=='string'||!body.device_id)fail(400,'Device required');
+   const device=await getRecord(db,"KioskDevice",body.device_id);if(!device)fail(404,'Device not found');
+   if(device.status!=='active'||device.paired!==true)fail(409,'Pair this tablet first');
+   const pass=(await db.DeviceCredential.filter({device_id:device.id},'-issued_at',1))[0];
+   if(!pass)fail(409,'This tablet was paired before passes existed. Give it a new pairing code.');
+   if(pass.company_id!==device.company_id||(pass.vehicle_id||'')!==(device.vehicle_id||'')||pass.kiosk_type!==device.kiosk_type||
+      pass.pairing_code_hash!==await digest(device.pairing_code||''))fail(409,'This tablet changed after it was paired. Give it a new pairing code.');
+   const now=Date.now(),ends=Date.parse(pass.expires_at);
+   if(!(ends>now))fail(409,'This pass has already ended. Give the tablet a new pairing code.');
+   if(ends-now>RENEW_WINDOW_MS)fail(409,'A pass can be renewed in its last 30 days.');
+   if(!(now-Date.parse(device.last_seen)<SEEN_WITHIN_MS))fail(409,"This tablet hasn't been online this week. Check it, then give it a new pairing code.");
+   const expires_at=new Date(now+PASS_MS).toISOString();
+   await db.DeviceCredential.update(pass.id,{expires_at});
+   // Who renewed it and until when; never the pass itself.
+   await db.AuditLog.create({actor_email:user.email||'',actor_role:'admin',action:'update',entity:'KioskDevice',record_id:device.id,
+    page:'/admin/kiosks',summary:'Renewed tablet pass until '+expires_at.slice(0,10)}).catch(()=>{});
+   return Response.json({ok:true,expires_at});
   }
   if(!['issue_pairing','revoke_device','reactivate_device'].includes(body.action))fail(400,'Unsupported action');
   if(typeof body.device_id!=='string'||!body.device_id)fail(400,'Device required');
