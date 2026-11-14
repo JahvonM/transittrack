@@ -4,6 +4,9 @@ module.exports = {
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
+  		// Bold reads as semibold across the app: hierarchy comes from size and
+  		// colour (the unslop review). The website keeps its own heavy signage.
+  		fontWeight: { bold: '600', extrabold: '600', black: '600' },
   		opacity: Object.fromEntries(Array.from({ length: 101 }, (_, i) => [i, `${i / 100}`])),
   		// One radius scale: controls 10px, cards 14px, sheets/hero surfaces 18-22px.
   		borderRadius: {
@@ -28,9 +31,9 @@ module.exports = {
   			'body-sm': ['0.875rem', { lineHeight: '1.25rem' }],
   			body: ['1rem', { lineHeight: '1.5rem' }],
   			'title-sm': ['1.125rem', { lineHeight: '1.625rem', fontWeight: '600' }],
-  			title: ['1.375rem', { lineHeight: '1.75rem', fontWeight: '700', letterSpacing: '-0.01em' }],
-  			headline: ['1.75rem', { lineHeight: '2.125rem', fontWeight: '700', letterSpacing: '-0.015em' }],
-  			display: ['2.25rem', { lineHeight: '2.5rem', fontWeight: '700', letterSpacing: '-0.01em' }],
+  			title: ['1.375rem', { lineHeight: '1.75rem', fontWeight: '600', letterSpacing: '-0.01em' }],
+  			headline: ['1.75rem', { lineHeight: '2.125rem', fontWeight: '600', letterSpacing: '-0.015em' }],
+  			display: ['2.25rem', { lineHeight: '2.5rem', fontWeight: '600', letterSpacing: '-0.01em' }],
   			hero: ['3.5rem', { lineHeight: '1', fontWeight: '700', letterSpacing: '-0.02em' }]
   		},
   		transitionDuration: {

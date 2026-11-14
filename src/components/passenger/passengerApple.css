@@ -12,7 +12,7 @@
   .px-experience > * { margin-bottom: 14px; }
   .px-experience p, .px-experience small { color: var(--px-text2); }
   .px-experience .px-greeting, .px-experience .px-page-title h1 {
-    font-size: 34px; line-height: 41px; font-weight: 700; letter-spacing: -.026em; margin-bottom: 6px;
+    font-size: 34px; line-height: 41px; font-weight: 600; letter-spacing: -.026em; margin-bottom: 6px;
   }
   .px-experience .px-greeting { margin-top: 14px; }
   .px-page-title { padding: 2px 0 4px; }
@@ -36,7 +36,7 @@
 
   /* The bus card keeps its picture; rounder, with depth instead of an outline. */
   .px-hero { border: 0; border-radius: 26px; box-shadow: 0 12px 32px var(--px-shadow); padding: 18px 12px 16px 18px; }
-  .px-hero-copy > h2 { font-size: clamp(34px, 11vw, 46px); line-height: 1.05; letter-spacing: -.035em; font-weight: 700; }
+  .px-hero-copy > h2 { font-size: clamp(34px, 11vw, 46px); line-height: 1.05; letter-spacing: -.035em; font-weight: 600; }
   .px-hero-copy > p:not(.px-service) { font-size: 15px; line-height: 20px; }
   .px-hero-copy > strong { font-size: 15px; }
   .px-service { font-size: 12px !important; letter-spacing: .02em !important; }
@@ -176,7 +176,7 @@
     border-radius: 50% !important; background: var(--px-field); color: var(--px-text2); opacity: 1;
   }
   .tt-apple-sheet .tt-sheet-close svg { width: 14px; height: 14px; stroke-width: 2.6; }
-  .tt-apple-sheet .tt-sheet-title { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -.02em; }
+  .tt-apple-sheet .tt-sheet-title { font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -.02em; }
   .tt-apple-sheet .tt-sheet-desc { font-size: 15px; line-height: 20px; }
   /* Text fields: filled, borderless; 17px so iPhones don't zoom in on tap. */
   .tt-apple-sheet :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select, [role=combobox], button.border-input) {

@@ -52,9 +52,6 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
   const [panel, setPanel] = useState(null);
   const panelButton = useRef(null);
   const openPanel = (name, event) => { panelButton.current = event.currentTarget; setPanel(name); };
-  const first = (driverName || "").split(" ")[0] || "there";
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const stops = route?.stops || [];
   const riding = pickups.filter((p) => !p.skipping);
   const atStop = (name) => riding.filter((p) => p.stop === name);
@@ -71,7 +68,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
     <div className="tt-phone-today flex flex-col gap-4">
       <header>
         <p className="text-body-sm text-muted-foreground">{new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</p>
-        <h1 className="text-headline">{greeting}, {first}</h1>
+        <h1 className="text-headline">Today</h1>
       </header>
 
       {bus && <TripDirectionControl bus={bus} workplace={workplace} onChange={onDirectionChange} />}

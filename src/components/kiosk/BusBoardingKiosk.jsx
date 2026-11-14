@@ -1,3 +1,4 @@
+import BusSign from "@/components/BusSign";
 import { useTabletWorkSafety } from "@/lib/nativeTabletControl";
 import "./boardingShowcase.css";
 import "./kioskApple.css";
@@ -72,7 +73,7 @@ export function TopStatusBar({ device, vehicle, route, now, online, holdProps })
       <div><strong>{device?.company_name || "Bus boarding"}</strong><small>Welcome aboard</small></div>
     </div>
     <div className="tt-board-brand" aria-label="McSween Transport"><div className="tt-board-brandmark"><Logo className="h-9 w-9" /><span>McSween Transport</span></div></div>
-    <div className="tt-board-trip"><strong>{vehicle?.name || device?.vehicle_name || "Your bus"}</strong>
+    <div className="tt-board-trip"><BusSign text={vehicle?.name || device?.vehicle_name || "Your bus"} className="tt-board-sign" />
       {route?.name && <small>{route.name}</small>}
       <span>{now.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}</span>
       <small>{now.toLocaleDateString([], { timeZone: TRANSIT_TIME_ZONE, weekday: "short", month: "short", day: "numeric" })}</small>

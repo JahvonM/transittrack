@@ -54,7 +54,7 @@ export default function NameSign({ sign, company, onClose, closeLabel = "Slide t
 
       {text && (
         <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-          <p className="font-heading font-extrabold uppercase leading-[1.05] break-words" style={{ fontSize: nameSize(text) }}>{text}</p>
+          <p className="font-heading uppercase leading-[1.05] break-words" style={{ fontWeight: 800, fontSize: nameSize(text) }}>{text}</p>
           {sign.subtitle && <p className="mt-4 text-[4vw] font-semibold text-black/60">{sign.subtitle}</p>}
         </div>
       )}

@@ -1,0 +1,33 @@
+/* A still destination sign: amber lamps on a dark panel. The panel stays dark
+   in light mode too, like the sign on a real bus. Sizes in rem so it follows
+   the text size; --sign-size sets how big the letters are. */
+.tt-bus-sign {
+  --dot: 3px;
+  --sign-size: 1.35rem;
+  display: inline-flex;
+  max-width: 100%;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  background: #071f24;
+  box-shadow: inset 0 0 0 2px #04161a, inset 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+.tt-bus-sign-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font: 800 var(--sign-size) / 1.05 var(--font-display, "Barlow Semi Condensed", "Arial Narrow", sans-serif);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #f7c948;
+  /* Unlit lamps behind the letters, and the letters cut into lamps. */
+  background-image: radial-gradient(circle, rgba(247, 201, 72, 0.12) 0 42%, transparent 46%);
+  background-size: var(--dot) var(--dot);
+  -webkit-mask-image: radial-gradient(circle, #000 0 50%, transparent 56%);
+  mask-image: radial-gradient(circle, #000 0 50%, transparent 56%);
+  -webkit-mask-size: var(--dot) var(--dot);
+  mask-size: var(--dot) var(--dot);
+}
+@media (prefers-contrast: more) {
+  .tt-bus-sign-text { -webkit-mask-image: none; mask-image: none; background-image: none; }
+}

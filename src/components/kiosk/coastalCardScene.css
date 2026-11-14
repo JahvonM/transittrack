@@ -1,5 +1,5 @@
 .tt-coastal-scene{position:relative;isolation:isolate;overflow:hidden;display:flex;flex-direction:column;flex:1;min-height:360px;border-radius:24px;background:linear-gradient(180deg,#07132438,#07132400 48%,#071324c6),url('/images/boarding-coast.webp') 26% center/cover;color:#f1f8ff;border:1px solid #4cd6ff40;padding:24px 18px 18px}
-.tt-coastal-copy{position:relative;z-index:3}.tt-coastal-copy h1{font-size:clamp(26px,5vw,44px);font-weight:750;letter-spacing:-1px;line-height:1.12;margin:0 0 10px}.tt-coastal-copy p{font-size:16px;color:#c1dceb;margin:0}
+.tt-coastal-copy{position:relative;z-index:3}.tt-coastal-copy h1{font-size:clamp(26px,5vw,44px);font-weight:600;letter-spacing:-1px;line-height:1.12;margin:0 0 10px}.tt-coastal-copy p{font-size:16px;color:#c1dceb;margin:0}
 .tt-coastal-art{position:relative;flex:1;min-height:240px;width:100%;max-width:480px;margin:12px auto 0}
 .tt-coastal-bus{position:absolute!important;bottom:0!important;left:-12%!important;width:100%!important;height:70%!important;object-fit:contain;filter:drop-shadow(0 10px 18px #0006)}
 .tt-coastal-reader{position:absolute;top:10px;right:6%;width:80px;height:80px;border:2px solid hsl(var(--primary) / .7);border-radius:50%;display:grid;place-items:center;color:#a5f4ff;background:#071d36d9;z-index:2}.tt-coastal-reader svg{width:36px;height:36px}

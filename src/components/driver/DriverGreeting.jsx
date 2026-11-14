@@ -5,18 +5,12 @@ import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
 import BusArtwork from "@/components/BusArtwork";
 
-const greetingWord = () => {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-};
-
 // The unlock screen's identity panel: which bus this tablet is, who's
 // driving, and the time. Quiet on purpose; the PIN is the action.
 // `compact` is for tablets where the panel shares the screen with the PIN pad.
 export default function DriverGreeting({ driverName, subtitle, compact = false }) {
-  const name = (driverName || "Driver").split("@")[0].split(" ")[0];
+  const fullName = String(driverName || "").split("@")[0].trim();
+  const name = fullName || "Driver";
   const dateStr = new Date().toLocaleDateString([], { timeZone: TRANSIT_TIME_ZONE, weekday: "long", month: "long", day: "numeric" });
   const num = String(subtitle || "").match(/(\d+)\s*$/)?.[1];
   return (
@@ -33,8 +27,8 @@ export default function DriverGreeting({ driverName, subtitle, compact = false }
       </div>
       <div>
         <p className={`text-muted-foreground ${compact ? "text-body-sm" : "text-body"}`}>{dateStr}</p>
-        <h1 className={`mt-1 font-bold ${compact ? "text-title" : "text-display"}`}>{greetingWord()}, {name}</h1>
-        {subtitle && <p className={`mt-1 text-muted-foreground ${compact ? "text-body-sm" : "text-title-sm"}`}>{subtitle}</p>}
+        <h1 className={`mt-1 font-semibold ${compact ? "text-title" : "text-display"}`}>{subtitle || name}</h1>
+        {subtitle && fullName && <p className={`mt-1 text-muted-foreground ${compact ? "text-body-sm" : "text-title-sm"}`}>Driver: {fullName}</p>}
       </div>
       <div className={`flex flex-wrap items-center gap-3 ${compact ? "[@media(max-width:599px)]:hidden" : ""}`}>
         <LiveClock seconds={false} mono={false} className={`font-display font-semibold ${compact ? "text-title" : "text-headline"}`} />

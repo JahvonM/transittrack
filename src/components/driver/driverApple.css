@@ -43,7 +43,7 @@
 .tt-driver-reference.tt-driver-portrait > nav[aria-label="Driver sections"] > button { border-radius: 999px !important; }
 .tt-driver-reference.tt-driver-portrait > nav[aria-label="Driver sections"] > button > span[aria-hidden="true"] { display: none; }
 .tt-driver-reference.tt-driver-portrait > nav[aria-label="Driver sections"] > [aria-current="page"] {
-  background: var(--da-tint-fill) !important; color: var(--da-tint) !important; box-shadow: none !important; font-weight: 700;
+  background: var(--da-tint-fill) !important; color: var(--da-tint) !important; box-shadow: none !important; font-weight: 600;
 }
 @media (min-width: 960px) and (orientation: landscape) {
   .tt-driver-reference.tt-driver-portrait > nav[aria-label="Driver sections"] { border-radius: 999px; }
