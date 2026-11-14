@@ -716,10 +716,10 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-welcome-main { max-width:1280px; margin:auto; padding:0 28px; width:100%; }
 .tt-welcome-hero { position:relative; overflow:hidden; min-height:500px; display:flex; align-items:center; border-radius:28px; border:1px solid hsl(var(--border)); background:hsl(var(--card)); }
 .tt-welcome-art { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; }
+.tt-welcome-copy { position:relative; z-index:1; width:64%; padding:40px 32px; background:linear-gradient(90deg,hsl(var(--background)/.94),hsl(var(--background)/.9) 70%,transparent); }
 /* The van is in the middle of the picture: on wider screens the picture sits
    on the right, beside the words, so they do not hide it. */
-@media(min-width:701px) { .tt-welcome-art { left:auto; right:0; width:60%; object-position:42% 58%; mask-image:linear-gradient(90deg,transparent,#000 14%); } }
-.tt-welcome-copy { position:relative; z-index:1; width:64%; padding:40px 32px; background:linear-gradient(90deg,hsl(var(--background)/.94),hsl(var(--background)/.9) 70%,transparent); }
+@media(min-width:701px) { .tt-welcome-art { left:auto; right:0; width:60%; object-position:42% 58%; mask-image:linear-gradient(90deg,transparent,#000 14%); } .tt-welcome-copy { width:46%; } }
 .tt-welcome-kicker { margin:0 0 14px; font-size:14px; font-weight:600; color:hsl(var(--primary)); }
 .tt-welcome-copy h1 { font-size:clamp(38px,5.4vw,68px); line-height:1.04; letter-spacing:-.012em; word-spacing:.06em; font-weight:750; text-wrap:balance; }
 .tt-welcome-lead { max-width:430px; margin:20px 0 0; color:hsl(var(--muted-foreground)); font-size:18px; line-height:1.6; }
