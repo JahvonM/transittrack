@@ -179,3 +179,19 @@ test('Android USB GPS settings can enable, report reconnect status and roll back
  await expect.poll(()=>page.evaluate(()=>window.__usbAutoAcceptSettingsOpened)).toBe(true);
  await page.screenshot({path:'/tmp/driver-usb-gps-settings.png',fullPage:true});
 });
+
+test('SOS hands the driver a WhatsApp message that says who, which bus, and to call', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 1280 });
+  await openDriver(page);
+  const sos = page.getByRole('button', { name: /Press and hold to activate/ }).first();
+  const box = await sos.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1100);
+  await page.mouse.up();
+  const link = page.getByRole('link', { name: 'Alert boss via WhatsApp' });
+  await expect(link).toBeVisible();
+  const text = decodeURIComponent((await link.getAttribute('href')).split('?text=')[1]);
+  expect(text).toBe('SOS from Test Driver on Bus A: I need help now. Please call me.');
+  expect(text).not.toMatch(/mechanical|backup|dispatched/i);
+});

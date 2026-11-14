@@ -35,7 +35,7 @@ export default function DriverLandscapeDrive({session,vehicle,focus,count,stops,
     {(attention.length>0 || panelTop) && <section className="dk-attention" aria-label="Needs attention">{attention}{panelTop}</section>}
 
    </div>
-   <div className="dl-control-dock"><div className="dl-trip-actions" aria-label="Driving controls">{!shiftActive&&shiftControl}{trackingButton}{shiftActive&&shiftControl}</div><SosButton vehicle={vehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} compact/></div>
+   <div className="dl-control-dock"><div className="dl-trip-actions" aria-label="Driving controls">{!shiftActive&&shiftControl}{trackingButton}{shiftActive&&shiftControl}</div><SosButton vehicle={vehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} driverName={session?.driver_name} compact/></div>
   </aside>
   {stopChooser}
  </div>;

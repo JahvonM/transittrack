@@ -73,7 +73,7 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
 
    <details className="dk-details"><summary>Trip details<ChevronRight/></summary><div><p>{session?.occupancy ?? 0} on board{vehicle?.capacity?" · "+vehicle.capacity+" seats":""}</p><Button variant="outline" onClick={onOpenPassengers}><Users/>Passengers</Button><StatusStrip items={statusItems}/><Button variant="outline" onClick={onOpenStops}>All stops & pickup tools</Button>{panelBottom}<Button variant="outline" onClick={onReportIncident}>Report an incident</Button></div></details>
   </div></div><div className="dk-fixed-controls"><div className="dk-drive-controls" aria-label="Driving controls">{!shiftActive && shiftControl}{trackingButton}{shiftActive && shiftControl}</div>
-   <div className="dk-drive-footer"><Button variant="ghost" onClick={onOpenMessages}><MessageCircle/>Messages</Button><SosButton vehicle={vehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} compact/></div>
+   <div className="dk-drive-footer"><Button variant="ghost" onClick={onOpenMessages}><MessageCircle/>Messages</Button><SosButton vehicle={vehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} driverName={session?.driver_name} compact/></div>
   </div>
  {stopChooser}
  </div>;

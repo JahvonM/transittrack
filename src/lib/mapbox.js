@@ -54,5 +54,13 @@ export function waLink(phone, message) {
   return num ? `https://wa.me/${num}${text ? `?text=${text}` : ""}` : `https://wa.me/?text=${text}`;
 }
 
-export const SOS_MESSAGE =
-  "🚨 SOS Alert: The staff bus has encountered a mechanical delay. A backup vehicle is being dispatched immediately.";
+// What the driver sends management on WhatsApp after pressing SOS: who, which
+// bus and where the bus last reported, and a request to call. It never guesses
+// what went wrong or promises help that may not be on its way.
+export function sosMessage({ driver = "", bus = "", lat, lng } = {}) {
+  const name = String(driver || "").trim(), vehicle = String(bus || "").trim();
+  const who = name && vehicle ? `${name} on ${vehicle}` : name || vehicle;
+  const at = Number.isFinite(lat) && Number.isFinite(lng)
+    ? ` Last known location: https://maps.google.com/?q=${lat.toFixed(5)},${lng.toFixed(5)}` : "";
+  return `SOS${who ? ` from ${who}` : ""}: I need help now. Please call me.${at}`;
+}
