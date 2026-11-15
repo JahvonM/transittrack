@@ -106,12 +106,16 @@ test('one tap starts a bus\'s back camera in its box; the driver tablet\'s camer
   await wall.getByLabel('Search buses').fill('');
   await expect(tiles.getByRole('button', { name: `Open live camera: ${data.vehicles[0].name}` })).toBeEnabled();
   await expect.poll(() => support.filter((x) => x.operation === 'end').length).toBe(3);
-  // Closing the wall ends any view still open.
+  // Closing the wall ends any view still open. The box shows before the view
+  // is asked for (it checks viewing is available first), so wait for the ask:
+  // closing earlier leaves nothing to end.
   await tiles.getByRole('button', { name: `Open live camera: ${data.vehicles[0].name}` }).click();
   await expect(viewer).toBeVisible();
+  await expect.poll(() => support.filter((x) => x.operation === 'request').length).toBe(4);
   await page.keyboard.press('Escape');
   await expect(wall).toBeHidden();
-  await expect.poll(() => support.filter((x) => x.operation === 'end').length).toBe(4);
+  // Every view asked for was ended, this last one included.
+  await expect.poll(() => support.filter((x) => x.operation === 'end').map((x) => x.session_id)).toEqual(['view-1', 'view-2', 'view-3', 'view-4']);
   await expect(page).toHaveURL(/\/admin\/fleet$/);
   expect(errors).toEqual([]);
 });
