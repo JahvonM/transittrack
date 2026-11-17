@@ -42,9 +42,17 @@ test('a job not started on time pops up and stays until handled; Open goes to Jo
 });
 
 test('a new ride request pops up when the lists refresh, then goes; pop-ups can be turned off', async ({ page }) => {
-  const { data, errors } = await open(page, { clock: true });
+  const { data, errors, session } = await open(page, { clock: true });
   await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
-  await page.clock.fastForward(3000); // the first refresh: what's already there doesn't pop up
+  // The first refresh decides what is "already there", so it has to reach the
+  // server before the new request is added, or the request counts as old. The
+  // bell may start watching a moment after the page shows, so move the clock
+  // on until that refresh has gone out, not by one fixed step.
+  const firstRefresh = () => session.calls.some((c) => c.fn === 'entityAccess' && c.body?.entity === 'LiveLists' && c.body.entities?.includes('BookingRequest'));
+  await expect.poll(async () => {
+    if (!firstRefresh()) await page.clock.fastForward(1000);
+    return firstRefresh();
+  }, { timeout: 15000 }).toBe(true);
   await expect(page.getByRole('region', { name: 'New notifications' })).toHaveCount(0);
 
   data.tables.BookingRequest.push({ id: 'req-9', status: 'new', service: 'transfer', requested_time: new Date(Date.now() + 86_400_000).toISOString(), pickup: 'Spice Island Beach Resort', name: 'Ana Joseph', email: 'ana@example.com', created_date: new Date().toISOString() });
