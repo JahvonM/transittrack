@@ -1,7 +1,6 @@
-// The app's backend client on Supabase (step 7 of the move from Base44).
-// Used by `vite build --mode supabase` (the Cloudflare build); the normal build
-// keeps backend.base44.js. It answers the same calls the app already makes on
-// the Base44 client, so the screens don't change:
+// The app's backend client: Supabase. Every build uses it (vite.config.js).
+// It answers the same calls the app made when it ran on Base44, so the screens
+// didn't change:
 //   auth.*                 Supabase Auth (email + password with a code,
 //                          Google/Apple, password reset)
 //   functions.invoke       the same functions, on Supabase Edge Functions
