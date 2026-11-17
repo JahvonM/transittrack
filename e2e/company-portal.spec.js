@@ -9,11 +9,11 @@ const bus = (id, name, shared, at = {}) => ({ id, name, company_id: 'a', company
 
 async function portal(page, { vehicles = [], trips = [], requests = [] } = {}) {
   const calls = [];
-  await page.addInitScript(() => localStorage.setItem('base44_access_token', 'mock-authenticated-session'));
+  await page.addInitScript(() => localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})));
   await page.route('**/api/**', async (route) => {
     const req = route.request(), url = req.url();
     if (url.includes('/entities/')) return route.fulfill({ status: 403, json: { error: 'Direct access blocked' } });
-    if (url.includes('/functions/entityAccess')) {
+    if (url.includes('/functions/v1/entityAccess')) {
       const body = req.postDataJSON();
       let result = [];
       if (body.entity === 'User') result = { id: 'caller', role: 'company', company_id: 'a', email: 'desk@hotel.invalid', full_name: 'Front Desk' };
@@ -23,7 +23,7 @@ async function portal(page, { vehicles = [], trips = [], requests = [] } = {}) {
       else if (body.entity === 'LiveLists') result = { lists: { Vehicle: vehicles, Trip: trips }, errors: {} };
       return route.fulfill({ json: { result } });
     }
-    if (url.includes('/functions/bookingRequest')) {
+    if (url.includes('/functions/v1/bookingRequest')) {
       const body = req.postDataJSON();
       calls.push(body);
       if (body.action === 'company_requests') return route.fulfill({ json: { requests } });

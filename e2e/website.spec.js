@@ -8,8 +8,8 @@ async function site(page, { whatsapp = '14735550100' } = {}) {
   const requests = [];
   await page.route('**/api/**', (r) => {
     const url = r.request().url();
-    if (url.includes('/functions/appSupport')) return r.fulfill({ json: { whatsapp_number: whatsapp } });
-    if (url.includes('/functions/bookingRequest')) { requests.push(r.request().postDataJSON()); return r.fulfill({ json: { ok: true, id: 'req1' } }); }
+    if (url.includes('/functions/v1/appSupport')) return r.fulfill({ json: { whatsapp_number: whatsapp } });
+    if (url.includes('/functions/v1/bookingRequest')) { requests.push(r.request().postDataJSON()); return r.fulfill({ json: { ok: true, id: 'req1' } }); }
     return r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });
   return requests;

@@ -1,10 +1,10 @@
 import {test,expect} from "@playwright/test";
 test("admin overview makes one combined read and refresh bypasses its cache",async({page})=>{
  const batches=[];let busName="Original Bus";
- await page.addInitScript(()=>{localStorage.setItem("base44_access_token","isolated-test-session");localStorage.setItem("tt-map-engine","basic");});
+ await page.addInitScript(()=>{localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:"isolated-test-session",refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));localStorage.setItem("tt-map-engine","basic");});
  await page.route("**/api/**",r=>{
   const body=r.request().postDataJSON(),url=r.request().url();
-  if(url.includes("/functions/entityAccess")){
+  if(url.includes("/functions/v1/entityAccess")){
    if(body.entity==="User")return r.fulfill({json:{result:{id:"admin-test",role:"admin",full_name:"Test Admin"}}});
    if(body.entity==="AdminBootstrap"){
     batches.push(body);
@@ -30,11 +30,11 @@ test("admin overview makes one combined read and refresh bypasses its cache",asy
 
 test('Fleet health shows local failures and tablet summaries without telemetry requests',async({page})=>{
  let fail=true;const endpoints=[];
- await page.addInitScript(()=>localStorage.setItem('base44_access_token','isolated-test-session'));
+ await page.addInitScript(()=>localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'isolated-test-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})));
  await page.route('**/api/**',r=>{
   const url=r.request().url(),b=r.request().postDataJSON();
   if(url.includes('/functions/')){
-   endpoints.push(url.split('/functions/')[1]);
+   endpoints.push(url.split('/functions/v1/')[1]);
    if(b.entity==='User')return r.fulfill({json:{result:{id:'admin',role:'admin',full_name:'Test Admin'}}});
    if(b.entity==='AdminBootstrap'){
     if(fail)return r.fulfill({json:{result:{datasets:{},errors:{vehicles:{status:503,error:'Unavailable'}}}}});

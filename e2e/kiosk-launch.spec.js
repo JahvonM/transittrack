@@ -63,5 +63,5 @@ test("web passenger sign-in is unchanged", async ({ page }) => {
   await page.goto("/login");
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("heading", { name: "What is this tablet for?" })).toHaveCount(0);
-  await expect(page.locator('input[type="email"]')).toBeVisible();
+  await expect(page.getByLabel('Email address or username')).toBeVisible();
 });

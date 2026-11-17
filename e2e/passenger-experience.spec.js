@@ -6,14 +6,14 @@ const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A'
 async function session(page,role) {
  const calls=[],direct=[];
  await page.addInitScript(()=>{
-   localStorage.setItem('base44_access_token','mock-authenticated-session');
+   localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
    localStorage.setItem('tt-map-engine','basic');
  });
  await page.route('https://api.mapbox.com/**', r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',async route=>{
   const request=route.request(), url=request.url();
   if(url.includes('/entities/')) {direct.push(url);return route.fulfill({status:403,json:{error:'Direct entity access blocked'}});}
-  if(url.includes('/functions/entityAccess')) {
+  if(url.includes('/functions/v1/entityAccess')) {
    const body=request.postDataJSON();calls.push(body);
    let result=[];
    if(body.entity==='User' && body.operation==='get') result={id:'caller',email:'caller@test.local',full_name:'Test Caller',role,company_id:role==='company'?'a':''};
@@ -35,15 +35,15 @@ async function passengerShowcase(page, { stale = false, light = false, parked = 
   }, {light,pickup});
   const passenger={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',...(pickup ? {favorite_stop:pickup} : {}),...extra};
   // Where this passenger's pickup was merged with neighbours' along the road.
-  await page.route('**/functions/routeStops',r=>r.fulfill({json:{stop:sharedStop}}));
+  await page.route('**/functions/v1/routeStops',r=>r.fulfill({json:{stop:sharedStop}}));
   const stops=[{name:"St. George's",lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.01,lng:-61.77,order:2},{name:'Morne Rouge',lat:12,lng:-61.78,order:3}];
   const bus={...vehicles[0],name:'TT-102',route_id:'route-a',current_lat:12.022,current_lng:-61.758,tracking_active:!parked,status:parked ? 'active' : 'on_trip',speed:parked ? 0 : 25,driver_name:'K. Thomas',last_location_update:new Date(Date.now()-(stale ? 600000 : 20000)).toISOString(),...busExtra};
   // The bus Admin → Passengers put this passenger on; null once it's removed.
-  await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Grenada Transport Co.'},my_bus:assigned.current ? {id:bus.id,name:bus.name} : null}}));
+  await page.route('**/functions/v1/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Grenada Transport Co.'},my_bus:assigned.current ? {id:bus.id,name:bus.name} : null}}));
   const buses=[bus,{...bus,id:'bus-c',name:'TT-108'}];
   const routes=routeList || [{id:'route-a',company_id:'a',name:'Coastal route',active:true,stops}];
   const state={workplace:null};
-  await page.route('**/functions/entityAccess',r=>{
+  await page.route('**/functions/v1/entityAccess',r=>{
     const b=r.request().postDataJSON();let result=[];
     // The passenger home asks for its company's workplace, buses, routes and trips in one request.
     if(b.entity==='Bootstrap') result={workplace:state.workplace,vehicles:buses,routes,trips:[]};
@@ -61,8 +61,8 @@ async function passengerShowcase(page, { stale = false, light = false, parked = 
 
 test('four passenger tabs retain data and open map only on request',async({page})=>{
  await page.setViewportSize({width:390,height:844});await passengerShowcase(page,{pickup:'Morne Rouge'});
- await page.route('**/functions/passengerAccount',r=>r.fulfill({json:{card:{issued:true,active:true,status:'Active'},history:[{id:'mine',vehicle_name:'TT-102',status:'boarded',boarded_at:'2026-10-11T10:00:00Z'}]}}));
- await page.route('**/functions/generateBoardingQr',r=>r.fulfill({json:{token:'TEST-QR'}}));
+ await page.route('**/functions/v1/passengerAccount',r=>r.fulfill({json:{card:{issued:true,active:true,status:'Active'},history:[{id:'mine',vehicle_name:'TT-102',status:'boarded',boarded_at:'2026-10-11T10:00:00Z'}]}}));
+ await page.route('**/functions/v1/generateBoardingQr',r=>r.fulfill({json:{token:'TEST-QR'}}));
  await expect(page.getByLabel('Your next bus')).toBeVisible();
  await expect(page.getByLabel('Bus arrival details')).toContainText('Estimated pickup');
  await expect(page.getByLabel('Bus arrival details')).toContainText('1 stop away');
@@ -98,7 +98,7 @@ test('the passenger can tell their driver they are running late or skipping toda
  await page.setViewportSize({width:390,height:844});await passengerShowcase(page);
  const me={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',favorite_stop:'Grand Anse'};
  const updates=[];
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/v1/entityAccess',r=>{
   const b=r.request().postDataJSON();
   if(b.entity!=='User')return r.fallback();
   if(b.operation==='update'){updates.push(b.data);Object.assign(me,b.data);}
@@ -193,7 +193,7 @@ test('reduce motion: sheets fade instead of sliding',async({page})=>{
 test('return trip uses company pickup and home dropoff',async({page})=>{
  const state=await passengerShowcase(page,{extra:{pickup_name:'My home',pickup_lat:12.01,pickup_lng:-61.77}});
  state.workplace={name:'Hotel entrance',lat:12.05,lng:-61.75};
- await page.route('**/functions/entityAccess',r=>{
+ await page.route('**/functions/v1/entityAccess',r=>{
  const b=r.request().postDataJSON();
  const result=b.entity==='User'?{id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',favorite_stop:'Grand Anse',pickup_name:'My home',pickup_lat:12.01,pickup_lng:-61.77}:b.entity==='Bootstrap'?{workplace:state.workplace,vehicles:[{...vehicles[0],name:'TT-102',route_id:'route-a',trip_direction:'to_home',tracking_active:true,status:'on_trip',current_lat:12.05,current_lng:-61.75,last_location_update:new Date().toISOString()}],routes:[],trips:[]}: [];
  return r.fulfill({json:{result}});
@@ -407,8 +407,8 @@ test.describe('phone tour',()=>{
   const cyanDark='rgb(24, 217, 237)',cyanLight='rgb(14, 116, 144)';
   if(accent)expect([cyanDark,cyanLight]).not.toContain(button);
   else expect(button).toBe(light?cyanLight:cyanDark);
-  await page.route('**/functions/passengerAccount',r=>r.fulfill({json:{card:{issued:true,active:true,status:'Active'},history:[{id:'mine',vehicle_name:'TT-102',status:'boarded',boarded_at:'2026-10-11T10:00:00Z'}]}}));
-  await page.route('**/functions/generateBoardingQr',r=>r.fulfill({json:{token:'TEST-QR'}}));
+  await page.route('**/functions/v1/passengerAccount',r=>r.fulfill({json:{card:{issued:true,active:true,status:'Active'},history:[{id:'mine',vehicle_name:'TT-102',status:'boarded',boarded_at:'2026-10-11T10:00:00Z'}]}}));
+  await page.route('**/functions/v1/generateBoardingQr',r=>r.fulfill({json:{token:'TEST-QR'}}));
   const dir=process.env.TT_SHOT_DIR;
   const fits=async()=>expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   // Pictures are phone-screen sized: the top of each screen, then its end.
@@ -467,12 +467,12 @@ test.describe('phone tour',()=>{
 });
 
 // "Trust the phone" and the saved home (savedSignIn.js, passengerSnapshot.js).
-// A sign-in token shaped like Base44's, so the saved profile can be tied to it.
+// A sign-in token shaped like a real one (the saved profile is tied to the session's user).
 const b64=o=>Buffer.from(JSON.stringify(o)).toString('base64url');
 const signedIn=`${b64({alg:'none'})}.${b64({sub:'caller',exp:Math.floor(Date.now()/1000)+3600})}.sig`;
 async function openedOnce(page){
  await passengerShowcase(page);
- await page.addInitScript(t=>localStorage.setItem('base44_access_token',t),signedIn);
+ await page.addInitScript(t=>localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:t,refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})),signedIn);
  await page.reload();
  await expect(page.getByLabel('Your next bus',{exact:true})).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>!!localStorage.getItem('tt_saved_profile_v1'))).toBe(true);
@@ -489,8 +489,7 @@ test('a passenger who has opened the app before sees their home before the serve
 });
 test('a sign-in the server has ended goes back to sign-in and forgets the saved profile',async({page})=>{
  await openedOnce(page);
- await page.route('**/entities/User/me**',r=>r.fulfill({status:401,json:{message:'Authentication required'}}));
- await page.route('**/functions/entityAccess',r=>r.request().postDataJSON()?.entity==='User'?r.fulfill({status:401,json:{error:'Authentication required'}}):r.fallback());
+ await page.route('**/functions/v1/entityAccess',r=>r.request().postDataJSON()?.entity==='User'?r.fulfill({status:401,json:{error:'Authentication required'}}):r.fallback());
  await page.reload();
  await expect(page).toHaveURL(/\/login/);
  expect(await page.evaluate(()=>localStorage.getItem('tt_saved_profile_v1'))).toBeNull();

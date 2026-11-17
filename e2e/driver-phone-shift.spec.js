@@ -12,11 +12,11 @@ const ME={driver:{name:'Dana Driver',email:'dana.driver@gmail.com',phone:''},com
 
 async function phone(page,{todayData=today(),hours=[]}={}) {
  const calls=[];const state={today:todayData};
- await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
+ await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',async route=>{
   const url=route.request().url();
-  if(url.includes('/functions/driverPhone')) {
+  if(url.includes('/functions/v1/driverPhone')) {
    const body=route.request().postDataJSON();calls.push(body);
    if(body.action==='claim_bus') {
     if(body.code!=='K7Q4MD') return route.fulfill({status:404,json:{error:'That code didn\'t work. Codes last 2 minutes: tap "Start with the driver app" on the tablet again.'}});
@@ -32,12 +32,12 @@ async function phone(page,{todayData=today(),hours=[]}={}) {
    const reply={me:ME,today:state.today,messages:{messages:[]},documents:{documents:[]},hours:{shifts:hours},register_push:{ok:true}}[body.action];
    return route.fulfill({json:reply||{error:'Unknown action'}});
   }
-  if(url.includes('/functions/entityAccess')) {
+  if(url.includes('/functions/v1/entityAccess')) {
    const body=route.request().postDataJSON();
    if(body.entity==='User' && body.operation==='get') return route.fulfill({json:{result:{id:'u1',email:'dana.driver@gmail.com',full_name:'Dana Driver',role:'user'}}});
    return route.fulfill({json:{result:[]}});
   }
-  if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'u1',email:'dana.driver@gmail.com',role:'user'}});
+  if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:{id:'u1',email:'dana.driver@gmail.com',role:'user'}}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  });
  return calls;
@@ -148,7 +148,7 @@ test.describe('bus tablet',()=>{
   await page.addInitScript(()=>{ localStorage.setItem('tt_driver_device_id','driver-test'); localStorage.setItem('tt_driver_unlock_date','2000-01-01'); });
   await page.route('**/api/**',async route=>{
    const url=route.request().url();const body=route.request().postDataJSON();
-   if(url.includes('/functions/driverSession')) {
+   if(url.includes('/functions/v1/driverSession')) {
     calls.push(body);
     if(body?.action==='phone_unlock_code') return route.fulfill({json:{unlock_id:'u1',code:'K7Q4MD',expires_at:new Date(Date.now()+120e3).toISOString()}});
     if(body?.action==='phone_unlock_status') return route.fulfill({json:++polls<2?{status:'pending'}:{status:'unlocked',driver_name:'Dana Driver',driver_grant:'b'.repeat(64)}});
@@ -175,7 +175,7 @@ test.describe('bus tablet',()=>{
   await page.addInitScript(()=>{ localStorage.setItem('tt_driver_device_id','driver-test'); localStorage.setItem('tt_driver_unlock_date','2000-01-01'); });
   await page.route('**/api/**',async route=>{
    const url=route.request().url();const body=route.request().postDataJSON();
-   if(url.includes('/functions/driverSession')) {
+   if(url.includes('/functions/v1/driverSession')) {
     if(body?.action==='phone_unlock_code') return route.fulfill({json:{unlock_id:'u1',code:'K7Q4MD',expires_at:new Date(Date.now()+120e3).toISOString()}});
     if(body?.action==='phone_unlock_status') return route.fulfill({json:{status:'pending'}});
     return route.fulfill({json:{vehicle:{id:'bus-a',name:'Bus 12',company_id:'c'},driver_name:'Dana',has_driver_pin:true,staff:[],check_ins:[],broadcasts:[],group_messages:[],trips:[],inspection_templates:[],recent_inspections:[],open_shift:null}});

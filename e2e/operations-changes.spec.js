@@ -13,7 +13,7 @@ async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,co
  const tables={Vehicle:[vehicle],User:users,Company:[{id:'a',name:'Island Transit'}],Route:[],Workplace:[],GroupMessage:messages};
  if(model)await page.addInitScript(m=>{window.__ttNativeHealth={model:m};},model);
  await page.addInitScript(()=>{
-  localStorage.setItem('base44_access_token','mock-authenticated-session');
+  localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
   localStorage.setItem('tt_driver_device_id','driver');
   localStorage.setItem('tt_kiosk_device_id','board');
   localStorage.setItem('tt_device_token_board','a'.repeat(64));
@@ -27,8 +27,8 @@ async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,co
  await page.route('**/api.open-meteo.com/**',route=>route.fulfill({json:{current:{temperature_2m:29,weather_code:1}}}));
  await page.route('**/api/**',async route=>{
   const req=route.request(),url=req.url();let b={};try{b=req.postDataJSON()||{};}catch{}
-  if(url.includes('/entities/User/me'))return route.fulfill({json:who});
-  if(url.includes('/functions/entityAccess')){
+  if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:who}});
+  if(url.includes('/functions/v1/entityAccess')){
    let result=[];
    if(b.entity==='User' && b.operation==='get')result=who;
    else if(b.entity==='AdminBootstrap'){
@@ -40,7 +40,7 @@ async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,co
    }else result=tables[b.entity] || [];
    return route.fulfill({json:{result}});
   }
-  if(url.includes('/functions/accessRoles')){
+  if(url.includes('/functions/v1/accessRoles')){
    calls.push(b);
    if(b.action==='workspace')return route.fulfill(b.section==='fleet'?{json:{fields:['name','plate_number','status'],rows:[vehicle],more:false,role:who.access_role}}:{status:403,json:{error:'Screen not permitted'}});
    if(b.action==='save'){
@@ -51,19 +51,19 @@ async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,co
    if(b.action==='assign')return route.fulfill({json:{ok:true}});
    return route.fulfill({json:{roles,assignments:[]}});
   }
-  if(url.includes('/functions/driverSession')){
+  if(url.includes('/functions/v1/driverSession')){
    if(b.action==='verify_pin')return route.fulfill({json:{ok:true,driver_grant:'a'.repeat(64)}});
    if(b.action==='messages')return route.fulfill({json:{group_messages:messages}});
    if(b.action==='show_pickup_sign'){calls.push(b);return route.fulfill({json:{ok:true,devices:1}});}
    return route.fulfill({json:{...driver,group_messages:messages}});
   }
-  if(url.includes('/functions/kioskHeartbeat'))return route.fulfill({json:kiosk});
-  if(url.includes('/functions/kioskCheckIn')){
+  if(url.includes('/functions/v1/kioskHeartbeat'))return route.fulfill({json:kiosk});
+  if(url.includes('/functions/v1/kioskCheckIn')){
    if(b.action==='lookup_tag')return route.fulfill({json:{staff:{id:'p',full_name:'Test Passenger'},next_status:'boarded',verification_grant:'b'.repeat(64)}});
    if(b.action==='offline_directory')return route.fulfill({json:{staff:[]}});
    return route.fulfill({json:{ok:true}});
   }
-  if(url.includes('/functions/notifyAdminMessage')){calls.push({notify:b});return route.fulfill({json:{ok:true}});}
+  if(url.includes('/functions/v1/notifyAdminMessage')){calls.push({notify:b});return route.fulfill({json:{ok:true}});}
   if(url.includes('/entities/'))return route.fulfill({status:403,json:{error:'Direct access blocked'}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  });
@@ -214,7 +214,7 @@ test('a tablet keeps its wording unless Admin says where the reader is',async({p
 test('the in-bus information screen shows the nearest stop and keeps no passenger list',async({page})=>{
  await page.setViewportSize({width:1280,height:800});
  const {calls}=await setup(page,{layout:'info'});
- const seen=[];page.on('request',r=>{if(r.url().includes('/functions/kioskCheckIn'))seen.push(r.postDataJSON()?.action);});
+ const seen=[];page.on('request',r=>{if(r.url().includes('/functions/v1/kioskCheckIn'))seen.push(r.postDataJSON()?.action);});
  await page.goto('/kiosk');
  await expect(page.locator('[data-layout=info]')).toBeVisible();
  await expect(page.getByRole('region',{name:'Where the bus is'})).toContainText('Bus position not available right now');

@@ -13,7 +13,7 @@ async function backend(page, kioskType) {
   await page.route('https://api.mapbox.com/**', (r) => r.fulfill({ status: 404, body: '' }));
   await page.route('**/api.open-meteo.com/**', (r) => r.fulfill({ json: { current: { temperature_2m: 28, weather_code: 0 } } }));
   await page.route('**/api/**', (route) => {
-    const fn = route.request().url().match(/\/functions\/([A-Za-z]+)/)?.[1];
+    const fn = route.request().url().match(/\/functions\/v1\/([A-Za-z]+)/)?.[1];
     if (fn === 'pairKioskDevice') {
       const body = route.request().postDataJSON();
       pairs.push({ code: body.pairing_code, screen: body.expected_type });

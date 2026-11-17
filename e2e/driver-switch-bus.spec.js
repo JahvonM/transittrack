@@ -19,7 +19,7 @@ async function mockApi(page, { gone = false, shiftOpen = '', bus = bus3 } = {}) 
   await page.route('**/api/**', async (route) => {
     const url = route.request().url();
     const body = route.request().postDataJSON();
-    if (url.includes('/functions/driverSession')) {
+    if (url.includes('/functions/v1/driverSession')) {
       state.calls.push({ action: body?.action, vehicle_id: body?.vehicle_id, pin: body?.pin });
       if (body?.action === 'list_buses') return route.fulfill({ json: { current: 'bus-3', ...(shiftOpen ? { shift_open: shiftOpen } : {}), buses: [
         { id: 'bus-3', name: 'Bus 3', plate_number: 'P 3333', type: 'bus', busy: false },

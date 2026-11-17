@@ -12,9 +12,9 @@ async function mockApi(page, calls, driverContext=driver) {
     const url = request.url();
     calls.push(url);
     const body = request.postDataJSON();
-    if (url.includes('/functions/kioskHeartbeat')) return route.fulfill({ json: kiosk });
-    if (url.includes('/functions/kioskCheckIn')) return route.fulfill({ json: { staff: [], generated_at: new Date().toISOString() } });
-    if (url.includes('/functions/driverSession')) {
+    if (url.includes('/functions/v1/kioskHeartbeat')) return route.fulfill({ json: kiosk });
+    if (url.includes('/functions/v1/kioskCheckIn')) return route.fulfill({ json: { staff: [], generated_at: new Date().toISOString() } });
+    if (url.includes('/functions/v1/driverSession')) {
       if (body?.action === 'my_documents') return route.fulfill(body.pin === '1234'
         ? { json: { ok: true, driver_name: 'Test Driver', documents: [
           { kind: 'license', document_number: 'DL-1', expiry_date: '2030-01-31', file_name: 'licence.png', url: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' },
@@ -23,7 +23,7 @@ async function mockApi(page, calls, driverContext=driver) {
       if (body?.action === 'verify_pin') return route.fulfill(body.pin === '1234' ? { json: { ok: true, driver_grant: "a".repeat(64) } } : { status: 403, json: { error: 'Incorrect PIN' } });
       return route.fulfill({ json: driverContext });
     }
-    if (url.includes('/functions/appSupport')) return route.fulfill({ json: { whatsapp_number: '14735551234' } });
+    if (url.includes('/functions/v1/appSupport')) return route.fulfill({ json: { whatsapp_number: '14735551234' } });
     if (url.includes('/entities/')) return route.fulfill({ status: 403, json: { error: 'Direct entity access blocked in test' } });
     return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });
@@ -224,7 +224,7 @@ test('locked driver can request an admin PIN reset and stays locked',async({page
  await mockApi(page,[]);
  await page.addInitScript(()=>localStorage.setItem('tt_driver_device_id','driver-test'));
  let requests=0;
- await page.route('**/functions/driverSession',route=>{
+ await page.route('**/functions/v1/driverSession',route=>{
   const body=route.request().postDataJSON();
   if(body.action==='request_pin_reset'){requests++;return route.fulfill({json:{ok:true}});}
   return route.fulfill({json:driver});
@@ -242,8 +242,8 @@ test('boarding tablet uses its saved card file after restart when offline',async
  await mockApi(page,[]);
  let offline=false,lookups=0;
  const fingerprint=createHash('sha256').update('kiosk-test:AABBCCDD').digest('hex');
- await page.route('**/functions/kioskHeartbeat',route=>offline?route.abort():route.fulfill({json:kiosk}));
- await page.route('**/functions/kioskCheckIn',route=>{
+ await page.route('**/functions/v1/kioskHeartbeat',route=>offline?route.abort():route.fulfill({json:kiosk}));
+ await page.route('**/functions/v1/kioskCheckIn',route=>{
   const body=route.request().postDataJSON();
   if(body.action==='lookup_tag')lookups++;
   if(offline)return route.abort();
@@ -272,7 +272,7 @@ test('boarding tablet uses its saved card file after restart when offline',async
 async function scannerBoarding(page) {
  await mockApi(page,[]);
  const fingerprint=createHash('sha256').update('kiosk-test:AABBCCDD').digest('hex');
- await page.route('**/functions/kioskCheckIn',r=>{
+ await page.route('**/functions/v1/kioskCheckIn',r=>{
    const b=r.request().postDataJSON();
    if(b.action==='offline_directory')return r.fulfill({json:{version:1,device_id:'kiosk-test',company_id:'company-a',vehicle_id:'bus-a',generated_at:new Date().toISOString(),expires_at:new Date(Date.now()+86400000).toISOString(),directory_grant:'a'.repeat(64),staff:[{id:'rider',full_name:'First Tap Passenger',photo_url:'',card_fingerprint:fingerprint}]}});
    return r.fulfill({status:500,json:{error:'Unexpected server lookup'}});
@@ -315,7 +315,7 @@ test('boarding drains wake taps once and reacquires its screen lock',async({page
 
 test('completed card boarding returns to swipe screen with company banner',async({page})=>{
  await scannerBoarding(page);
- await page.route('**/functions/kioskCheckIn',r=>{
+ await page.route('**/functions/v1/kioskCheckIn',r=>{
    const b=r.request().postDataJSON();
    if(b.action==='check_in')return r.fulfill({json:{record:{id:'boarding',staff_name:'First Tap Passenger',status:'boarded'},occupancy:8,today_count:13}});
    return r.fallback();
@@ -329,7 +329,7 @@ test('completed card boarding returns to swipe screen with company banner',async
 
 test('completed code exit returns to swipe screen',async({page})=>{
  await scannerBoarding(page);
- await page.route('**/functions/kioskCheckIn',r=>{
+ await page.route('**/functions/v1/kioskCheckIn',r=>{
    const b=r.request().postDataJSON();
    if(b.action==='lookup_code')return r.fulfill({json:{staff:{id:'rider',full_name:'Code Passenger'},next_status:'off_board',verification_grant:'b'.repeat(64)}});
    if(b.action==='check_in')return r.fulfill({json:{record:{id:'exit',staff_name:'Code Passenger',status:'off_board'},occupancy:6,today_count:12}});
@@ -418,7 +418,7 @@ test('driver stops show who is picked up where, the drop-off, and fix a stop fro
   await page.route('**/api/**', async (r) => {
     const url = r.request().url();
     const body = r.request().postDataJSON();
-    if (url.includes('/functions/driverSession')) {
+    if (url.includes('/functions/v1/driverSession')) {
       if (body?.action === 'verify_pin') return r.fulfill({ json: { ok: true, driver_grant: 'a'.repeat(64) } });
       if (body?.action === 'move_stop') { calls.push(body); return r.fulfill({ json: { ok: true, route } }); }
       return r.fulfill({ json: live });
@@ -446,7 +446,7 @@ test('driver tablet loading offers retry after a slow response without unlocking
  await mockApi(page,[]);
  await page.addInitScript(()=>localStorage.setItem('tt_driver_device_id','driver-test'));
  let release;const pending=new Promise(resolve=>{release=resolve});
- await page.route('**/functions/driverSession',async r=>{await pending;return r.fallback();});
+ await page.route('**/functions/v1/driverSession',async r=>{await pending;return r.fallback();});
  await page.goto('/driver');
  const loading=page.getByRole('region',{name:'McSween Transport loading screen'});
  await expect(loading).toBeVisible();
@@ -580,7 +580,7 @@ test('driver tablet with an always-on hotspot keeps Wi-Fi off and says why', asy
 test('boarding tablet opens its Internet settings after holding the top bar and the bus PIN', async ({ page }) => {
   const calls = [], helper = [];
   await mockApi(page, calls);
-  await page.route('**/functions/kioskCheckIn', (route) => {
+  await page.route('**/functions/v1/kioskCheckIn', (route) => {
     const body = route.request().postDataJSON();
     if (body?.action !== 'verify_settings_pin') return route.fallback();
     return route.fulfill(body.pin === '1234' ? { json: { ok: true } } : { status: 403, json: { error: 'Incorrect PIN' } });
@@ -621,7 +621,7 @@ test('boarding tablet opens its Internet settings after holding the top bar and 
 test('boarding tablet joins a Wi-Fi chosen on its screen without changing its bus hotspot', async ({ page }) => {
   const calls = [], helper = [];
   await mockApi(page, calls);
-  await page.route('**/functions/kioskCheckIn', (route) => {
+  await page.route('**/functions/v1/kioskCheckIn', (route) => {
     const body = route.request().postDataJSON();
     return body?.action === 'verify_settings_pin' ? route.fulfill({ json: { ok: true } }) : route.fallback();
   });
@@ -655,7 +655,7 @@ test('a boarding code sent over Bluetooth shows the passenger to confirm, like a
   await page.addInitScript(() => { window.__ttHelperKey = 'k'.repeat(32); });
   await page.route('http://127.0.0.1:8765/**', (route) => { helper.push(route.request().url()); return route.fulfill({ status: 204, body: '' }); });
   await scannerBoarding(page);
-  await page.route('**/functions/kioskCheckIn', (route) => {
+  await page.route('**/functions/v1/kioskCheckIn', (route) => {
     const b = route.request().postDataJSON();
     if (b.action === 'lookup_code') { lookups.push(b.code); return route.fulfill({ json: { staff: { id: 'rider', full_name: 'Phone Passenger' }, next_status: 'boarded', code_type: 'permanent_qr', verification_grant: 'c'.repeat(64) } }); }
     if (b.action === 'check_in') { checkIns.push(b); return route.fulfill({ json: { record: { id: 'in', staff_name: 'Phone Passenger', status: 'boarded' }, occupancy: 7, today_count: 13 } }); }

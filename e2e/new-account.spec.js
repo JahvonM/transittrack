@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
 async function newAccount(page, { companyAccess, meAfterCheck = null }) {
   const state = { role: 'user', me: 0, companyChecks: 0, logins: [] };
   await page.addInitScript(() => {
-    localStorage.setItem('base44_access_token', 'mock-authenticated-session');
+    localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
     localStorage.setItem('tt-map-engine', 'basic');
   });
   page.on('framenavigated', (frame) => {
@@ -14,7 +14,7 @@ async function newAccount(page, { companyAccess, meAfterCheck = null }) {
   await page.route('https://api.mapbox.com/**', (r) => r.fulfill({ status: 404, body: '' }));
   await page.route('**/api/**', async (route) => {
     const url = route.request().url();
-    if (url.includes('/functions/entityAccess')) {
+    if (url.includes('/functions/v1/entityAccess')) {
       const body = route.request().postDataJSON();
       if (body.entity === 'User' && body.operation === 'get') {
         state.me += 1;
@@ -23,11 +23,11 @@ async function newAccount(page, { companyAccess, meAfterCheck = null }) {
       }
       return route.fulfill({ json: { result: [] } });
     }
-    if (url.includes('/functions/companyAccess')) {
+    if (url.includes('/functions/v1/companyAccess')) {
       state.companyChecks += 1;
       return route.fulfill(companyAccess(state));
     }
-    if (url.includes('/functions/driverPhone')) return route.fulfill({ json: { driver: null } });
+    if (url.includes('/functions/v1/driverPhone')) return route.fulfill({ json: { driver: null } });
     if (url.includes('/functions/')) return route.fulfill({ json: {} });
     return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });

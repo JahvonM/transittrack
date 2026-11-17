@@ -28,9 +28,9 @@ async function setup(page, { heartbeat = () => ({ json: device() }), checkIn = (
     const url = route.request().url();
     let body = {};
     try { body = route.request().postDataJSON() || {}; } catch { /* no body */ }
-    if (url.includes('/functions/kioskHeartbeat')) return route.fulfill(heartbeat(body));
-    if (url.includes('/functions/pairKioskDevice')) { calls.push(['pair', body.pairing_code]); return route.fulfill({ json: { ...device(), device_token: TOKEN } }); }
-    if (url.includes('/functions/kioskCheckIn')) {
+    if (url.includes('/functions/v1/kioskHeartbeat')) return route.fulfill(heartbeat(body));
+    if (url.includes('/functions/v1/pairKioskDevice')) { calls.push(['pair', body.pairing_code]); return route.fulfill({ json: { ...device(), device_token: TOKEN } }); }
+    if (url.includes('/functions/v1/kioskCheckIn')) {
       calls.push([body.action, body.status || '']);
       const r = checkIn(body);
       if (r === 'abort') return route.abort('internetdisconnected');
@@ -319,7 +319,7 @@ for(const size of [{width:1280,height:800},{width:800,height:1280},{width:1024,h
  test('boarding loading fits '+size.width+'x'+size.height+' and opens immediately after response',async({page})=>{
   await page.setViewportSize(size);await setup(page);
   let release;const pending=new Promise(resolve=>{release=resolve});
-  await page.route('**/functions/kioskHeartbeat',async r=>{await pending;return r.fallback();});
+  await page.route('**/functions/v1/kioskHeartbeat',async r=>{await pending;return r.fallback();});
   await page.goto('/kiosk');
   const loading=page.getByRole('region',{name:'McSween Transport loading screen'});
   await expect(loading).toBeVisible();

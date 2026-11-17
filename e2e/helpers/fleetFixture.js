@@ -124,7 +124,7 @@ export async function mockFleet(page, { role = "admin", data = fleetData(), sign
   // A copy, so a profile change saved in one test never reaches another.
   const me = ME[role] ? structuredClone(ME[role]) : ME[role];
   await page.addInitScript(({ signedIn, role }) => {
-    if (signedIn) localStorage.setItem("base44_access_token", "mock-authenticated-session");
+    if (signedIn) localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:"mock-authenticated-session",refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
     localStorage.setItem("tt-map-engine", "basic");
     if (role === "staff") localStorage.setItem("tt_company_access_grant", "a".repeat(64));
   }, { signedIn, role });
@@ -134,7 +134,7 @@ export async function mockFleet(page, { role = "admin", data = fleetData(), sign
   await page.route("**/api/**", withAdminBatch(async (route) => {
     const request = route.request(), url = request.url();
     if (url.includes("/entities/")) return route.fulfill({ status: 403, json: { error: "Direct entity access blocked" } });
-    const fn = url.match(/\/functions\/([A-Za-z]+)/)?.[1];
+    const fn = url.match(/\/functions\/v1\/([A-Za-z]+)/)?.[1];
     let body = null;
     try { body = request.postDataJSON(); } catch { body = null; }
     if (fn) calls.push({ fn, body });

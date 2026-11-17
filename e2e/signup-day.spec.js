@@ -54,7 +54,7 @@ async function helperDevice(browser, server, helper, viewport) {
   const data = fleetData();
   await mockFleet(page, { role: "admin", data });
   // Registered after the fleet mock, so it answers nfcCards first.
-  await page.route("**/functions/nfcCards", async (route) => {
+  await page.route("**/functions/v1/nfcCards", async (route) => {
     const { status, json } = server.handle(route.request().postDataJSON(), helper);
     await route.fulfill({ status, json });
   });
@@ -146,7 +146,7 @@ test("passenger directory assigns a company with confirmation", async ({ page })
   await mockFleet(page, { role: "admin", data });
   let assignment;
   const person = { key: "contact:walk-in", source: "contact", id: "walk-in", type: "staff", name: "Walk In", directory_type: "passenger", company_id: "" };
-  await page.route("**/functions/nfcCards", route => {
+  await page.route("**/functions/v1/nfcCards", route => {
     const body = route.request().postDataJSON();
     if (body.action === "set_company") {
       assignment = body; person.company_id = body.company_id;

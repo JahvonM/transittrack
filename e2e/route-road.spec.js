@@ -10,7 +10,7 @@ async function planner(page){
   path:[{lat:12.05,lng:-61.75},{lat:12.04,lng:-61.755},{lat:12.03,lng:-61.76}],path_via:[{lat:12.05,lng:-61.75},{lat:12.03,lng:-61.76}]},
   {id:'route-b',name:'Staff stops',company_id:'a',company_name:'Company A',type:'staff',
    stops:[{name:'First stop',lat:12.05,lng:-61.75},{name:'Second stop',lat:12.03,lng:-61.76}]}];
- await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
+ await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); });
  await page.route('https://api.mapbox.com/**',r=>{
   const url=r.request().url();
   // Street snapping: the road goes straight through the tapped points.
@@ -24,12 +24,12 @@ async function planner(page){
  });
  await page.route('**/api/**',async route=>{
   const url=route.request().url();
-  if(url.includes('/functions/routeStops')) return route.fulfill({json:{has_road:true,merge_m:150,
+  if(url.includes('/functions/v1/routeStops')) return route.fulfill({json:{has_road:true,merge_m:150,
    stops:[{key:'pickup:user:a',name:"Outside Joe's shop",lat:12.045,lng:-61.752,along:600,fixed:false,riders:[{id:'user:a',name:'Ann Lee',moved_m:0},{id:'user:b',name:'Ben Cole',moved_m:80}]},
           {key:'pickup:contact:c',name:'Pickup 1',lat:12.035,lng:-61.757,along:1800,fixed:false,riders:[{id:'contact:c',name:'Cara Diaz',moved_m:0}]}],
    off_road:[{id:'user:far',name:'Far Away'}]}});
-  if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}});
-  if(url.includes('/functions/entityAccess')){
+  if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}}});
+  if(url.includes('/functions/v1/entityAccess')){
    const body=route.request().postDataJSON();let result=[];
    if(body.entity==='AdminBootstrap') return route.fulfill({json:{result:{datasets:Object.fromEntries((body.datasets||[]).map(key=>[key,key==='vehicles'?[{id:'bus-a',company_id:'a',name:'Bus A'}]:[]])),errors:{}}}});
    if(body.entity==='User'&&body.operation==='get') result={id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'};

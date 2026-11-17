@@ -19,11 +19,11 @@ const ERRORS=[
 
 async function admin(page){
  const updates=[];const rows=structuredClone(ERRORS);
- await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); localStorage.setItem('tt-map-engine','basic'); });
+ await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); localStorage.setItem('tt-map-engine','basic'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
-  if(url.includes('/functions/entityAccess')){
+  if(url.includes('/functions/v1/entityAccess')){
    const body=route.request().postDataJSON();let result=[];
    if(body.entity==='User'&&body.operation==='get') result={id:'admin',email:'admin@test.local',full_name:'Ada Admin',role:'admin'};
    else if(body.entity==='ClientError'&&body.operation==='update'){updates.push(body);const r=rows.find(x=>x.id===body.id);Object.assign(r,body.data);result=r;}
@@ -31,7 +31,7 @@ async function admin(page){
    else if(body.entity==='KioskDevice') result=[{id:'tab-1',label:'Bus 12 boarding tablet'}];
    return route.fulfill({json:{result}});
   }
-  if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}});
+  if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  }));
  return {updates};

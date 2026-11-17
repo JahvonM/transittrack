@@ -18,9 +18,13 @@ export function liveBackend(source = readFileSync(new URL('./base44/shared/liveB
   if (!m) throw new Error('base44/shared/liveBackend.ts: LIVE_BACKEND line not found')
   return m[1]
 }
-// Browser fixtures intercept Base44 requests; keep their build isolated from the live switch.
-// Normal production builds always follow LIVE_BACKEND.
-const backendMode = (mode) => mode === 'e2e' ? 'base44' : (mode === 'supabase' || liveBackend() === 'supabase' ? 'supabase' : 'base44')
+// The browser tests (`--mode e2e`) build the app exactly as it runs live, on
+// Supabase, but point it at /api on the page's own address, where every test
+// answers for the server. A request a test didn't plan for never reaches the
+// real Supabase. Normal Base44 builds follow LIVE_BACKEND.
+const onSupabase = (mode) => mode === 'supabase' || mode === 'e2e'
+const backendMode = (mode) => (onSupabase(mode) || liveBackend() === 'supabase' ? 'supabase' : 'base44')
+const E2E_SUPABASE_URL = '/api'
 
 // Build stamp shown in Admin → Fleet health, so you can see which tablets
 // are still running an older version. Also written into offline-manifest.json
@@ -54,16 +58,19 @@ function offlineManifest() {
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  define: { __APP_BUILD__: JSON.stringify(APP_BUILD) },
+  define: {
+    __APP_BUILD__: JSON.stringify(APP_BUILD),
+    ...(mode === 'e2e' ? { 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(E2E_SUPABASE_URL) } : {}),
+  },
   resolve: {
     alias: {
       'tt-backend': backendFor(backendMode(mode)),
       // The Base44 plugin provides @/ itself; the Supabase build leaves that plugin out.
-      ...(mode === 'supabase' ? { '@': fileURLToPath(new URL('./src', import.meta.url)) } : {}),
+      ...(onSupabase(mode) ? { '@': fileURLToPath(new URL('./src', import.meta.url)) } : {}),
     },
   },
   plugins: [
-    ...(mode === 'supabase' ? [] : [base44({
+    ...(onSupabase(mode) ? [] : [base44({
       // Support for legacy code that imports the base44 SDK with @/integrations, @/entities, etc.
       // can be removed if the code has been updated to use the new SDK imports from @base44/sdk
       legacySDKImports: process.env.BASE44_LEGACY_SDK_IMPORTS === 'true',

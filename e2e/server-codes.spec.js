@@ -3,16 +3,16 @@ import {test,expect} from '@playwright/test';
 test('company code retrieval uses server management rather than gateway credential writes',async({page})=>{
  const calls=[];
  const company={id:'a',name:'Company A',access_code:'LEGACY'};
- await page.addInitScript(()=>localStorage.setItem('base44_access_token','mock-authenticated-session'));
+ await page.addInitScript(()=>localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})));
  await page.route('**/api/**',async route=>{
   const req=route.request(),url=req.url();
   if(url.includes('/entities/'))return route.fulfill({status:403,json:{error:'Direct access blocked'}});
-  if(url.includes('/functions/manageAccessCodes')){
+  if(url.includes('/functions/v1/manageAccessCodes')){
    const body=req.postDataJSON();calls.push(body);
    Object.assign(company,{access_code:'ABCD2345EFGH',access_code_expires_at:'2026-11-01T12:00:00Z'});
    return route.fulfill({json:{code:company.access_code,expires_at:company.access_code_expires_at}});
   }
-  if(url.includes('/functions/entityAccess')){
+  if(url.includes('/functions/v1/entityAccess')){
    const body=req.postDataJSON();calls.push(body);let result=[];
    if(body.entity==='User'&&body.operation==='get')result={id:'caller',role:'company',company_id:'a',email:'test@test.invalid',full_name:'Manager'};
    else if(body.entity==='Company')result=[company];
@@ -34,8 +34,8 @@ test('boarding keypad sends all twelve digits and caps additional input',async({
  await page.addInitScript(()=>localStorage.setItem('tt_kiosk_device_id','tablet-test'));
  await page.route('**/api/**',async route=>{
   const url=route.request().url(),body=route.request().postDataJSON();
-  if(url.includes('/functions/kioskHeartbeat'))return route.fulfill({json:{device_id:'tablet-test',paired:true,kiosk_type:'bus_boarding',company_id:'a',company_name:'A',vehicle_id:'bus-a',vehicle_name:'Bus A',context:{vehicle:{id:'bus-a',name:'Bus A',capacity:25},route:null,ads:[],occupancy:0,today_count:0}}});
-  if(url.includes('/functions/kioskCheckIn')){
+  if(url.includes('/functions/v1/kioskHeartbeat'))return route.fulfill({json:{device_id:'tablet-test',paired:true,kiosk_type:'bus_boarding',company_id:'a',company_name:'A',vehicle_id:'bus-a',vehicle_name:'Bus A',context:{vehicle:{id:'bus-a',name:'Bus A',capacity:25},route:null,ads:[],occupancy:0,today_count:0}}});
+  if(url.includes('/functions/v1/kioskCheckIn')){
    if(body?.action==='lookup_code'){lookups.push(body.code);return route.fulfill({status:404,json:{error:'code_not_recognized'}});}
    return route.fulfill({json:{staff:[],generated_at:new Date().toISOString()}});
   }
@@ -56,17 +56,17 @@ test('boarding keypad sends all twelve digits and caps additional input',async({
 });
 
 test('the company portal has no advertisements, NFC cards or card designer',async({page})=>{
- await page.addInitScript(()=>localStorage.setItem('base44_access_token','mock-authenticated-session'));
+ await page.addInitScript(()=>localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})));
  await page.route('**/api/**',async route=>{
   const req=route.request(),url=req.url();
   if(url.includes('/entities/'))return route.fulfill({status:403,json:{error:'Direct access blocked'}});
-  if(url.includes('/functions/entityAccess')){
+  if(url.includes('/functions/v1/entityAccess')){
    const body=req.postDataJSON();let result=[];
    if(body.entity==='User')result={id:'caller',role:'company',company_id:'a',email:'manager@test.invalid',full_name:'Manager'};
    else if(body.entity==='Company')result=[{id:'a',name:'Company A',access_code:'ABCD2345EFGH'}];
    return route.fulfill({json:{result}});
   }
-  if(url.includes('/functions/bookingRequest'))return route.fulfill({json:{requests:[]}});
+  if(url.includes('/functions/v1/bookingRequest'))return route.fulfill({json:{requests:[]}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  });
  // Old links open the overview.

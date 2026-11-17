@@ -8,6 +8,25 @@ npx playwright install --with-deps chromium
 npm run test:e2e
 ```
 
+## How the tests stand in for the server
+
+`npm run build:e2e` (`vite build --mode e2e`) builds the app as it runs live,
+on the Supabase client (`src/api/backend.supabase.js`), with Supabase's
+address set to `/api` on the page's own address. Every test answers those
+requests itself with `page.route`, so a request a test didn't plan for never
+reaches the real Supabase.
+
+- Server functions: `POST /api/functions/v1/<name>` with a JSON body. Answer
+  with the function's JSON, or `{ status, json: { error } }` for a refusal.
+- Who is signed in: the client asks `entityAccess` for
+  `{ entity: 'User', operation: 'get', id: 'me' }`; answer `{ result: <user> }`.
+- A saved sign-in: a Supabase session saved under `sb-localhost-auth-token`
+  (see `helpers/supabaseAuth.js`).
+- Sign-in itself: Supabase Auth under `/api/auth/v1/...`. `helpers/supabaseAuth.js`
+  has the Google return (`googleReturn`) and the providers the sign-in page
+  offers (`signInProviders`).
+- Uploads: a form (`file` + `area`) posted to `/api/functions/v1/integrations`.
+
 playwright.config.js discovers only company-isolation.spec.js and
 tablet-context.spec.js, saved-work.spec.js, message-notifications.spec.js and server-codes.spec.js.
 All intercept API calls and exercise the compiled

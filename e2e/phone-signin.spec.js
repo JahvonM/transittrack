@@ -7,16 +7,18 @@ import { webcrypto } from 'node:crypto';
 const STATE = 'S'.repeat(20) + 'tate_' + 'x'.repeat(18);
 const KEY_BYTES = new Uint8Array(32).map((_, i) => (i * 7 + 3) % 256);
 const KEY = Buffer.from(KEY_BYTES).toString('base64url');
-const TOKEN = 'mock-authenticated-session';
+// A Supabase session: the app is handed "<access token>~<refresh token>".
+const TOKEN = 'eyJhbGciOiJub25lIn0.eyJzdWIiOiJ1MSJ9.sig';
+const HANDOFF = `${TOKEN}~test-refresh-token`;
 
 async function mockServer(page, { signedIn }) {
   const seen = { providerLogins: [] };
   if (signedIn) {
-    await page.addInitScript((token) => { localStorage.setItem('base44_access_token', token); }, TOKEN);
+    await page.addInitScript((token) => { localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:token,refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); }, TOKEN);
   }
   await page.route('**/api/**', async (route) => {
     const url = route.request().url();
-    if (url.includes('/functions/entityAccess')) {
+    if (url.includes('/functions/v1/entityAccess')) {
       const body = route.request().postDataJSON();
       if (body.entity === 'User' && body.operation === 'get') {
         if (!signedIn) return route.fulfill({ status: 401, json: { error: 'Authentication required' } });
@@ -27,7 +29,8 @@ async function mockServer(page, { signedIn }) {
     if (url.includes('/functions/')) return route.fulfill({ json: {} });
     return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });
-  await page.route('**/api/apps/auth/**', async (route) => {
+  // Supabase Auth's Google/Apple sign-in starts at /authorize.
+  await page.route('**/api/auth/v1/authorize**', async (route) => {
     seen.providerLogins.push(route.request().url());
     return route.fulfill({ contentType: 'text/html', body: '<p>provider</p>' });
   });
@@ -54,7 +57,7 @@ test('signed in: asks first, then hands the app a sealed session only its key op
   const href = await open.getAttribute('href');
   expect(href).toMatch(new RegExp(`^com\\.transittrack\\.app://signin\\?state=${STATE}&iv=`));
   expect(href).not.toContain(TOKEN);
-  expect(await openSealed(href)).toBe(TOKEN);
+  expect(await openSealed(href)).toBe(HANDOFF);
 });
 
 test('signed out: goes straight to Google and comes back to the same sign-in, without the key', async ({ page }) => {
@@ -62,8 +65,9 @@ test('signed out: goes straight to Google and comes back to the same sign-in, wi
   await page.goto(`/phone-signin?state=${STATE}&provider=google#k=${KEY}`);
   await expect.poll(() => seen.providerLogins.length).toBe(1);
   const login = new URL(seen.providerLogins[0]);
-  expect(login.pathname).toBe('/api/apps/auth/login');
-  const back = new URL(login.searchParams.get('from_url'));
+  expect(login.pathname).toBe('/api/auth/v1/authorize');
+  expect(login.searchParams.get('provider')).toBe('google');
+  const back = new URL(login.searchParams.get('redirect_to'));
   expect(back.pathname).toBe('/phone-signin');
   expect(back.searchParams.get('state')).toBe(STATE);
   expect(seen.providerLogins[0]).not.toContain(KEY);

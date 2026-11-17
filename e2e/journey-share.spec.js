@@ -28,7 +28,7 @@ async function viewer(page, reply) {
   await page.route("https://api.mapbox.com/**", (r) => r.fulfill({ status: 404, body: "" }));
   await page.route("**/api/**", async (route) => {
     const url = route.request().url();
-    if (url.includes("/functions/journeyShare")) return typeof reply === "function" ? reply(route) : route.fulfill({ json: reply });
+    if (url.includes("/functions/v1/journeyShare")) return typeof reply === "function" ? reply(route) : route.fulfill({ json: reply });
     if (url.includes("/entities/") || url.includes("/functions/")) return route.fulfill({ status: 401, json: { error: "Sign in required" } });
     return route.fulfill({ json: { id: "test-app", public_settings: { authentication_required: false } } });
   });
