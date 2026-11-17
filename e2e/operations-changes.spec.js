@@ -2,11 +2,11 @@ import {test,expect} from '@playwright/test';
 const vehicle={id:'bus-a',name:'Bus A',company_id:'a',company_name:'Island Transit',status:'idle',type:'bus',capacity:25};
 const profile={id:'admin',role:'admin',email:'admin@test.invalid',full_name:'Admin'};
 const users=[profile,{id:'viewer',role:'staff',email:'viewer@test.invalid',full_name:'Fleet Viewer'}];
-async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,context=null}={}){
+async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,context=null,company='Island Transit'}={}){
  const roles=[{id:'fleet-role',name:'Fleet supervisor',sections:['fleet'],active:true}],calls=[],messages=[];
  const driver={vehicle,company_id:'a',company_name:'Island Transit',driver_name:'Test Driver',has_driver_pin:true,driver_unlocked:true,
   staff:[],check_ins:[],broadcasts:[],group_messages:[],trips:[],inspection_templates:[],recent_inspections:[],open_shift:null,emergency_contacts:{}};
- const kiosk={device_id:'board',paired:true,status:'active',kiosk_type:'bus_boarding',company_id:'a',company_name:'Island Transit',
+ const kiosk={device_id:'board',paired:true,status:'active',kiosk_type:'bus_boarding',company_id:'a',company_name:company,
   vehicle_id:'bus-a',vehicle_name:'Bus A',display_layout:layout,pickup_sign:sign,...(spot?{nfc_spot:spot}:{}),
   context:context||{vehicle,route:null,occupancy:4,today_count:10,ads:[]}};
  const who=custom?{id:'viewer',role:'staff',email:'viewer@test.invalid',full_name:'Fleet Viewer',access_role:{id:'fleet-role',name:'Fleet supervisor',sections:['fleet']}}:profile;
@@ -79,6 +79,23 @@ test('route planner switches map styles and offers current location',async({page
  await expect(page.getByRole('button',{name:/Find my location/})).toBeVisible();
  await page.screenshot({path:'/tmp/tt-route-map-controls.png'});
 });
+test('phone kiosk top bar keeps a long company name clear of the bus sign and the clock',async({page})=>{
+ // "Six Senses/Intercontinental" used to spill under the sign and the clock.
+ for(const width of [360,390]){
+  await page.setViewportSize({width,height:800});
+  await setup(page,{layout:'phone',company:'Six Senses/Intercontinental'});await page.goto('/kiosk');
+  const bar=page.locator('.tt-board-header');
+  await expect(bar.getByText('Six Senses/Intercontinental',{exact:true})).toBeVisible();
+  const box=async l=>l.boundingBox();
+  const [name,sign,clock,light,header]=await Promise.all([box(bar.locator('.tt-board-company strong')),box(bar.locator('.tt-board-sign')),box(bar.locator('.tt-board-trip>span').filter({hasText:/\d:\d\d/})),box(bar.getByRole('status')),box(bar)]);
+  for(const other of [sign,clock,light])expect(name.y+name.height<=other.y || name.x+name.width<=other.x).toBe(true);
+  expect(name.x+name.width).toBeLessThanOrEqual(header.x+header.width);
+  expect(clock.x).toBeGreaterThanOrEqual(sign.x+sign.width);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.unrouteAll({behavior:'ignoreErrors'});
+ }
+});
+
 test('phone kiosk has dedicated mode controls and no horizontal overflow',async({page})=>{
  await page.setViewportSize({width:390,height:844});
  await setup(page,{layout:'phone'});await page.goto('/kiosk');
