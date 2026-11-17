@@ -715,8 +715,9 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-welcome-header { max-width:1280px; margin:auto; padding:20px 28px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
 .tt-welcome-main { max-width:1280px; margin:auto; padding:0 28px; width:100%; }
 .tt-welcome-hero { position:relative; overflow:hidden; min-height:500px; display:flex; align-items:center; border-radius:28px; border:1px solid hsl(var(--border)); background:hsl(var(--card)); }
-.tt-welcome-art { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; }
-.tt-welcome-copy { position:relative; z-index:1; width:64%; padding:40px 32px; background:linear-gradient(90deg,hsl(var(--background)/.94),hsl(var(--background)/.9) 70%,transparent); }
+/* The van photo fills the right of the welcome card; its front faces the words on the left. */
+.tt-welcome-art { position:absolute; inset:0 0 0 auto; width:58%; height:100%; object-fit:cover; object-position:25% center; mask-image:linear-gradient(90deg,transparent,#000 16%); }
+.tt-welcome-copy { position:relative; z-index:1; width:50%; padding:40px 32px; background:linear-gradient(90deg,hsl(var(--background)/.94),hsl(var(--background)/.9) 70%,transparent); }
 .tt-welcome-kicker { margin:0 0 14px; font-size:14px; font-weight:600; color:hsl(var(--primary)); }
 .tt-welcome-copy h1 { font-size:clamp(38px,5.4vw,68px); line-height:1.04; letter-spacing:-.012em; word-spacing:.06em; font-weight:600; text-wrap:balance; }
 .tt-welcome-lead { max-width:430px; margin:20px 0 0; color:hsl(var(--muted-foreground)); font-size:18px; line-height:1.6; }
@@ -751,7 +752,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-auth-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); background:#041321; color:#f3f8ff; }
 .tt-auth-brand-panel { position:sticky; top:0; height:100dvh; min-height:650px; overflow:hidden; padding:40px; border-right:1px solid #203546; display:flex; flex-direction:column; justify-content:space-between; }
 .tt-auth-logo { display:inline-flex; align-items:center; gap:12px; font-size:26px; font-weight:600; position:relative; z-index:1; letter-spacing:-.03em; }
-.tt-auth-art { position:absolute; inset:0; height:100%; width:100%; object-fit:cover; object-position:75% center; opacity:.65; mask-image:linear-gradient(#000 35%,transparent 85%); }
+.tt-auth-art { position:absolute; inset:0; height:100%; width:100%; object-fit:cover; object-position:20% center; opacity:.65; mask-image:linear-gradient(#000 35%,transparent 85%); }
 .tt-auth-brand-copy { position:relative; z-index:1; max-width:480px; padding-bottom:20px; }
 .tt-auth-brand-copy h2 { font-size:48px; line-height:1.06; letter-spacing:-.022em; font-weight:600; }
 .tt-auth-brand-copy p { font-size:18px; color:#b2c7d7; margin:22px 0; }
@@ -774,13 +775,13 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
  .tt-auth-form-area { padding:20px 20px 36px; }
  .tt-auth-mobile-hero { display:block; margin-bottom:22px; }
  .tt-auth-mobile-hero .tt-auth-logo { font-size:23px; margin-bottom:8px; }
- .tt-auth-mobile-hero > img { width:100%; height:210px; object-fit:cover; object-position:75% center; border-radius:20px; mask-image:linear-gradient(#000 70%,transparent); }
+ .tt-auth-mobile-hero > img { width:100%; height:210px; object-fit:cover; object-position:50% center; border-radius:20px; mask-image:linear-gradient(#000 70%,transparent); }
 }
 @media(max-width:700px) {
  .tt-welcome-header { padding:18px 20px; }
  .tt-welcome-main { padding:0 20px; }
  .tt-welcome-hero { display:block; min-height:0; border-radius:18px; }
- .tt-welcome-art { position:relative; height:240px; object-position:75% center; mask-image:linear-gradient(#000 80%,transparent); }
+ .tt-welcome-art { position:relative; width:100%; height:240px; object-position:50% center; mask-image:linear-gradient(#000 80%,transparent); }
  .tt-welcome-copy { width:100%; padding:16px 0 4px; text-align:center; background:none; }
  .tt-welcome-kicker { margin-bottom:10px; }
  .tt-welcome-copy h1 { font-size:39px; }

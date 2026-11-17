@@ -8,7 +8,7 @@ it.each(["phone", "tablet", "validator"])("uses the %s reader position", layout 
   const hint = nfcHint(layout);
   const html = renderToStaticMarkup(React.createElement(CoastalCardScene, { tapHint: hint }));
   expect(html).toContain(hint.title);
-  expect(html).toContain("/images/boarding-coaster.webp");
+  expect(html).toContain("/images/mcsween-van-cut.webp");
   expect(html).not.toContain("tt-coastal-checking");
 });
 

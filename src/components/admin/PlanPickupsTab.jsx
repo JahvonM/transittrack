@@ -10,6 +10,7 @@ import useAdminFocus from "@/hooks/useAdminFocus";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DEFAULT_BUS_ART } from "@/components/BusArtwork";
 import { Link } from "react-router-dom";
 import BusLoader from "@/components/BusLoader";
 import { drawnRoad } from "@/lib/routeRoad";
@@ -300,7 +301,7 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
             </div>}
             {active && eligible.length > 0 && <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
               <p className="text-caption font-semibold text-muted-foreground">{active.status === "ok" ? "Assigned bus" : chosen?.id === active.nearby?.bus_id && !active.suggested ? "Nearby bus option" : "Recommended bus"}</p>
-              {chosen && <div className="flex min-w-0 items-center gap-3"><img src="/images/transit-bus-3d.webp" alt="" className="h-20 w-24 shrink-0 object-contain" /><div className="min-w-0 flex-1"><Seats bus={chosen} /></div></div>}
+              {chosen && <div className="flex min-w-0 items-center gap-3"><img src={DEFAULT_BUS_ART} alt="" className="h-20 w-24 shrink-0 object-contain" /><div className="min-w-0 flex-1"><Seats bus={chosen} /></div></div>}
               {eligible.length > 1 && <BusChoice label="Choose another bus" value={chosenId} onChange={(id) => setChoice({ key: active.key, id })} buses={eligible} disabled={!!busy} />}
               {chosen && chosen.id !== active.bus_id && <>
                 {chosen.capacity > 0 && chosen.riders >= chosen.capacity && <p className="text-body-sm text-warning">This bus is at its assigned capacity. Review seats before assigning.</p>}

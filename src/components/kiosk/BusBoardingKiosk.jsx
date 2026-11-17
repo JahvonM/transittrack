@@ -537,7 +537,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
     actionContent = <section className={`tt-board-home tt-coastal-home${mode === "qr" ? " tt-board-camera-open" : ""}`} aria-label="Boarding home">
       {mode !== "qr" ? <CoastalCardScene vehicle={vehicle} readerError={nfcError} tapHint={customHint ? tapHint : { ...tapHint, title: "Tap your card to begin" }} /> : <div className="tt-board-scene">
         <div className="tt-board-welcome"><h1>Welcome aboard</h1><p>{customHint ? tapHint.title : "Tap your card to begin"}</p>{customHint && <small className="tt-board-tap-detail">{tapHint.detail}</small>}</div>
-        <BusArtwork vehicle={vehicle} fallbackUrl="/images/boarding-coaster.webp" width={650} className="tt-board-bus" />
+        <BusArtwork vehicle={vehicle} width={650} className="tt-board-bus" />
         <div className="tt-board-nfc"><div className="tt-board-nfc-ring"><CreditCard aria-hidden="true" /></div><strong>Card reader</strong><small>{nfcListening ? "Ready to scan" : "Tap your NFC card"}</small></div>
         {nfcError && <p className="tt-board-reader-note">{nfcError}</p>}
       </div>}
@@ -601,7 +601,7 @@ export default function BusBoardingKiosk({ invoke, device, directoryInfo, online
         <CardContent key="result" className="p-10 text-center space-y-4 animate-in fade-in zoom-in-90 duration-500">
           {boarded && (
             <div className="flex justify-center -mb-2">
-              <BusArtwork vehicle={vehicle} fallbackUrl="/images/boarding-coaster.webp" width={220} className="h-32 tt-bus-arrive" />
+              <BusArtwork vehicle={vehicle} width={220} className="h-32 tt-bus-arrive" />
             </div>
           )}
           <div className="flex items-center justify-center gap-3">

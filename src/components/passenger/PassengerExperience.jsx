@@ -268,7 +268,7 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
    {notice && <Link className="px-notice" to="/notifications"><Megaphone /><span><strong>{notice.title || "Company update"}</strong><small>{notice.message}</small></span><ChevronRight /></Link>}
    <section className="px-hero" aria-label="Your next bus">
     <div className="px-hero-copy"><p role="status" aria-live="polite" className={live || riding?"px-service live":"px-service"}><span />{hero?hero.status:status}</p><h2>{estimate}</h2><p>{hero?hero.detail:live?(arrival?.detail || `Until pickup ${returning?"at work":"near home"}`):kind==="unassigned"?"Your company assigns your bus":kind==="signal_lost"?"Waiting for a fresh location":kind==="choose"?"Choose a stop to see your ETA":"Your next trip will appear here"}</p>{myVehicle && !["exited","completed","not_travelling"].includes(stage) && <small className={`px-eta-quality ${quality}`}>{qualityText}</small>}{myVehicle ? <span className="px-hero-bus-line"><BusSign text={myVehicle.name} />{routeName && <strong>{routeName}</strong>}</span> : <strong>No bus assigned</strong>}</div>
-    {myVehicle && <BusArtwork vehicle={myVehicle} fallbackUrl="/images/boarding-coaster.webp" className="px-hero-bus" width={260} />}
+    {myVehicle && <BusArtwork vehicle={myVehicle} className="px-hero-bus" width={260} />}
     {!riding && etaDetails}
     {STAGES.includes(stage) && <JourneySteps stage={stage} />}
    </section>

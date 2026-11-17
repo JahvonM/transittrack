@@ -27,7 +27,7 @@ function BusRow({ v, route, stop, now }) {
   return (
     <li className="tt-bus-card">
       <Link to={`/route-explorer?bus=${encodeURIComponent(v.id)}`} className="flex min-h-[72px] items-center gap-4 px-6 py-2 hover:bg-accent/50 md:px-3">
-        <BusArtwork vehicle={v} fallbackUrl="/images/boarding-coaster.webp" width={120} loading="lazy" className="h-24 w-24 sm:w-32 shrink-0" />
+        <BusArtwork vehicle={v} width={120} loading="lazy" className="h-24 w-24 sm:w-32 shrink-0" />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{v.name}{v.plate_number ? <span className="font-normal text-muted-foreground"> · {v.plate_number}</span> : null}</span>
           <span className="block truncate text-body-sm text-muted-foreground">{route?.name ? `${route.name} · ` : ""}{busStatusLine(v, route, now)}</span>

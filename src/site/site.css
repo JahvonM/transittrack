@@ -126,12 +126,12 @@
   .mcs-brand span { font-size: 1.02rem; }
 }
 
-/* Hero: the coach on the coast road at dusk. On a phone the photo sits on
-   top and the words below it; on a wide screen the words sit on the dark
-   side of the photo. */
+/* Hero: the McSween van at a coastal lookout. On a phone the photo sits on
+   top and the words below it; on a wide screen the photo fills the right
+   side, the van's front facing the words on the left. */
 .mcs-hero { position: relative; isolation: isolate; overflow: hidden; }
 .mcs-hero-media { position: relative; }
-.mcs-hero-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: 78% 60%; }
+.mcs-hero-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: 50% 60%; }
 .mcs-hero-media::after { content: ""; position: absolute; inset: auto 0 0 0; height: 45%; background: linear-gradient(to top, var(--ink), rgba(11, 46, 53, 0)); }
 .mcs-hero-body { position: relative; padding: 0 0 clamp(2.5rem, 7vw, 3.5rem); margin-top: -2.5rem; }
 .mcs-hero h1 {
@@ -146,13 +146,13 @@
 .mcs-facts { margin: 1.75rem 0 0; max-width: 34rem; color: var(--on-ink-muted); font-size: 0.95rem; }
 @media (min-width: 56rem) {
   .mcs-hero { min-height: min(86vh, 50rem); display: grid; align-items: center; }
-  .mcs-hero-media { position: absolute; inset: 0; z-index: -1; }
-  .mcs-hero-media img { height: 100%; aspect-ratio: auto; object-position: 66% 58%; }
+  .mcs-hero-media { position: absolute; inset: 0 0 0 44%; z-index: -1; }
+  .mcs-hero-media img { height: 100%; aspect-ratio: auto; object-position: 18% 60%; }
   .mcs-hero-media::after {
     inset: 0; height: auto;
     background:
-      linear-gradient(90deg, rgba(7, 31, 36, 0.97) 0%, rgba(7, 31, 36, 0.9) 28%, rgba(7, 31, 36, 0.45) 52%, rgba(7, 31, 36, 0) 70%),
-      linear-gradient(0deg, rgba(7, 31, 36, 0.75) 0%, rgba(7, 31, 36, 0) 28%);
+      linear-gradient(90deg, rgba(11, 46, 53, 1) 0%, rgba(11, 46, 53, 0.55) 12%, rgba(11, 46, 53, 0) 30%),
+      linear-gradient(0deg, rgba(11, 46, 53, 0.75) 0%, rgba(11, 46, 53, 0) 28%);
   }
   .mcs-hero-body { margin-top: 0; padding: 4.5rem 0 5rem; max-width: 37rem; }
 }

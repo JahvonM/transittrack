@@ -422,11 +422,11 @@ test('boarding scene assets load without a network after being saved',async({pag
  await page.evaluate(()=>navigator.serviceWorker.ready);
  await expect.poll(()=>page.evaluate(()=>!!navigator.serviceWorker.controller)).toBe(true);
  await expect.poll(()=>page.evaluate(async()=>{
-  const paths=['/images/boarding-coast.webp','/images/boarding-coaster.webp'];
+  const paths=['/images/boarding-coast.webp','/images/mcsween-van-cut.webp'];
   return (await Promise.all(paths.map(p=>caches.match(p,{cacheName:'tt-assets-v1'})))).every(Boolean);
  }),{timeout:30000}).toBe(true);
  await context.setOffline(true);
- const loaded=await page.evaluate(async()=>Promise.all(['/images/boarding-coast.webp','/images/boarding-coaster.webp'].map(async p=>{
+ const loaded=await page.evaluate(async()=>Promise.all(['/images/boarding-coast.webp','/images/mcsween-van-cut.webp'].map(async p=>{
   const r=await fetch(p);return r.ok && (await r.arrayBuffer()).byteLength>10000;
  })));
  expect(loaded).toEqual([true,true]);

@@ -13,7 +13,7 @@ export default function CoastalCardScene({ checking = false, vehicle, readerErro
       <p>{checking ? "Recording your tap" : tapHint.title}</p>
     </div>
     <div className="tt-coastal-art" aria-hidden="true">
-      <BusArtwork vehicle={vehicle} fallbackUrl="/images/boarding-coaster.webp" width={650} className="tt-coastal-bus" />
+      <BusArtwork vehicle={vehicle} width={650} className="tt-coastal-bus" />
       <div className="tt-coastal-reader"><Nfc /></div>
       <div className="tt-coastal-ripple" />
       <div className="tt-coastal-travel-card">
