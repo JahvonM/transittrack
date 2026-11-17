@@ -143,7 +143,7 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange, fau
               <li key={v.id} id={"vehicle-" + v.id} aria-current={on ? "true" : undefined} className={cn("flex flex-col rounded-2xl border border-border bg-card", on && "ring-2 ring-ring")}>
                 <div className="flex items-start gap-3 p-4">
                   <div className="shrink-0 rounded-xl bg-secondary" title={getModel(modelIdFor(v)).label}>
-                    {v.image_url ? <BusArtwork vehicle={v} width={90} className="h-16 w-24" alt={`${v.name} artwork`} /> : <VehicleModelThumb model={modelIdFor(v)} size={60} />}
+                    {v.image_url ? <BusArtwork vehicle={v} width={90} loading="lazy" className="h-16 w-24" alt={`${v.name} artwork`} /> : <VehicleModelThumb model={modelIdFor(v)} size={60} />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">

@@ -177,7 +177,7 @@ export default function ChatThread({
                   </div>
                 ) : m.message_type === "image" && m.media_url ? (
                   <a href={m.media_url} target="_blank" rel="noopener noreferrer">
-                    <img src={m.media_url} alt="Shared" className="rounded-lg max-h-64 max-w-full" />
+                    <img src={m.media_url} alt="Shared" loading="lazy" decoding="async" className="rounded-lg max-h-64 max-w-full" />
                   </a>
                 ) : m.message_type === "audio" && m.media_url ? (
                   <audio controls src={m.media_url} className="max-w-[220px] h-9" />

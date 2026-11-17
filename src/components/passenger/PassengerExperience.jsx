@@ -380,6 +380,6 @@ export default function PassengerExperience({view,user,company,workplace,myVehic
    <button className="px-sign-out" onClick={logout}><LogOut />Sign out</button>
   </>}
   <CaseSheet item={openCase && (cases.cases.find(c=>c.id===openCase.id) || openCase)} onClose={()=>setOpenCase(null)} send={cases.send} sending={cases.sending} />
-  {view==="journey" && !mapOpen && <button className="px-floating-chat" aria-label="Open passenger chat" onClick={()=>setSheet("chat")}><MessageCircle /></button>}
+  {view==="journey" && !mapOpen && <button className="px-floating-chat tt-hide-while-typing" aria-label="Open passenger chat" onClick={()=>setSheet("chat")}><MessageCircle /></button>}
  </div></MotionConfig>;
 }

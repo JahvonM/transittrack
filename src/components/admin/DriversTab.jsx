@@ -357,7 +357,7 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
     <li id={"driver-" + driver.id} aria-current={focused ? "true" : undefined} className={cn("flex flex-col rounded-2xl border border-border bg-card", focused && "ring-2 ring-ring")}>
       <div className="flex items-start gap-4 p-4">
         <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-secondary font-display text-title-sm font-semibold">
-          {driver.photo_url ? <img src={driver.photo_url} alt="" className="h-full w-full object-cover" /> : <span aria-hidden="true">{initials}</span>}
+          {driver.photo_url ? <img src={driver.photo_url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <span aria-hidden="true">{initials}</span>}
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="min-w-0 truncate text-title-sm font-bold">

@@ -35,7 +35,7 @@ function IncidentPhotos({ uris }) {
       <div className="flex flex-wrap gap-2">
         {urls.map((url, n) => (
           <a key={url} href={url} target="_blank" rel="noreferrer" className="block h-24 w-24 overflow-hidden rounded-lg border border-border">
-            <img src={url} alt={`Report photo ${n + 1}`} className="h-full w-full object-cover" />
+            <img src={url} alt={`Report photo ${n + 1}`} loading="lazy" decoding="async" className="h-full w-full object-cover" />
           </a>
         ))}
       </div>

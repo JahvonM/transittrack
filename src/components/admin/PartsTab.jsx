@@ -40,7 +40,7 @@ function PartPhoto({ part, onChanged }) {
   };
   return (
     <label className="relative w-14 h-14 rounded-xl overflow-hidden border bg-muted/50 grid place-items-center shrink-0 cursor-pointer hover:border-primary transition-colors" title={part.photo_url ? "Change photo" : "Add photo"}>
-      {part.photo_url ? <img src={part.photo_url} alt={part.part_name} className="w-full h-full object-cover" /> : <Camera className="w-5 h-5 text-muted-foreground" />}
+      {part.photo_url ? <img src={part.photo_url} alt={part.part_name} loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <Camera className="w-5 h-5 text-muted-foreground" />}
       {busy && <span className="absolute inset-0 bg-background/70 grid place-items-center"><Loader2 className="w-4 h-4 animate-spin" /></span>}
       <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={pick} aria-label={`Photo of ${part.part_name}`} />
     </label>

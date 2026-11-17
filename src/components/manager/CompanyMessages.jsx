@@ -206,7 +206,7 @@ export default function CompanyMessages({ vehicles = [] }) {
         </div>
       )}
       <Button
-        className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-50 h-14 w-14 rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-accent md:bottom-6"
+        className="tt-hide-while-typing fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-50 h-14 w-14 rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-accent md:bottom-6"
         size="icon"
         onClick={() => setOpen(!open)}
         aria-label={open ? "Close driver chats" : "Open driver chats"}

@@ -1064,3 +1064,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-pickup-sheet .tt-pickup-finde
 .tt-display-compact .gap-2 { gap: 0.35rem; }
 .tt-display-compact .py-2 { padding-top: 0.3rem; padding-bottom: 0.3rem; }
 .tt-display-compact .rounded-2xl { border-radius: 0.75rem; }
+/* Phones: while the on-screen keyboard is up, bars and buttons pinned to the
+   bottom of the screen step aside so the field being typed in stays in view
+   (src/lib/typingKeyboard.js sets html[data-typing]). */
+html[data-typing] .tt-hide-while-typing { display: none !important; }

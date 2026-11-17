@@ -56,7 +56,7 @@ export default function OfflineJobsBanner() {
  };
  const Icon=reviewed.length?CloudOff:CloudUpload;
  return <>
-  <button type="button" onClick={()=>{setExported(false);setConfirmed(false);setOpen(true);}} className="fixed left-1/2 -translate-x-1/2 z-50 bottom-[calc(env(safe-area-inset-bottom)+84px)] md:bottom-6 flex items-center gap-2 rounded-full border border-border bg-card/95 px-4 py-2 text-sm shadow-lg" role="status">
+  <button type="button" onClick={()=>{setExported(false);setConfirmed(false);setOpen(true);}} className="tt-hide-while-typing fixed left-1/2 -translate-x-1/2 z-50 bottom-[calc(env(safe-area-inset-bottom)+84px)] md:bottom-6 flex items-center gap-2 rounded-full border border-border bg-card/95 px-4 py-2 text-sm shadow-lg" role="status">
    <Icon className="w-4 h-4" />{error?"Saved work needs recovery":reviewed.length?count(reviewed.length,"saved item needs review","saved items need review"):pending.length?count(pending.length,"saved item waiting to upload","saved items waiting to upload"):count(items.length,"archived item on this device","archived items on this device")}
   </button>
   <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[85vh] overflow-auto">
