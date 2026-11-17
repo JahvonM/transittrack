@@ -178,7 +178,7 @@ test('approved passenger home shows ETA and opens its map only on request',async
   await expect(page.getByLabel('Live journey map')).toBeVisible();
   await page.getByRole('button',{name:'Hide live map',exact:true}).click();
   await expect(page.getByLabel('Live journey map')).toHaveCount(0);
-  await expect.poll(()=>page.locator('img[src="/images/transit-bus-3d.webp"]').first().evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true);
+  await expect.poll(()=>page.locator('img[src="/images/mcsween-van-cut.webp"]').first().evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-passenger-desktop.png',fullPage:true});
 });

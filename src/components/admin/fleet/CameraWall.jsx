@@ -45,7 +45,7 @@ function BusTile({ row, camera, open, canOpen, onOpen, onClose, onOpenBus, picke
           </div>
         ) : (
           <button type="button" disabled={!camera || !canOpen} onClick={onOpen} className="group relative block aspect-video w-full text-left disabled:cursor-default" aria-label={camera ? `Open live camera: ${v.name}` : `${v.name}: no live camera`}>
-            <BusArtwork vehicle={v} fallbackUrl="/images/boarding-coaster.webp" width={320} className="h-full w-full object-contain opacity-90" />
+            <BusArtwork vehicle={v} width={320} loading="lazy" className="h-full w-full object-contain opacity-90" />
             <span className="absolute inset-x-2 bottom-2 flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1 rounded-full bg-background/90 px-2 py-0.5 text-caption font-semibold">
                 <Video className="h-3.5 w-3.5" aria-hidden="true" />{!camera ? "No camera to view" : canOpen ? "Tap to watch live" : `Up to ${MAX_LIVE_VIEWS} at once`}

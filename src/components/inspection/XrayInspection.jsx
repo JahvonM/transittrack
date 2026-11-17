@@ -304,7 +304,7 @@ export default function XrayInspection({ template, vehicle, onSubmit, onSkip, on
                   <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={pickPhoto} />
                   {res.photo ? (
                     <div className="flex items-center gap-3">
-                      <img src={res.photo} alt="Photo for this item" className="w-20 h-20 rounded-lg object-cover border border-border" />
+                      <img src={res.photo} alt="Photo for this item" loading="lazy" decoding="async" className="w-20 h-20 rounded-lg object-cover border border-border" />
                       <div className="flex flex-col gap-2">
                         <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={photoBusy}>Retake</Button>
                         <Button variant="ghost" size="sm" onClick={() => patch(item.key, { photo: "" })}><X className="w-4 h-4" /> Remove</Button>

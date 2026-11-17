@@ -6,9 +6,11 @@ import { installGlobalErrorReporting } from '@/lib/reportError'
 import { installOfflineRunners } from '@/lib/offlineRunners'
 import { captureInstallPrompt } from '@/lib/appInstall'
 import { isSiteHost } from '@/lib/bookingSite'
+import { installKeyboardHandling } from '@/lib/typingKeyboard'
 
 installGlobalErrorReporting()
 installOfflineRunners()
+installKeyboardHandling(window)
 // Chrome offers to install the app just after load; keep that offer for the
 // first-open "Get the app" screen (not on the public website).
 if (!isSiteHost(window.location.hostname)) captureInstallPrompt(window)

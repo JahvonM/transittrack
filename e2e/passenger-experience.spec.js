@@ -363,6 +363,34 @@ test('stale location cannot claim the bus has arrived',async({page})=>{
 
 // Every passenger screen and sheet at iPhone size: nothing spills sideways.
 // With TT_SHOT_DIR set it also saves a picture of each one.
+test.describe('phone keyboard',()=>{
+ test.use({viewport:{width:390,height:844},hasTouch:true});
+ test('the tab bar steps aside while the keyboard is up, and the field being typed in stays in view',async({page})=>{
+  await passengerShowcase(page);
+  expect(await page.locator('meta[name="viewport"]').getAttribute('content')).toContain('interactive-widget=resizes-content');
+  const tabs=page.getByRole('navigation',{name:'Passenger sections'}), html=page.locator('html');
+  await expect(tabs).toBeVisible();
+  // A text box at the end of the page, standing in for any form field.
+  await page.evaluate(()=>{const box=document.createElement('input');box.setAttribute('aria-label','Keyboard test');box.style.cssText='display:block;margin:24px 16px 160px;width:200px';document.body.appendChild(box);});
+  const box=page.getByLabel('Keyboard test');
+  await box.focus();
+  // The phone keyboard shrinks the page (interactive-widget=resizes-content).
+  await page.setViewportSize({width:390,height:500});
+  await expect(html).toHaveAttribute('data-typing','true');
+  await expect(tabs).toBeHidden();
+  await expect(box).toBeInViewport();
+  // Keyboard closed with the back button: the field is still selected, the tabs come back.
+  await page.setViewportSize({width:390,height:844});
+  await expect(html).not.toHaveAttribute('data-typing','true');
+  await expect(tabs).toBeVisible();
+  await page.setViewportSize({width:390,height:500});
+  await expect(tabs).toBeHidden();
+  await box.blur();
+  await page.setViewportSize({width:390,height:844});
+  await expect(html).not.toHaveAttribute('data-typing','true');
+  await expect(tabs).toBeVisible();
+ });
+});
 test.describe('phone tour',()=>{
  test.use({viewport:{width:390,height:844},deviceScaleFactor:2});
  // Dark (the approved look), light, and a chosen colour theme in each.

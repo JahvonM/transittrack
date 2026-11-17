@@ -212,7 +212,7 @@ function FullLayout({ children, title }) {
         <PageSlots.Provider value={title ? slots : { actions: actionsEl, intro: null }}>{children}</PageSlots.Provider>
       </main>
       {nav.length > 0 && (
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="Main">
+        <nav className="tt-hide-while-typing fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="Main">
           <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${nav.length}, minmax(0, 1fr))` }}>
             {nav.map(({ to, label, icon: Icon }) => {
               const on = isActive(to);
