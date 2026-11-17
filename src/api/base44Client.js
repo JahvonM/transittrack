@@ -1,15 +1,13 @@
 import { recordRequest } from "@/lib/requestMetrics";
 import { httpStatus } from "@/lib/requestError";
 import { createBackend } from 'tt-backend';
-import { appParams } from '@/lib/app-params';
 import { scopedEntities, withRateLimitRetry } from '@/lib/scopedEntities';
 import { withAuditLog } from '@/lib/auditLog';
 import { addBreadcrumb } from '@/lib/breadcrumbs';
 
-const { appId, token, functionsVersion, appBaseUrl } = appParams;
-
-// Base44 normally; Supabase in the `--mode supabase` build (see vite.config.js).
-export const base44 = createBackend({ appId, token, functionsVersion, appBaseUrl });
+// The app's connection to Supabase (src/api/backend.supabase.js). The name
+// `base44` is kept from when the app ran on Base44.
+export const base44 = createBackend();
 
 // A failed server call is remembered for the next error report (Admin → App
 // errors shows it in "what happened before"). Only the function name and the

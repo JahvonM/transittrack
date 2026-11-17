@@ -42,7 +42,7 @@ const BUILTIN = [
 // Base44's built-in User fields (its schema only lists the app's own).
 // Left out on purpose: Base44's own account plumbing (app_id, is_service,
 // collaborator_role, _app_role, force_password_reset), which Supabase sign-in
-// replaces. base44/functions/copyToSupabase skips those too.
+// replaces.
 const USER_BUILTIN = [["email", "text"], ["full_name", "text"], ["role", "text"], ["disabled", "boolean"], ["disabled_reason", "text"], ["is_verified", "boolean"], ["auth_user_id", "uuid unique"]];
 // Fields older rows carry that the entity schema no longer lists.
 const LEGACY = { Trip: [["ended_at", "timestamptz"]] };

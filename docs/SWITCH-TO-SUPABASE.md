@@ -106,16 +106,16 @@ Done on 17 November 2026:
   media.base44.com image mapping. The browser and unit tests run on the
   Supabase client. The folders named base44/ stay: they are the source the
   Supabase copies are built from.
+- With the owner's agreement, the last Base44-only pieces went too: the
+  multi-factor and SSO sign-in screens (no page opened them), the
+  /oauth/consent page (Base44's app connections) and the copyToSupabase
+  function (the October copy; it is in the Git history).
 
 Left:
 1. Cancel the Base44 plan (in Base44's billing settings).
 2. The installed apps still list the Base44 address as allowed: the card reader
    (desktop/reader.ps1, tools/card-reader) and desktop sign-in
    (desktop/browser-signin.cjs). Harmless; take it out when they are next rebuilt.
-3. Still Base44-only, kept until the owner decides: the multi-factor and SSO
-   sign-in helpers (src/lib/authMfa.js, src/lib/authMfaFlow.js), the
-   /oauth/consent page (src/pages/OAuthConsent.jsx) with src/lib/app-params.js,
-   and the copyToSupabase function.
 
 ## Cutover completed — 22 October 2026
 
