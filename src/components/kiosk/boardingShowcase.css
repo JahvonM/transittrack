@@ -3,7 +3,7 @@
 .tt-boarding-showcase{min-height:100dvh;color:#f1f8ff;background:#061021;position:relative;display:flex;flex-direction:column}
 .tt-board-header{min-height:94px;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;gap:20px;padding:14px 28px;border-bottom:1px solid #64dfff30;background:linear-gradient(110deg,#10243d,#061020)}
 .tt-board-company{display:flex;align-items:center;gap:12px;min-width:0}.tt-board-company>img,.tt-board-company>svg{width:48px;height:48px;object-fit:contain;flex-shrink:0}
-.tt-board-company strong{font-size:18px;display:block}.tt-board-company small,.tt-board-trip small{display:block;color:#a5bace;font-size:12px}
+.tt-board-company>div{min-width:0}.tt-board-company strong{font-size:18px;display:block;overflow-wrap:anywhere}.tt-board-company small,.tt-board-trip small{display:block;color:#a5bace;font-size:12px}
 .tt-board-brand{text-align:center;font-size:22px;font-weight:600}.tt-board-brand span{color:hsl(var(--foreground))}
 .tt-board-trip{text-align:right;display:flex;gap:4px 12px;flex-wrap:wrap;justify-content:flex-end;align-items:center}.tt-board-trip>strong{font-size:18px}.tt-board-trip>small{max-width:100%;}.tt-board-trip>span{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
 .tt-board-layout{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 244px;gap:18px;padding:20px 24px;align-items:stretch}
@@ -67,6 +67,11 @@
 .tt-kiosk-phone .tt-board-brand,.tt-kiosk-phone .tt-board-company small,.tt-kiosk-phone .tt-board-trip>small{display:none}
 .tt-kiosk-phone .tt-board-company strong,.tt-kiosk-phone .tt-board-trip>strong{font-size:14px}
 .tt-kiosk-phone .tt-board-trip>span{font-size:16px}
+/* A long company name ("Six Senses/Intercontinental") gets the whole first row, cut short with … if it still doesn't fit; the bus sign, clock and connection light go on the row under it. Before, the name spilled under the sign and the clock. */
+.tt-kiosk-phone .tt-board-header{grid-template-columns:minmax(0,1fr);row-gap:8px}
+.tt-kiosk-phone .tt-board-company strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tt-kiosk-phone .tt-board-trip{flex-wrap:nowrap;justify-content:flex-start}
+.tt-kiosk-phone .tt-board-trip>.tt-board-sign{margin-right:auto;min-width:0}
 .tt-phone-kiosk-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:10px;background:#0b1d32;position:sticky;top:0;z-index:15}
 .tt-phone-kiosk-nav button{min-height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:14px;font-size:11px;font-weight:600;color:#c9e7f6;border:1px solid #7edfff30}
 .tt-phone-kiosk-nav button[aria-pressed=true]{background:#163f59;border-color:#8aeaff;color:#fff}
