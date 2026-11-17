@@ -123,8 +123,7 @@ function appStorageUrl(value) {
   const url = new URL(value);
   if (url.protocol !== 'https:') return false;
   const host = url.hostname;
-  return host === 'base44.app' || host.endsWith('.base44.app') || host === 'base44.com' || host.endsWith('.base44.com')
-   || (host.endsWith('.supabase.co') && url.pathname.startsWith('/storage/v1/object/public/'));
+  return host.endsWith('.supabase.co') && url.pathname.startsWith('/storage/v1/object/public/');
  } catch { return false; }
 }
 function checkLinks(user, data) {

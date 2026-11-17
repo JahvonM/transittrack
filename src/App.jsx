@@ -61,7 +61,6 @@ const loadMechanicPortal = () => import('@/pages/MechanicPortal');
 const MechanicPortal = lazy(loadMechanicPortal);
 const RunInspection = lazy(() => import('@/pages/RunInspection'));
 const ManagerDashboard = lazy(() => import('@/pages/ManagerDashboard'));
-const OAuthConsent = lazy(() => import('@/pages/OAuthConsent'));
 const DesktopSignIn = lazy(() => import('@/pages/DesktopSignIn'));
 const PhoneSignIn = lazy(() => import('@/pages/PhoneSignIn'));
 // The first time someone opens the app in a browser: get the app, then allow
@@ -194,7 +193,6 @@ const AuthenticatedApp = () => {
       <Route path="/share" element={<ShareJourney />} />
       <Route path="/site/*" element={<SiteApp base="/site" />} />
       <Route path="/join" element={<JoinCompany />} />
-      <Route path="/oauth/consent" element={<OAuthConsent />} />
       <Route path="/desktop-signin" element={<DesktopSignIn />} />
       <Route path="/phone-signin" element={<PhoneSignIn />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />

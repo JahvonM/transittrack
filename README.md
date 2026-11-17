@@ -1,62 +1,60 @@
-# Base44 Project
+# McSween Transport (TransitTrack)
 
-Use this repository to run and edit the app locally, then publish changes back through Base44.
+The staff-transport app behind app.mcsweenstransport.com: passengers, drivers,
+bus tablets, the boarding kiosk and Admin.
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+It was first built on Base44 and moved to Supabase in October 2026. Base44 was
+switched off in November 2026: its copy is unpublished and no longer syncs with
+this repository. The record of the move is `docs/SWITCH-TO-SUPABASE.md`.
 
-## Prerequisites
+## How it runs
 
-1. Clone the repository using the project's Git URL.
-2. Navigate to the project directory.
-3. Install dependencies: `npm install`.
-4. Install the Base44 CLI: `npm install -g base44@latest`.
-5. Install [Deno](https://docs.deno.com/runtime/getting_started/installation/) — the local Base44 backend runs on it.
+- **Website and app:** the `transittrack` Cloudflare Worker serves
+  app.mcsweenstransport.com and mcsweenstransport.com. Cloudflare builds `main`
+  with `npm run build:supabase` (settings in `cloudflare/wrangler.jsonc`).
+- **Backend:** Supabase. The database, sign-in (Supabase Auth), file storage
+  and the server functions (Edge Functions).
+- **Installed apps:** the tablet and phone app (`android/`, `capacitor.config.json`)
+  and the Windows desktop app (`desktop/`) open app.mcsweenstransport.com.
 
-Run `base44 --help` (or see the [CLI reference](https://docs.base44.com/developers/references/cli/commands/introduction)) for the full command surface.
+## Where the code is
 
-## Run Locally
+- `src/`: the app. `src/api/backend.supabase.js` is its connection to Supabase;
+  the rest of the app reaches it through `src/api/base44Client.js` (the name is
+  from Base44).
+- `base44/functions/` and `base44/shared/`: the server functions' source. The
+  folder kept its old name. `node tools/supabase/build-functions.mjs` writes the
+  copies Supabase runs into `supabase/functions/`; edit `base44/`, not the copies.
+- `base44/entities/`: the data model's source; `docs/DATA-MODEL.md` is generated
+  from it (`node tools/data-model.mjs`).
+- `supabase/migrations/`: the database.
 
-Three commands, from the project root:
+## Going live
 
-```bash
-base44 login   # one-time per machine
-base44 link    # one-time per clone
-base44 dev     # local backend + frontend together
-```
+Merge to `main`:
 
-Open the frontend URL that `base44 dev` prints (typically `http://localhost:5173`).
+- Cloudflare builds and publishes the site.
+- The "Supabase functions" workflow checks the function copies and deploys every
+  function, when `base44/functions`, `base44/shared` or the copies change.
 
-Notes:
-
-- **Every fresh clone needs `base44 link`.** It writes `base44/.app.jsonc` (the app-id pointer), which is deliberately gitignored. Your app id is in the Builder URL (`app.base44.com/apps/<id>/...`); `base44 link --help` shows the non-interactive flags.
-- **`base44 dev` runs the frontend for you** (via `site.serveCommand` in this repo's `base44/config.jsonc`) — never run `npm run dev` yourself: alone it serves a UI with no backend behind it (`[base44] Proxy not enabled`, every `/api` call fails), and alongside `base44 dev` the second Vite silently takes the next port and you end up looking at the wrong one.
-- **The app must be published at least once for the UI to load under `base44 dev`.** The frontend boots by fetching app settings from the hosted app; before the first publish that fails and every page redirects to login. The local API works regardless.
-- Entities, functions, and auth run locally — entity data is **in-memory only**, wiped when `base44 dev` restarts. Everything else (Core integrations, OAuth login) is forwarded to your deployed app. Full breakdown: [Local development overview](https://docs.base44.com/developers/backend/overview/local-dev/local-development-overview).
-
-## Frontend Only, Hosted Backend
-
-To work on just the frontend against your app's live hosted backend:
-
-```bash
-base44 dev --remote
-```
-
-⚠️ In this mode writes go to your app's **production data** — plain `base44 dev` keeps everything local.
-
-## Publish Your Changes
-
-After pushing your changes to git, open the Base44 dashboard and publish the app:
+## Run it locally
 
 ```bash
-base44 dashboard open
+npm install
+npm run dev
 ```
 
-This repo syncs to Base44 through git, so publish from the dashboard rather than `base44 deploy` — a CLI deploy ships your local tree directly, bypassing the sync, and the deployed state silently diverges from the repo.
+`npm run dev` talks to the **live** Supabase project, so anything you change
+there changes real data.
 
-## Docs & Support
+## Checks
 
-GitHub integration: [https://docs.base44.com/developers/app-code/local-development/github](https://docs.base44.com/developers/app-code/local-development/github)
+```bash
+npm run lint
+npm test                        # unit tests
+npm run test:security:release   # security tests
+npm run test:e2e                # browser tests (builds first; see e2e/README.md)
+```
 
-Local development: [https://docs.base44.com/developers/backend/overview/local-dev/local-development-overview](https://docs.base44.com/developers/backend/overview/local-dev/local-development-overview)
-
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+The browser tests never reach Supabase: they build the app pointed at `/api` on
+its own address and answer every request themselves.

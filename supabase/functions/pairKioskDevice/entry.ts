@@ -1,4 +1,3 @@
-import { forwardToSupabase } from '../_shared/forwardToSupabase.ts';
 import { acquireOperation, durableWritesEnabled, operationHash } from '../_shared/durableOperation.ts';
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
 // Random device credentials are stored only as hashes in protected DeviceCredential.
@@ -28,9 +27,6 @@ async function authenticatedTablet(base44, device, token) {
 
 
 export default async function(req) {
-  // After the switch, calls from the installed tablet app go on to Supabase.
-  const forwarded = await forwardToSupabase(req, 'pairKioskDevice');
-  if (forwarded) return forwarded;
   try {
     const body = await req.json();
     const { pairing_code } = body;

@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.57';
-import { forwardToSupabase } from '../../shared/forwardToSupabase.ts';
 import { reserveAttempt } from '../../shared/atomicOps.ts';
 import { CLOSED_TRIP as CLOSED, issueVisitorLink, sha256Hex as hash } from '../../shared/visitorLinks.ts';
 
@@ -24,8 +23,6 @@ export function visitorView(trip: any, vehicle: any, now = Date.now()) {
   };
 }
 export default async function(req: Request) {
-  const forwarded = await forwardToSupabase(req, 'visitorTracking');
-  if (forwarded) return forwarded;
   try {
     const body = await req.json().catch(() => ({}));
     const base44 = createClientFromRequest(req), db = base44.asServiceRole.entities;

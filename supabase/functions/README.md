@@ -10,7 +10,6 @@ These are the app's server functions, running on Supabase Edge Functions
   same Base44 calls (signed-in person, tables, files, email) on Supabase.
 - `.github/workflows/supabase-functions.yml` deploys every function when this
   folder changes on main (needs the `SUPABASE_ACCESS_TOKEN` repository secret).
-- `copyToSupabase` stays on Base44 only.
 
 Settings the functions read (Supabase -> Edge Functions -> Secrets), copied
 from Base44's secrets: `FIREBASE_SERVICE_ACCOUNT`, `TT_DURABLE_WRITES_ENABLED`,
