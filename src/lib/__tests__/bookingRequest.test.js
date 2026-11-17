@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("npm:@base44/sdk@0.8.44", () => ({ createClientFromRequest: vi.fn() }));
-vi.mock("../../../base44/shared/forwardToSupabase.ts", () => ({ forwardToSupabase: vi.fn(async () => null) }));
 vi.mock("../../../base44/shared/atomicOps.ts", () => ({ reserveAttempt: vi.fn(async () => true) }));
 vi.mock("../../../base44/shared/notificationPolicy.ts", () => ({
   emailWithPolicy: vi.fn(async (_b, _key, recipients, sendOne) => { for (const r of recipients) await sendOne(r); return { sent: recipients.length }; }),

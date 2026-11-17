@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-import { forwarding } from '../../shared/forwardToSupabase.ts';
 import { emailWithPolicy } from '../../shared/notificationPolicy.ts';
 import { remindExpiringCards } from '../../shared/cardExpiry.ts';
 
@@ -54,9 +53,6 @@ function buildEmail(name, isAdmin, items) {
 // MaintenanceSettings singleton, controlled only by the mechanic team —
 // maintenance is a shared/central team here, not per-company.
 export default async function (req) {
-  // After the switch this job runs on Supabase, on Supabase's own schedule.
-  // The Base44 copy stands down so nobody gets the same email twice.
-  if (forwarding()) return Response.json({ skipped: 'Runs on Supabase now' });
   try {
     const base44 = createClientFromRequest(req);
 

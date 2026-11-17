@@ -1,6 +1,5 @@
 import { checkBusPin } from '../_shared/busPin.ts';
 import { notifyJobProgress } from '../_shared/jobNotifications.ts';
-import { forwardToSupabase } from '../_shared/forwardToSupabase.ts';
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
 import { guestTrip, signJob, tabletTrip, jobForBus } from '../_shared/jobSignature.ts';
 
@@ -36,9 +35,6 @@ async function signingTablet(base44, deviceId, token) {
 }
 
 export default async function(req) {
-  // After the switch, calls from the installed tablet app go on to Supabase.
-  const forwarded = await forwardToSupabase(req, 'jobSigning');
-  if (forwarded) return forwarded;
   try {
     const body = await req.json().catch(() => ({}));
     const base44 = createClientFromRequest(req);

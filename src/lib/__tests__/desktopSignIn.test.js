@@ -33,8 +33,10 @@ describe("desktop sign-in handoff", () => {
   });
 
   it("reads the stored session and survives blocked storage", () => {
-    expect(currentSessionToken({ getItem: () => "abc.def.ghi" })).toBe("abc.def.ghi");
-    expect(currentSessionToken({ getItem: () => null }, "fallback")).toBe("fallback");
+    // The whole Supabase session goes over: "<access token>~<refresh token>".
+    const saved = JSON.stringify({ access_token: "abc.def.ghi", refresh_token: "refresh-token-1" });
+    expect(currentSessionToken({ getItem: () => saved })).toBe("abc.def.ghi~refresh-token-1");
+    expect(currentSessionToken({ getItem: () => null })).toBeNull();
     expect(currentSessionToken({ getItem: () => { throw new Error("blocked"); } })).toBeNull();
   });
 

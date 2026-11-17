@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 vi.mock("npm:@base44/sdk@0.8.44", () => ({ createClientFromRequest: vi.fn() }));
-vi.mock("../../../base44/shared/forwardToSupabase.ts", () => ({ forwardToSupabase: vi.fn(async () => null) }));
 vi.mock("../../../base44/shared/durableOperation.ts", () => ({ durableWritesEnabled: () => false, acquireOperation: vi.fn(), operationHash: vi.fn() }));
 import handler from "../../../base44/functions/pairKioskDevice/entry.ts";
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.44";

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 vi.mock("npm:@base44/sdk@0.8.44", () => ({ createClientFromRequest: vi.fn() }));
-vi.mock("../../../base44/shared/forwardToSupabase.ts", () => ({ forwardToSupabase: vi.fn(async () => null) }));
 vi.mock("../../../base44/shared/atomicOps.ts", () => ({ reserveAttempt: vi.fn(async () => true) }));
 vi.mock("../../../base44/shared/notificationPolicy.ts", () => ({ emailWithPolicy: vi.fn() }));
 import { readRequest } from "../../../base44/functions/bookingRequest/entry.ts";
@@ -116,14 +115,5 @@ describe("what was typed, kept while the visitor looks at other pages", () => {
     expect(loadRideDraft(blocked)).toBeNull();
     expect(() => saveRideDraft({ ...blank, name: "Ana" }, blank, blocked)).not.toThrow();
     expect(() => clearRideDraft(blocked)).not.toThrow();
-  });
-});
-
-describe("the old Base44 address", () => {
-  it("sends people to the same page on app.mcsweenstransport.com, and nowhere else", async () => {
-    const { readFileSync } = await import("node:fs");
-    const html = readFileSync("index.html", "utf8");
-    expect(html).toContain('if (location.hostname === "eager-transit-track-go.base44.app") {');
-    expect(html).toContain('location.replace("https://app.mcsweenstransport.com" + location.pathname + location.search + location.hash);');
   });
 });

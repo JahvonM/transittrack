@@ -1,4 +1,3 @@
-import { forwardToSupabase } from '../_shared/forwardToSupabase.ts';
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
 import { secrets } from '../_shared/base44-compat.ts';
 import { boardingSecretHash, currentBoardingCode } from '../_shared/boardingCredentials.ts';
@@ -382,9 +381,6 @@ async function tellRider(base44, { person, status, vehicleName, companyId, at })
 }
 
 export default async function(req) {
-  // After the switch, calls from the installed tablet app go on to Supabase.
-  const forwarded = await forwardToSupabase(req, 'kioskCheckIn');
-  if (forwarded) return forwarded;
   try {
     const body = await req.json();
     const { device_id, action } = body;

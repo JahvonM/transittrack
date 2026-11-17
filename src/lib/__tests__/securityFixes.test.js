@@ -105,7 +105,9 @@ describe("chat links", () => {
     expect((await send("staff", { message_type: "image", media_url: "javascript:alert(1)" })).status).toBe(400);
     expect((await send("staff", { message_type: "image", media_url: "http://base44.app/api/apps/x/files/a.png" })).status).toBe(400);
     expect((await send("staff", { message_type: "script", text: "x" })).status).toBe(400);
-    expect((await send("staff", { message_type: "image", media_url: "https://base44.app/api/apps/x/files/mp/public/x/a.jpg" })).status).toBe(200);
+    // Only the app's own storage, now Supabase's: old Base44 file links are refused too.
+    expect((await send("staff", { message_type: "image", media_url: "https://base44.app/api/apps/x/files/mp/public/x/a.jpg" })).status).toBe(400);
+    expect((await send("staff", { message_type: "image", media_url: "https://ghqpznxqngvhmkiwcauj.supabase.co/storage/v1/object/public/public/chat/a.jpg" })).status).toBe(200);
   });
   it("admins may use other https links, never script links", async () => {
     const sdk = mock("admin");

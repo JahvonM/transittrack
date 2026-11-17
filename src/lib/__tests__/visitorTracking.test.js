@@ -1,6 +1,5 @@
 import {describe,it,expect,vi} from 'vitest';
 vi.mock('npm:@base44/sdk@0.8.57',()=>({createClientFromRequest:vi.fn()}));
-vi.mock('../../../base44/shared/forwardToSupabase.ts',()=>({forwardToSupabase:vi.fn()}));
 vi.mock('../../../base44/shared/atomicOps.ts',()=>({reserveAttempt:vi.fn()}));
 import {visitorView} from '../../../base44/functions/visitorTracking/entry.ts';
 const now=Date.now();
@@ -12,12 +11,11 @@ describe('visitor tracking privacy',()=>{
 });
 import handler from '../../../base44/functions/visitorTracking/entry.ts';
 import {createClientFromRequest} from 'npm:@base44/sdk@0.8.57';
-import {forwardToSupabase} from '../../../base44/shared/forwardToSupabase.ts';
 import {reserveAttempt} from '../../../base44/shared/atomicOps.ts';
 const rawToken='a'.repeat(64);
 async function call(body){return handler(new Request('https://test.invalid',{method:'POST',body:JSON.stringify(body)}));}
 function setup(overrides={}){
- vi.mocked(forwardToSupabase).mockResolvedValue(null);vi.mocked(reserveAttempt).mockResolvedValue(true);
+ vi.mocked(reserveAttempt).mockResolvedValue(true);
  const grant={purpose:'visitor_tracking',subject:'trip1',company_id:'company1',vehicle_id:'bus1',expires_at:new Date(now+100000).toISOString(),...overrides};
  const db={VerificationGrant:{filter:vi.fn(async()=>[grant])},Trip:{get:vi.fn(async()=>({...trip,id:'trip1',company_id:'company1',vehicle_id:'bus1'}))},Vehicle:{get:vi.fn(async()=>({...vehicle,company_id:'company1'}))}};
  vi.mocked(createClientFromRequest).mockReturnValue({auth:{me:async()=>({role:'staff',id:'u'})},asServiceRole:{entities:db}});return db;

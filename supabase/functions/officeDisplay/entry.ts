@@ -1,5 +1,4 @@
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
-import { forwardToSupabase } from '../_shared/forwardToSupabase.ts';
 import { reserveAttempt } from '../_shared/atomicOps.ts';
 import { streamingConfig, supportIce, validateSupportSdp, supportNotice, publicSupport, supportBinding } from '../_shared/tabletStreaming.ts';
 import { supportRequest } from '../_shared/tabletSupportPolicy.ts';
@@ -52,8 +51,6 @@ const idList = (v: unknown) => (Array.isArray(v) ? [...new Set(v.map(idOf).filte
 const same = (a: string[] = [], b: string[] = []) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
 
 export default async function (req: Request) {
-  const forwarded = await forwardToSupabase(req, 'officeDisplay');
-  if (forwarded) return forwarded;
   try {
     if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
     if (Number(req.headers.get('Content-Length') || 0) > 80_000) return json({ error: 'Request too large' }, 413);

@@ -1,5 +1,4 @@
 import { notifyJobProgress } from '../_shared/jobNotifications.ts';
-import { forwardToSupabase } from '../_shared/forwardToSupabase.ts';
 import { cleanHardwareHealth } from '../_shared/tabletHardwareHealth.ts';
 import { recordingsNotice } from '../_shared/tabletRecordings.ts';
 import { supportNotice } from '../_shared/tabletStreaming.ts';
@@ -785,9 +784,6 @@ async function tabletBusAction(base44, device, body, action) {
 }
 
 export default async function(req) {
-  // After the switch, calls from the installed tablet app go on to Supabase.
-  const forwarded = await forwardToSupabase(req, 'driverSession');
-  if (forwarded) return forwarded;
   try {
     const body = await req.json();
     const { device_id, action } = body;

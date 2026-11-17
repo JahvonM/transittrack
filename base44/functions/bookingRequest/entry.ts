@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-import { forwardToSupabase } from '../../shared/forwardToSupabase.ts';
 import { reserveAttempt } from '../../shared/atomicOps.ts';
 import { emailWithPolicy } from '../../shared/notificationPolicy.ts';
 import { issueVisitorLink, sha256Hex } from '../../shared/visitorLinks.ts';
@@ -177,8 +176,6 @@ export function readCompanyRequest(body: any, user: any, company: any, now = Dat
 const COMPANY_REQUEST_FIELDS = ['id', 'created_date', 'service', 'requested_time', 'pickup', 'dropoff', 'guests', 'luggage', 'flight_number', 'name', 'phone', 'notes', 'status', 'decline_reason', 'trip_id'];
 
 export default async function (req: Request) {
-  const forwarded = await forwardToSupabase(req, 'bookingRequest');
-  if (forwarded) return forwarded;
   try {
     const body = await req.json().catch(() => ({}));
     const base44 = createClientFromRequest(req), db = base44.asServiceRole.entities;

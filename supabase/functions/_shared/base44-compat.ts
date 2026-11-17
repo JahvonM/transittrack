@@ -641,7 +641,6 @@ const DEFAULT_ORIGINS = [
   // The public website (booking form and ride tracking).
   'https://mcsweenstransport.com',
   'https://www.mcsweenstransport.com',
-  'https://eager-transit-track-go.base44.app',
   // The Supabase build on Cloudflare while it is tested side by side.
   'https://new.mcsweenstransport.com',
   'https://mcsween-transport.pages.dev',
