@@ -19,7 +19,7 @@ async function openPassengers(page, context = base) {
     const url = route.request().url();
     let body = {};
     try { body = route.request().postDataJSON() || {}; } catch { /* none */ }
-    if (url.includes('/functions/driverSession')) {
+    if (url.includes('/functions/v1/driverSession')) {
       if (body.action === 'verify_pin') return route.fulfill({ json: { ok: true, driver_grant: 'a'.repeat(64) } });
       if (body.action === 'ride_exception') {
         marks.push({ ref: body.ref, kind: body.kind, driver_name: body.driver_name, granted: body.driver_grant === 'a'.repeat(64) });
@@ -28,7 +28,7 @@ async function openPassengers(page, context = base) {
       }
       return route.fulfill({ json: context });
     }
-    if (url.includes('/functions/appSupport')) return route.fulfill({ json: { whatsapp_number: '' } });
+    if (url.includes('/functions/v1/appSupport')) return route.fulfill({ json: { whatsapp_number: '' } });
     if (url.includes('/entities/')) return route.fulfill({ status: 403, json: { error: 'Direct entity access blocked in test' } });
     return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });

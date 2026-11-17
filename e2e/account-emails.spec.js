@@ -48,7 +48,7 @@ async function signupDay(page) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await mockFleet(page, { role: "admin", data: fleetData() });
-  await page.route("**/functions/nfcCards", async (route) => route.fulfill({ json: server.handle(route.request().postDataJSON()) }));
+  await page.route("**/functions/v1/nfcCards", async (route) => route.fulfill({ json: server.handle(route.request().postDataJSON()) }));
   await page.setViewportSize({ width: 1280, height: 860 });
   await page.goto("/admin/signup-day");
   await expect(page.getByText("Ben Charles")).toBeVisible();
@@ -116,7 +116,7 @@ test("a setup link: signed out it asks to sign in with that address; signed in i
 test("a setup link for someone else says so and leaves the code box", async ({ page }) => {
   const sent = [];
   await mockFleet(page, { role: "staff" });
-  await page.route("**/functions/companyAccess", async (route) => {
+  await page.route("**/functions/v1/companyAccess", async (route) => {
     const body = route.request().postDataJSON();
     sent.push(body);
     if (body.action === "verify") return route.fulfill({ status: 403, json: { error: "This setup link was sent to a different email address. Sign in with that address, or type your company code.", code: "INVITE_OTHER_EMAIL" } });
@@ -138,7 +138,7 @@ test("after a password reset the sign-in page says the password changed", async 
 test("Users & roles: a role change goes through the server, which tells the person when it gives office access", async ({ page }) => {
   const sent = [];
   await mockFleet(page, { role: "admin", data: fleetData() });
-  await page.route("**/functions/accessRoles", async (route) => {
+  await page.route("**/functions/v1/accessRoles", async (route) => {
     const body = route.request().postDataJSON();
     if (body.action === "set_user_role") { sent.push(body); return route.fulfill({ json: { ok: true, emailed: true } }); }
     return route.fulfill({ json: { roles: [], assignments: [] } });

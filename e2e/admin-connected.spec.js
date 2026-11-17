@@ -147,7 +147,7 @@ test('Routes: the route picked in the planner opens in the explorer, Plan pickup
   const data = linkedData();
   data.tables.Route.push({ id: 'route-b', company_id: 'a', company_name: data.company.name, name: 'Hill route', type: 'staff', active: true, stops: [] });
   const { errors } = await open(page, '/admin/route-planner', data);
-  await page.route('**/functions/routeStops', (route) => route.fulfill({ json: {
+  await page.route('**/functions/v1/routeStops', (route) => route.fulfill({ json: {
     companies: [{ id: 'a', name: data.company.name }],
     routes: [{ id: 'route-a', name: 'Coastal route', company_id: 'a', stops: [] }, { id: 'route-b', name: 'Hill route', company_id: 'a', stops: [] }],
     buses: [{ id: 'bus-a', name: 'Bus 1', company_id: 'a', route_id: 'route-a', route_name: 'Coastal route', capacity: 25, riders: 1 }],

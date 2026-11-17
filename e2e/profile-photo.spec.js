@@ -3,15 +3,16 @@ import { test, expect } from '@playwright/test';
 async function profile(page, failUpload = false) {
   const user = { id: 'test-person', role: 'driver', email: 'person@example.test', full_name: 'Test Person', photo_url: '/brand/icon-192.png' };
   const uploads = [], saves = [];
-  await page.addInitScript(() => localStorage.setItem('base44_access_token', 'mock-profile-session'));
+  await page.addInitScript(() => localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-profile-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})));
   await page.route('**/api/**', async route => {
     const url = route.request().url();
-    if (url.includes('/integration-endpoints/Core/')) {
+    // Uploads go to the integrations function as a form (file + area).
+    if (url.includes('/functions/v1/integrations')&&(route.request().headers()['content-type']||'').startsWith('multipart/form-data')) {
       uploads.push({ url, body: route.request().postDataBuffer().toString() });
       return route.fulfill(failUpload ? { status: 503, json: { message: 'Upload temporarily unavailable' } } : { json: { file_url: '/brand/icon-512.png' } });
     }
     let b = {}; try { b = route.request().postDataJSON() || {}; } catch {}
-    if (url.includes('/functions/entityAccess')) {
+    if (url.includes('/functions/v1/entityAccess')) {
       if (b.entity === 'User' && b.operation === 'get') return route.fulfill({ json: { result: user } });
       if (b.entity === 'User' && b.operation === 'update') { saves.push(b); Object.assign(user, b.data); return route.fulfill({ json: { result: user } }); }
       return route.fulfill({ json: { result: [] } });
@@ -30,7 +31,7 @@ test('profile photo uses a resized JPEG and only saves after Save', async ({ pag
   await page.getByLabel('Profile photo').setInputFiles({ name: 'camera.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
   await expect(page.getByText('Photo ready', { exact: true })).toBeVisible();
   expect(uploads).toHaveLength(1);
-  expect(uploads[0].url).toContain('/Core/UploadFile');
+  expect(uploads[0].body).toMatch(/name="area"\r\n\r\npublic\r\n/);
   expect(uploads[0].body).toContain('filename="profile.jpg"');
   expect(uploads[0].body).toContain('image/jpeg');
   expect(saves).toHaveLength(0);
@@ -57,7 +58,7 @@ test('an avatar is uploaded like a photo, so the saved picture is a file link', 
   const { uploads, saves } = await profile(page);
   await page.getByRole('button', { name: 'Ocean avatar', exact: true }).click();
   await expect.poll(() => uploads.length).toBe(1);
-  expect(uploads[0].url).toContain('/Core/UploadFile');
+  expect(uploads[0].body).toMatch(/name="area"\r\n\r\npublic\r\n/);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Profile saved', { exact: true })).toBeVisible();
   expect(saves[0].data.photo_url).toBe('/brand/icon-512.png');
@@ -89,7 +90,7 @@ for (const path of ['/privacy', '/terms']) test(`${path} is readable signed out,
 
 test('/privacy shows the contact details set in Admin', async ({ page }) => {
   await page.route('**/api/**', (r) => {
-    if (r.request().url().includes('/functions/appSupport')) return r.fulfill({ json: { whatsapp_number: '14735550100', business: { contact_email: 'privacy@example.com', contact_phone: '+1 473 555 0199', business_address: 'Grand Anse, St. George, Grenada', cancel_free_hours: null, cancel_late_charge: '' } } });
+    if (r.request().url().includes('/functions/v1/appSupport')) return r.fulfill({ json: { whatsapp_number: '14735550100', business: { contact_email: 'privacy@example.com', contact_phone: '+1 473 555 0199', business_address: 'Grand Anse, St. George, Grenada', cancel_free_hours: null, cancel_late_charge: '' } } });
     return r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });
   await page.goto('/privacy');
@@ -105,7 +106,7 @@ test('/privacy shows the contact details set in Admin', async ({ page }) => {
 
 test('/terms shows the business details and cancelling rule set in Admin', async ({ page }) => {
   await page.route('**/api/**', (r) => {
-    if (r.request().url().includes('/functions/appSupport')) return r.fulfill({ json: { whatsapp_number: '14735550100', business: { contact_email: 'bookings@example.com', contact_phone: '+1 473 555 0199', business_address: 'Grand Anse, St. George, Grenada', cancel_free_hours: 24, cancel_late_charge: 'the full price' } } });
+    if (r.request().url().includes('/functions/v1/appSupport')) return r.fulfill({ json: { whatsapp_number: '14735550100', business: { contact_email: 'bookings@example.com', contact_phone: '+1 473 555 0199', business_address: 'Grand Anse, St. George, Grenada', cancel_free_hours: 24, cancel_late_charge: 'the full price' } } });
     return r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });
   await page.goto('/terms');

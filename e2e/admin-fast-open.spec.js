@@ -9,12 +9,12 @@ const signedIn=`${b64({alg:'none'})}.${b64({sub:'admin-1',exp:Math.floor(Date.no
 const bus=(status)=>({id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A',type:'staff_bus',status,capacity:25});
 
 async function admin(page,fleet){
- await page.addInitScript(t=>{localStorage.setItem('base44_access_token',t);localStorage.setItem('tt-map-engine','basic');},signedIn);
+ await page.addInitScript(t=>{localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:t,refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));localStorage.setItem('tt-map-engine','basic');},signedIn);
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
   if(url.includes('/entities/'))return route.fulfill({status:403,json:{error:'Direct entity access blocked'}});
-  if(url.includes('/functions/entityAccess')){
+  if(url.includes('/functions/v1/entityAccess')){
    const b=route.request().postDataJSON();
    if(b.entity==='User'&&b.operation==='get')return route.fulfill({json:{result:{id:'admin-1',role:'admin',full_name:'Test Admin',email:'admin@test.invalid'}}});
    if(b.entity==='Vehicle')return route.fulfill({json:{result:[fleet.bus]}});

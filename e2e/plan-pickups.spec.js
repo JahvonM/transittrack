@@ -37,13 +37,13 @@ function planData(){
 async function admin(page){
  const calls={setBus:[],vehicle:[],plans:0};
  let plan=planData();
- await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
+ await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route(/basemaps|cartocdn|tile/,r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
-  if(url.includes('/functions/routeStops')){ calls.plans++; return route.fulfill({json:plan}); }
-  if(url.includes('/functions/nfcCards')){
+  if(url.includes('/functions/v1/routeStops')){ calls.plans++; return route.fulfill({json:plan}); }
+  if(url.includes('/functions/v1/nfcCards')){
    const body=route.request().postDataJSON();calls.setBus.push(body);
    // The server moves them onto the bus; the next plan shows them as sorted,
    // except someone the bus only passes nearby (they still need a new pickup).
@@ -54,8 +54,8 @@ async function admin(page){
    })};
    return route.fulfill({json:{ok:true}});
   }
-  if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}});
-  if(url.includes('/functions/entityAccess')){
+  if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}}});
+  if(url.includes('/functions/v1/entityAccess')){
    const body=route.request().postDataJSON();let result=[];
    if(body.entity==='User'&&body.operation==='get') result={id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'};
    else if(body.entity==='Vehicle'&&body.operation==='update'){
@@ -172,7 +172,7 @@ test('nearby bus requires pickup warning and does not hide unresolved pickup',as
 test('selected assignments keep failed passengers selected and continue later passengers',async({page})=>{
  const calls=await admin(page);
  let rejected=0;
- await page.route('**/functions/nfcCards',async route=>{
+ await page.route('**/functions/v1/nfcCards',async route=>{
    const body=route.request().postDataJSON();
    if(body.person_key==='user:needs2'){rejected++;return route.fulfill({status:503,json:{error:'Try again later'}});}
    return route.fallback();

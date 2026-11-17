@@ -5,7 +5,7 @@ export function withAdminBatch(handler) {
  return async route=>{
   const request=route.request();
   // Only the gateway's JSON is read here; uploads and other requests go straight through.
-  if(!request.url().includes("/functions/entityAccess"))return handler(route);
+  if(!request.url().includes("/functions/v1/entityAccess"))return handler(route);
   const body=request.postDataJSON();
   if(body?.entity!=="AdminBootstrap")return handler(route);
   const datasets={},errors={};

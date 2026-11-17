@@ -5,21 +5,21 @@ async function setup(page, { managed = true, release = null, supportEnabled = fa
   const device = { id: "tablet-managed", label: "Driver tablet test", company_id: "a", kiosk_type: "driver", vehicle_id: "bus-a",
     vehicle_name: "Bus A", status: "active", paired: true, last_seen: new Date().toISOString(),
     helper_health: { reported_at: new Date().toISOString(), support_available: supportEnabled, support_transport: "webrtc", management_available: true, management_owner: managed, management_locked: false, native_app_package: "com.transittrack.app", native_app_version: "1.0", native_app_code: 1, native_update_available: true, cellular_state: "ready", cellular_carrier: "FLOW", cellular_bars: 2, recovery_available: true, recovery_state: "recovered", internet_validated: true, ...(kiosk || {}) } };
-  await page.addInitScript(() => localStorage.setItem("base44_access_token", "isolated-test-session"));
+  await page.addInitScript(() => localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:"isolated-test-session",refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})));
   await page.route("https://api.mapbox.com/**", r => r.fulfill({ status: 404, body: "" }));
   await page.route("**/api/**", r => {
     const url = r.request().url(), b = r.request().postDataJSON() || {};
-    if (url.includes("/functions/tabletSupport")) {
+    if (url.includes("/functions/v1/tabletSupport")) {
       support.push(b);
       if(b.operation==="config")return r.fulfill({json:{enabled:supportEnabled}});
       return r.fulfill({json:{session:{id:"support-session",state:b.operation==="end"?"ended":"waiting_permission",expires_at:new Date(Date.now()+600000).toISOString()}}});
     }
-    if (url.includes("/functions/tabletControl")) {
+    if (url.includes("/functions/v1/tabletControl")) {
       if (b.operation === "release") return r.fulfill({ json: { release } });
       controls.push(b); device.control_status = { id: "a".repeat(32), action: b.action, state: "waiting", requested_at: new Date().toISOString(), expires_at: new Date(Date.now()+120000).toISOString() };
       return r.fulfill({ json: { ok: true, status: device.control_status } });
     }
-    if (url.includes("/functions/entityAccess")) {
+    if (url.includes("/functions/v1/entityAccess")) {
       if (["create", "update", "delete"].includes(b.operation)) writes.push(b);
       if (b.entity === "User") return r.fulfill({ json: { result: { id: "admin", role: "admin", full_name: "Test Admin" } } });
       if (b.entity === "AdminBootstrap") return r.fulfill({ json: { result: { datasets: Object.fromEntries((b.datasets || []).map(key => [key, key === "kiosks" ? [device, ...others] : []])), errors: {} } } });
@@ -81,7 +81,7 @@ test("native update has its own deliberate admin request, with no client APK URL
 
 test("remote viewing stays unavailable without service configuration", async ({ page }) => {
  await setup(page);
- await page.route("**/functions/tabletSupport", r=>r.fulfill({json:{enabled:false}}));
+ await page.route("**/functions/v1/tabletSupport", r=>r.fulfill({json:{enabled:false}}));
  await page.goto("/admin/kiosks");
  await page.getByRole("button",{name:"Tablet controls",exact:true}).click();
  await expect(page.getByText("Direct remote viewing is not enabled yet.")).toBeVisible();
@@ -179,7 +179,7 @@ test("an admin renews a pass in its last 30 days after confirming, and only that
     tablet("fine", "Fine tablet", { state: "ok", expires_at: day(80) }),
   ] });
   const renewals = [];
-  await page.route("**/functions/manageAccessCodes", (r) => {
+  await page.route("**/functions/v1/manageAccessCodes", (r) => {
     renewals.push(r.request().postDataJSON());
     ending.pass = { state: "ok", expires_at: day(90) };
     return r.fulfill({ json: { ok: true, expires_at: day(90) } });

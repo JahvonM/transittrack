@@ -56,7 +56,7 @@ test('the old Fleet workspace address opens the camera wall: a tile per bus with
 // The live-viewing service: switched on; every view waits for the tablet.
 async function liveViewing(page) {
   const support = [];
-  await page.route('**/functions/tabletSupport', (r) => {
+  await page.route('**/functions/v1/tabletSupport', (r) => {
     const b = r.request().postDataJSON() || {};
     support.push(b);
     if (b.operation === 'config') return r.fulfill({ json: { enabled: true, relay_configured: true } });
@@ -123,7 +123,7 @@ test('one tap starts a bus\'s back camera in its box; the driver tablet\'s camer
 test('a bus box says plainly when live viewing is off, and asks the tablet nothing', async ({ page }) => {
   const { data, errors } = await open(page);
   const support = [];
-  await page.route('**/functions/tabletSupport', (r) => { support.push(r.request().postDataJSON() || {}); return r.fulfill({ json: { enabled: false } }); });
+  await page.route('**/functions/v1/tabletSupport', (r) => { support.push(r.request().postDataJSON() || {}); return r.fulfill({ json: { enabled: false } }); });
   await cameras(page).getByRole('list', { name: 'Bus tiles' }).getByRole('button', { name: `Open live camera: ${data.vehicles[0].name}` }).click();
   const viewer = page.getByRole('region', { name: 'Remote tablet viewing' });
   await expect(viewer.getByText("Live viewing isn't switched on yet.")).toBeVisible();

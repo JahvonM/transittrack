@@ -35,7 +35,7 @@ async function asPerson(page, { installOffer = false, notificationAnswer = 'gran
   if (signedIn) { await mockFleet(page, { role: 'staff' }); return; }
   await page.route('**/api/**', (route) => {
     const url = route.request().url();
-    if (url.includes('/functions/entityAccess')) return route.fulfill({ status: 401, json: { error: 'Authentication required' } });
+    if (url.includes('/functions/v1/entityAccess')) return route.fulfill({ status: 401, json: { error: 'Authentication required' } });
     if (url.includes('/functions/')) return route.fulfill({ json: {} });
     return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });

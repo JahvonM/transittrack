@@ -33,8 +33,8 @@ async function tablet(page, { bus = onFirstLeg(0.48) } = {}) {
   await page.route('**/api/**', async (r) => {
     const url = r.request().url();
     const body = r.request().postDataJSON();
-    if (url.includes('/functions/kioskHeartbeat')) return r.fulfill({ json: kiosk });
-    if (url.includes('/functions/driverSession')) {
+    if (url.includes('/functions/v1/kioskHeartbeat')) return r.fulfill({ json: kiosk });
+    if (url.includes('/functions/v1/driverSession')) {
       if (body?.action === 'set_direction') { calls.push(body); live.vehicle.trip_direction=body.direction; return r.fulfill({json:{ok:true,direction:body.direction}}); }
       if (body?.action === 'verify_pin') return r.fulfill({ json: { ok: true, driver_grant: 'a'.repeat(64) } });
       if (['move_pickup', 'move_stop', 'add_stop'].includes(body?.action)) { calls.push(body); return r.fulfill({ json: { ok: true, moved: 2 } }); }

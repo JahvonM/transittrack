@@ -5,7 +5,7 @@ import {test,expect} from '@playwright/test';
 async function admin(page,{failTimes}){
  const state={blocked:0,loads:0,reports:[]};
  page.on('domcontentloaded',()=>{ state.loads++; });
- await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); localStorage.setItem('tt-map-engine','basic'); });
+ await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); localStorage.setItem('tt-map-engine','basic'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route(/\/assets\/Admin-[^/]+\.js$/,route=>{
   if(state.blocked<failTimes){ state.blocked++; return route.fulfill({status:404,body:'gone'}); }
@@ -13,13 +13,13 @@ async function admin(page,{failTimes}){
  });
  await page.route('**/api/**',async route=>{
   const url=route.request().url();
-  if(url.includes('/functions/reportClientError')){ state.reports.push(route.request().postDataJSON()); return route.fulfill({json:{ok:true}}); }
-  if(url.includes('/functions/entityAccess')){
+  if(url.includes('/functions/v1/reportClientError')){ state.reports.push(route.request().postDataJSON()); return route.fulfill({json:{ok:true}}); }
+  if(url.includes('/functions/v1/entityAccess')){
    const body=route.request().postDataJSON();
    if(body.entity==='User'&&body.operation==='get') return route.fulfill({json:{result:{id:'admin',email:'admin@test.local',full_name:'Ada Admin',role:'admin'}}});
    return route.fulfill({json:{result:[]}});
   }
-  if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}});
+  if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  });
  return state;
@@ -52,7 +52,7 @@ test('a style file that never loads still lets the page open',async({page})=>{
  await page.route(/\/assets\/SiteApp-[^/]+\.css$/,route=>{ state.blocked++; return route.abort(); });
  await page.route('**/api/**',route=>{
   const url=route.request().url();
-  if(url.includes('/functions/reportClientError')){ state.reports.push(route.request().postDataJSON()); return route.fulfill({json:{ok:true}}); }
+  if(url.includes('/functions/v1/reportClientError')){ state.reports.push(route.request().postDataJSON()); return route.fulfill({json:{ok:true}}); }
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  });
  await page.goto('/site');
