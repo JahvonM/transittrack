@@ -16,6 +16,7 @@ import { fitsGuide, inStockReplacements, nextPinNumber, partMatches, partsForGui
 
 const SELECT = "h-10 w-full rounded-lg border border-input bg-background px-3 text-body-sm";
 const uploadPhoto = async (file) => (await base44.integrations.Core.UploadPublicFile({ file })).file_url;
+const pinCount = (n) => `${n} ${n === 1 ? "pin" : "pins"}`;
 const numbers = (part) => [part.oem_number, part.aftermarket_number].filter(Boolean).join(" · ");
 
 export function ModelPartsPanel({ guide, parts, interchanges, onChange }) {
@@ -134,7 +135,7 @@ export function DiagramsPanel({ guide, diagrams, parts, interchanges, canDelete,
               {d.image_url ? <img src={d.image_url} alt="" className="h-36 w-full object-cover" /> : <span className="grid h-36 place-items-center bg-secondary text-body-sm text-muted-foreground">No photo yet</span>}
               <span className="block p-3">
                 <span className="block font-semibold">{d.title}</span>
-                <span className="block text-body-sm text-muted-foreground">{[d.system, `${(d.pins || []).length} pins`].filter(Boolean).join(" · ")}</span>
+                <span className="block text-body-sm text-muted-foreground">{[d.system, pinCount((d.pins || []).length)].filter(Boolean).join(" · ")}</span>
               </span>
             </button>
           ))}
@@ -245,7 +246,7 @@ function DiagramView({ diagram, guide, parts, interchanges, canDelete, onBack, o
   };
 
   return (
-    <Panel title={diagram.title} icon={MapPin} description={[diagram.system, `${shown.length} pins`].filter(Boolean).join(" · ")}
+    <Panel title={diagram.title} icon={MapPin} description={[diagram.system, pinCount(shown.length)].filter(Boolean).join(" · ")}
       actions={
         <>
           <Button size="sm" variant="ghost" onClick={onBack}><ArrowLeft className="mr-1 h-4 w-4" />All pictures</Button>
