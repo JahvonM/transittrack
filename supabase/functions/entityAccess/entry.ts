@@ -18,7 +18,7 @@ async function uniqueAccessCode(db,entity,field) {
 ENTITY_FIELDS.KioskDevice.push('display_layout');
 // A driver's own phone (store app): belongs to a driver; the phone picks the bus.
 ENTITY_FIELDS.KioskDevice.push('personal', 'driver_id', 'driver_name');
-const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings"]);
+const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings", "VehicleGuide", "GuideFact", "GuideDocument"]);
 
 for(const name of ['InspectionResult','Fault']) ENTITY_FIELDS[name].push('client_request_id');
 ENTITY_FIELDS.GroupMessage.push('sender_id','sender_email');
@@ -59,6 +59,12 @@ ENTITY_FIELDS.Client=['company_id','name','kind','contact_name','email','phone',
 // they change only through the bookingRequest function, which emails the customer.
 ENTITY_FIELDS.BookingRequest=['service','requested_time','pickup','dropoff','guests','luggage','flight_number','name','phone','email','notes','status','trip_id','decline_reason','handled_by','handled_at','tracking_sent_at','company_id','company_name','requested_by_id'];
 ENTITY_FIELDS.Invoice=['company_id','company_name','client_id','client_name','client_email','client_address','number','period_start','period_end','issued_at','due_date','lines','total','currency','status','sent_at','paid_at','voided_at','notes'];
+// Bus library (Admin → Bus library): fleet-wide pages per bus model, their
+// facts and manuals. No company owns them: administrators and mechanics only
+// (they are in MAINTENANCE), and only administrators delete.
+ENTITY_FIELDS.VehicleGuide=['make','model','generation','year_from','year_to','engines','market','summary','starter_key'];
+ENTITY_FIELDS.GuideFact=['guide_id','section','label','value','detail','applies_to','interval_km','interval_months','source_name','source_link','status','checked_by','checked_at','sort_order'];
+ENTITY_FIELDS.GuideDocument=['guide_id','title','kind','file_uri','file_name','notes'];
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Vehicle:new Set(['driver_id']),Trip:new Set(['client_id','client_name','price','currency','shared_with_company'])};
 const SERVER_ONLY_FIELDS={StaffCheckIn:new Set(['person_key','run_key','shift_id','review_reason','saved_offline']),Driver:new Set(['username','auth_user_id','must_change_password']),Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
@@ -106,6 +112,84 @@ function cleanClient(data,existing) {
  if(Object.hasOwn(data,'kind')&&!['hotel','company','tour_operator','person','other'].includes(data.kind)) fail(400,'Invalid kind of client');
  if(Object.hasOwn(data,'currency')&&!CURRENCIES.has(data.currency)) fail(400,'Invalid currency');
 }
+// Bus library. Text is bounded, a source is an https address or nothing, and
+// a manual is a private file uploaded in the app (as the upload's reply gave
+// it: the stored reference or its signed link). Who checked a fact, and when,
+// is the server's to say: marking it checked or wrong records the person, and
+// a fact whose answer changes goes back to unchecked unless the same save says
+// otherwise.
+const GUIDE_SECTIONS=new Set(['specs','fluids','service','tyres','electrical','filters','torque','problems','recalls','notes']);
+const FACT_STATUSES=new Set(['unchecked','checked','wrong']);
+const DOCUMENT_KINDS=new Set(['owners_manual','workshop_manual','parts_list','bulletin','other']);
+const FACT_ANSWER=['label','value','detail','applies_to','interval_km','interval_months'];
+const UPLOAD_PATH='uploads/\\d{4}-\\d{2}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.[a-z0-9]{1,8}';
+const UPLOADED_REF=new RegExp('^storage://private/'+UPLOAD_PATH+'$');
+const UPLOADED_LINK=new RegExp('^https://[a-z0-9-]+\\.supabase\\.co/storage/v1/object/sign/private/'+UPLOAD_PATH+'\\?[^\\s]+$');
+function guideYear(data,field) {
+ if(!Object.hasOwn(data,field)) return;
+ if(data[field]===null||data[field]==='') { data[field]=null; return; }
+ const n=Number(data[field]);
+ if(!Number.isInteger(n)||n<1950||n>2100) fail(400,'Invalid '+field.replace(/_/g,' '));
+ data[field]=n;
+}
+function guideAmount(data,field,max) {
+ if(!Object.hasOwn(data,field)) return;
+ if(data[field]===null||data[field]==='') { data[field]=null; return; }
+ const n=Number(data[field]);
+ if(!Number.isFinite(n)||n<0||n>max) fail(400,'Invalid '+field.replace(/_/g,' '));
+ data[field]=n;
+}
+async function cleanGuideRecord(db,ctx,name,data,existing) {
+ const user=ctx.user;
+ if(name==='VehicleGuide') {
+  for(const field of ['make','model']) {
+   if((!existing||Object.hasOwn(data,field))&&(typeof data[field]!=='string'||!data[field].trim())) fail(400,'A library page needs a make and model');
+  }
+  for(const [field,max] of [['make',60],['model',60],['generation',120],['engines',300],['market',120],['summary',4000],['starter_key',60]]) text(data,field,max);
+  guideYear(data,'year_from');guideYear(data,'year_to');
+  const from=Object.hasOwn(data,'year_from')?data.year_from:existing?.year_from;
+  const to=Object.hasOwn(data,'year_to')?data.year_to:existing?.year_to;
+  if(from!=null&&to!=null&&from>to) fail(400,'The first year must come before the last');
+  if(data.starter_key&&!/^[a-z0-9-]{1,60}$/.test(data.starter_key)) fail(400,'Invalid starter key');
+  return;
+ }
+ // Facts and manuals sit on a library page that exists.
+ if(!existing||Object.hasOwn(data,'guide_id')) {
+  // One look-up per page for a batch of facts (the starter import).
+  if(!ctx.guides) ctx.guides=new Map();
+  const id=data.guide_id;
+  if(typeof id!=='string'||!id) fail(400,'Library page not found');
+  if(!ctx.guides.has(id)) ctx.guides.set(id,db.VehicleGuide.get(id).catch(()=>null));
+  if(!(await ctx.guides.get(id))) fail(400,'Library page not found');
+ }
+ if(name==='GuideFact') {
+  if((!existing||Object.hasOwn(data,'label'))&&(typeof data.label!=='string'||!data.label.trim())) fail(400,'A fact needs a label');
+  if((!existing||Object.hasOwn(data,'section'))&&!GUIDE_SECTIONS.has(data.section)) fail(400,'Invalid library section');
+  for(const [field,max] of [['label',200],['value',500],['detail',4000],['applies_to',200],['source_name',200],['source_link',2000]]) text(data,field,max);
+  if(data.source_link&&!/^https:\/\/\S+$/i.test(data.source_link)) fail(400,'A source link must start with https://');
+  guideAmount(data,'interval_km',1_000_000);guideAmount(data,'interval_months',240);
+  if(Object.hasOwn(data,'sort_order')&&data.sort_order!==null&&!Number.isFinite(Number(data.sort_order))) fail(400,'Invalid order');
+  if(Object.hasOwn(data,'status')&&!FACT_STATUSES.has(data.status)) fail(400,'Invalid fact status');
+  delete data.checked_by;delete data.checked_at;
+  const before=existing?.status||'unchecked';
+  const answerChanged=!!existing&&FACT_ANSWER.some(f=>Object.hasOwn(data,f)&&(data[f]??'')!==(existing[f]??''));
+  const status=Object.hasOwn(data,'status')?data.status:answerChanged?'unchecked':before;
+  if(!existing||status!==before||answerChanged) {
+   data.status=status;
+   if(status==='unchecked') { data.checked_by='';data.checked_at=null; }
+   else { data.checked_by=user.full_name||user.email||'';data.checked_at=new Date().toISOString(); }
+  }
+  return;
+ }
+ if(name==='GuideDocument') {
+  if((!existing||Object.hasOwn(data,'title'))&&(typeof data.title!=='string'||!data.title.trim())) fail(400,'A document needs a title');
+  for(const [field,max] of [['title',200],['file_name',200],['notes',4000]]) text(data,field,max);
+  if(Object.hasOwn(data,'kind')&&!DOCUMENT_KINDS.has(data.kind)) fail(400,'Invalid kind of document');
+  if(existing&&Object.hasOwn(data,'file_uri')) fail(400,'Add a new file as a new document');
+  if(!existing&&!(typeof data.file_uri==='string'&&(UPLOADED_REF.test(data.file_uri)||UPLOADED_LINK.test(data.file_uri)))) fail(400,'Upload the document in the app');
+ }
+}
+const GUIDE_ENTITIES=new Set(['VehicleGuide','GuideFact','GuideDocument']);
 const SECURITY_FIELDS={Company:new Set(['access_code','access_code_expires_at']),KioskDevice:new Set(['pairing_code','pairing_expires_at','paired','status'])};
 const META = ['id','created_date','updated_date','created_by','created_by_id'];
 const CREDENTIALS = new Set(['driver_pin','entry_code','access_code','one_time_code','one_time_code_expires_at','nfc_tag_id','nfc_card_tag','nfc_card_uid','card_uid','card_tag','pairing_code','token','token_hash','salt','pin_hash','password','device_token','driver_grant','verification_grant']);
@@ -417,6 +501,7 @@ async function prepare(db,ctx,name,input,existing=null) {
    if(name==='Trip' && (existing?.job_type || data.job_type)) fail(403,'Ask for a job from Jobs → Request a job');
   } else if (name!=='GroupMessage' && name!=='LostItemReport') fail(403,'Forbidden');
  }
+ if(GUIDE_ENTITIES.has(name)) await cleanGuideRecord(db,ctx,name,data,existing);
  if(name==='LostItemReport' && user.role!=='admin' && user.role!=='company') {
   if(existing && existing.reporter_id!==user.id) fail(403,'Own reports only');
   data.reporter_id=user.id;data.reporter_email=user.email;data.reporter_name=user.full_name||user.email;

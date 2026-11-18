@@ -91,6 +91,7 @@ export const ADMIN_SECTIONS = [
   { id: "service", label: "Service Queue", icon: Wrench },
   { id: "faults", label: "Faults", icon: AlertTriangle },
   { id: "parts", label: "Parts", icon: Package },
+  { id: "library", label: "Bus library", icon: BookOpen },
   { id: "schedule", label: "Maintenance Schedule", icon: CalendarClock },
   { id: "calendar", label: "Maintenance Calendar", icon: Calendar },
   { id: "templates", label: "Inspection Templates", icon: ListChecks },

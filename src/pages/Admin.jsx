@@ -28,6 +28,7 @@ import UsersTab from "@/components/admin/UsersTab";
 import ServiceQueueTab from "@/components/admin/ServiceQueueTab";
 import FaultsTab from "@/components/admin/FaultsTab";
 import PartsTab from "@/components/admin/PartsTab";
+import BusLibraryTab from "@/components/admin/BusLibraryTab";
 import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import MaintenanceCalendarTab from "@/components/admin/MaintenanceCalendarTab";
 import InspectionTemplatesTab from "@/components/admin/InspectionTemplatesTab";
@@ -550,6 +551,7 @@ export default function Admin() {
         )}
         {section === "faults" && <FaultsTab faults={faults} onChange={refresh} />}
         {section === "parts" && <PartsTab parts={parts} companies={companies} onChange={refresh} />}
+        {section === "library" && <BusLibraryTab vehicles={vehicles} canDelete />}
         {section === "schedule" && <MaintenanceScheduleTab schedules={schedules} vehicles={vehicles} onChange={refresh} />}
         {section === "calendar" && <MaintenanceCalendarTab schedules={schedules} vehicles={vehicles} />}
         {section === "templates" && <InspectionTemplatesTab templates={templates} companies={companies} vehicles={vehicles} onChange={refresh} />}

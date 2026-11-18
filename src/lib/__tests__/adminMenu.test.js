@@ -37,11 +37,12 @@ describe("admin menu", () => {
     expect(hubOf("health")).toBeNull();
   });
 
-  it("puts the hubs and everyday screens at the top, with Sign-up day on its own, in 35 links", () => {
+  it("puts the hubs and everyday screens at the top, with Sign-up day on its own, in 36 links", () => {
     const top = ADMIN_MENU.slice(0, ADMIN_MENU.findIndex((e) => e && e.group));
     expect(top).toEqual(["overview", "fleet", { hub: "jobs" }, { hub: "vehicles-drivers" }, { hub: "routes" }, "directory", "signup-day", "users", "companies"]);
     const links = ADMIN_MENU.reduce((n, e) => n + (e === "divider" ? 0 : e.ids ? e.ids.length : 1), 0);
-    expect(links).toBe(35);
+    // 36 with Maintenance → Bus library.
+    expect(links).toBe(36);
   });
 
   it("finds a section's hub and folding group", () => {

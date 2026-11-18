@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Bus, AlertTriangle, Wrench, Package, ClipboardCheck, CalendarClock } from "lucide-react";
+import { Bus, AlertTriangle, Wrench, Package, ClipboardCheck, CalendarClock, BookOpen } from "lucide-react";
 import FaultsTab from "@/components/admin/FaultsTab";
 import PartsTab from "@/components/admin/PartsTab";
+import BusLibraryTab from "@/components/admin/BusLibraryTab";
 import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import MaintenanceCalendarTab from "@/components/admin/MaintenanceCalendarTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
@@ -76,6 +77,7 @@ export default function MechanicDashboardTab() {
           <TabsTrigger value="schedule" className={TAB}><Wrench className="w-4 h-4 mr-1.5" />Schedule</TabsTrigger>
           <TabsTrigger value="calendar" className={TAB}><CalendarClock className="w-4 h-4 mr-1.5" />Calendar</TabsTrigger>
           <TabsTrigger value="parts" className={TAB}><Package className="w-4 h-4 mr-1.5" />Parts</TabsTrigger>
+          <TabsTrigger value="library" className={TAB}><BookOpen className="w-4 h-4 mr-1.5" />Library</TabsTrigger>
           <TabsTrigger value="history" className={TAB}><ClipboardCheck className="w-4 h-4 mr-1.5" />Inspections</TabsTrigger>
         </TabsList>
         <TabsContent value="faults" className="mt-4">
@@ -89,6 +91,9 @@ export default function MechanicDashboardTab() {
         </TabsContent>
         <TabsContent value="parts" className="mt-4">
           <PartsTab parts={parts} companies={companies} onChange={load} />
+        </TabsContent>
+        <TabsContent value="library" className="mt-4">
+          <BusLibraryTab vehicles={vehicles} />
         </TabsContent>
         <TabsContent value="history" className="mt-4">
           <InspectionHistoryTab results={inspectionResults} vehicles={vehicles} />
