@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  inStockReplacements, nextPinNumber, numbersOf, partKey, partMatches, partsForGuide, pinPlace,
-  replacementsFor, starterInterchanges, stockLabel, stockLevel,
+  inStockReplacements, nextPinNumber, numbersOf, parsePartText, partKey, partMatches, partsForGuide, partsNumbered, pinPlace,
+  quickPartRecord, replacementsFor, starterInterchanges, stockLabel, stockLevel,
 } from "../partsCatalogue.js";
 import REPLACEMENTS from "../../data/partsCatalogue/replacements.json";
 
@@ -93,5 +93,49 @@ describe("starter replacement numbers", () => {
       expect(pairs.has(pair), pair).toBe(false);
       pairs.add(pair);
     }
+  });
+});
+
+describe("copied part numbers", () => {
+  it.each([
+    ["04465-26420 PAD KIT, DISC BRAKE, FRONT", "04465-26420", "Pad kit, disc brake, front"],
+    // A table row: tabs between columns, a count and a price at the end.
+    ["0446526420\tPAD KIT, DISC BRAKE, FRONT\t1\t$45.00", "0446526420", "Pad kit, disc brake, front"],
+    // Each column on its own line, after a row number.
+    ["12\n04152-YZZA1\nELEMENT KIT, OIL FILTER\n2\nUS$9.80", "04152-YZZA1", "Element kit, oil filter"],
+    ["41060-3XA0A | PAD KIT-DISC BRAKE, FRONT | x2", "41060-3XA0A", "Pad kit-disc brake, front"],
+    ["Ryco Z418 oil filter", "Z418", "Ryco oil filter"],
+    // An engine code in the name stays as written, and isn't the number.
+    ["FILTER, OIL (1KD-FTV) 90915-YZZD2", "90915-YZZD2", "Filter, oil (1KD-FTV)"],
+    ["90915-yzzd2", "90915-YZZD2", ""],
+    // A year at the end is not a part number.
+    ["Front brake pads 2019", "", "Front brake pads 2019"],
+    ["just a name", "", "just a name"],
+    ["   \n ", "", ""],
+  ])("%j", (text, number, name) => {
+    expect(parsePartText(text)).toEqual({ number, name });
+  });
+
+  it("finds the part already in stock under a number, however it's typed", () => {
+    expect(partsNumbered("90915 yzzd2", [oil, ryco, wesfil]).map((p) => p.id)).toEqual(["p1"]);
+    expect(partsNumbered("WZ418", [oil, ryco, wesfil]).map((p) => p.id)).toEqual(["p3"]);
+    expect(partsNumbered("", [oil, ryco])).toEqual([]);
+  });
+});
+
+describe("quick add", () => {
+  const guides = [{ id: "g1", make: "Toyota", model: "Hiace" }, { id: "g2", make: "Nissan", model: "NV350" }];
+
+  it("saves the number as genuine or other brand, the count, and the models as the vehicle", () => {
+    expect(quickPartRecord({ name: " Front brake pads ", number: "04465-26420", kind: "genuine", quantity: "3", guide_ids: ["g1", "gone"] }, guides)).toEqual({
+      part_name: "Front brake pads", oem_number: "04465-26420", aftermarket_number: "", quantity_in_stock: 3, unit_price: 0,
+      vehicle_compatibility: "Toyota Hiace", category: "", supplier: "", bin_location: "", photo_url: "", min_stock: null, guide_ids: ["g1"],
+    });
+    const other = quickPartRecord({ name: "Bendix pads", number: "DB1735", other_number: "04465-26420", kind: "other", quantity: -2, min_stock: "1", unit_price: "45.5", vehicle_compatibility: "Hiace 2KD only", guide_ids: ["g1", "g2"] }, guides);
+    expect(other).toMatchObject({ oem_number: "04465-26420", aftermarket_number: "DB1735", quantity_in_stock: 0, min_stock: 1, unit_price: 45.5, vehicle_compatibility: "Hiace 2KD only", guide_ids: ["g1", "g2"] });
+  });
+
+  it("leaves the models alone where the library can't be read", () => {
+    expect(quickPartRecord({ name: "Wiper", quantity: 1, guide_ids: ["g1"] }, [])).not.toHaveProperty("guide_ids");
   });
 });

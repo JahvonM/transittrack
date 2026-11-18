@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Segmented, StatusChip } from "@/components/admin/kit";
 import { ModelChecklist, ReplacementsList, StockChip } from "@/components/admin/partsCatalogueKit";
+import QuickAddPart from "@/components/admin/QuickAddPart";
 import { inStockReplacements, partMatches, replacementsFor, stockLevel } from "@/lib/partsCatalogue";
 import { Camera, ChevronDown, ChevronUp, ImagePlus, Loader2, Pencil, Plus, Trash2, Search, Minus, X } from "lucide-react";
 
@@ -75,6 +76,7 @@ export default function PartsTab({ parts = [], onChange, canDelete = true }) {
   const [editing, setEditing] = useState(null);
   const [guides, setGuides] = useState([]);
   const [interchanges, setInterchanges] = useState([]);
+  const [quickOpen, setQuickOpen] = useState(false);
 
   // The library's model pages and the replacement numbers. Not every
   // screen that shows parts can read them (a company manager can't), and
@@ -167,6 +169,11 @@ export default function PartsTab({ parts = [], onChange, canDelete = true }) {
 
   return (
     <div className="space-y-4">
+      {/* Phones and tablets: adding starts here, not under the whole list. */}
+      <Button className="h-11 w-full sm:w-auto lg:hidden" onClick={() => setQuickOpen(true)}>
+        <Plus className="mr-1.5 h-4 w-4" />Add a part
+      </Button>
+      <QuickAddPart open={quickOpen} onOpenChange={setQuickOpen} parts={parts} guides={guides} onSaved={onChange} />
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
         <div className="space-y-2">
           <div className="relative">
@@ -191,9 +198,10 @@ export default function PartsTab({ parts = [], onChange, canDelete = true }) {
             return (
               <Card key={p.id}>
                 <CardContent className="py-3">
-                  <div className="flex items-center gap-3">
+                  {/* On a phone the stock buttons go under the name, so the name fits. */}
+                  <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
                     <PartPhoto part={p} onChanged={onChange} />
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1 basis-[calc(100%-4.25rem)] sm:basis-auto">
                       <div className="font-medium truncate">{p.part_name}</div>
                       <div className="text-xs text-muted-foreground truncate">
                         {[p.oem_number, p.vehicle_compatibility, p.supplier].filter(Boolean).join(" · ") || p.category || "—"}
@@ -202,14 +210,14 @@ export default function PartsTab({ parts = [], onChange, canDelete = true }) {
                         <div className="text-xs text-muted-foreground truncate">{[models.join(", "), p.bin_location && `Kept: ${p.bin_location}`].filter(Boolean).join(" · ")}</div>
                       )}
                     </div>
-                    <StockChip part={p} />
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => adjustStock(p, -1)} aria-label={`One fewer ${p.part_name}`}><Minus className="w-3 h-3" /></Button>
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => adjustStock(p, 1)} aria-label={`One more ${p.part_name}`}><Plus className="w-3 h-3" /></Button>
+                    <div className="flex w-full items-center gap-1 sm:w-auto sm:shrink-0">
+                      <StockChip part={p} className="mr-auto sm:mr-2" />
+                      <Button variant="outline" size="icon" className="h-10 w-10 sm:h-7 sm:w-7" onClick={() => adjustStock(p, -1)} aria-label={`One fewer ${p.part_name}`}><Minus className="w-3 h-3" /></Button>
+                      <Button variant="outline" size="icon" className="h-10 w-10 sm:h-7 sm:w-7" onClick={() => adjustStock(p, 1)} aria-label={`One more ${p.part_name}`}><Plus className="w-3 h-3" /></Button>
+                      <Button variant="ghost" size="icon" className="shrink-0" onClick={() => remove(p.id)} aria-label={`Delete ${p.part_name}`}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
                     </div>
-                    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => remove(p.id)} aria-label={`Delete ${p.part_name}`}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
                   </div>
                   {spare.length > 0 && (
                     <p className="mt-2 text-body-sm">Replacement on the shelf: {spare.map(({ part }) => `${part.part_name} (${part.quantity_in_stock})`).join(", ")}</p>
@@ -233,7 +241,7 @@ export default function PartsTab({ parts = [], onChange, canDelete = true }) {
             );
           })}
         </div>
-        <Card>
+        <Card className="hidden lg:block">
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><Plus className="w-4 h-4" /> Add a part</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-1.5">
