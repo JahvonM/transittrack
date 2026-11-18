@@ -102,6 +102,88 @@ export function pinPlace(clientX, clientY, rect) {
   };
 }
 
+// A part number and name from copied text, such as a row copied from a parts
+// catalogue ("04465-26420 PAD KIT, DISC BRAKE, FRONT") or a box label. The
+// number is the first word of capitals, digits and dashes with a digit in
+// it; four or five digits alone (which could be a year or a count) count
+// only as the line's first word. The rest of its line is the name, or the
+// next line when a catalogue puts each column on its own line. Prices and
+// counts at the end are dropped, and an all-capitals name is written normally.
+const NUMBER_WORD = /^(?=[A-Z0-9-]*\d)[A-Z0-9]+(?:-[A-Z0-9]+)*$/i;
+const END_JUNK = /^(?:[A-Z]{0,3}\$?\d+(?:[.,]\d+)*|x\d+|\d+x|qty:?\d*)$/i;
+const EDGES = /^[\s,;:|·•\-–—]+|[\s,;:|·•\-–—]+$/g;
+
+// A line's words, without the separators catalogues put between columns.
+const words = (line) => line.split(/[\s|]+/).filter((w) => w.replace(EDGES, ""));
+const bare = (word) => word.replace(EDGES, "");
+
+function numberIn(tokens) {
+  for (let i = 0; i < tokens.length; i++) {
+    const t = bare(tokens[i]);
+    const len = partKey(t).length;
+    if (!NUMBER_WORD.test(t) || len < 4 || len > 20) continue;
+    if (/^\d{4,5}$/.test(t) && i > 0) continue;
+    return i;
+  }
+  return -1;
+}
+
+function cleanName(tokens, { keepEnd = false } = {}) {
+  const out = [...tokens];
+  while (!keepEnd && out.length && END_JUNK.test(bare(out[out.length - 1]))) out.pop();
+  while (out.length && /^\d{1,3}\.?$/.test(bare(out[0]))) out.shift(); // a row or pin number
+  const name = out.join(" ").replace(EDGES, "").slice(0, 120).trim();
+  if (!/[a-z]/i.test(name)) return "";
+  if (/[a-z]/.test(name)) return name;
+  // All capitals: "PAD KIT, DISC BRAKE, FRONT" → "Pad kit, disc brake, front",
+  // keeping words with digits (engine codes) as written.
+  const lower = name.split(" ").map((w) => (/\d/.test(w) ? w : w.toLowerCase())).join(" ");
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+export function parsePartText(text) {
+  const lines = String(text ?? "").split(/\r?\n/).map((l) => words(l)).filter((t) => t.length);
+  for (let i = 0; i < lines.length; i++) {
+    const at = numberIn(lines[i]);
+    if (at < 0) continue;
+    const number = bare(lines[i][at]).toUpperCase();
+    let name = cleanName(lines[i].filter((_, j) => j !== at));
+    if (!name) {
+      const next = lines.slice(i + 1).find((t) => numberIn(t) < 0 && cleanName(t));
+      if (next) name = cleanName(next);
+    }
+    return { number, name };
+  }
+  // No number: the text is the name, as it was copied.
+  return { number: "", name: lines.length ? cleanName(lines[0], { keepEnd: true }) : "" };
+}
+
+// What the quick add form saves as a new part. The number goes in the
+// genuine or the other-brand box as chosen; with no "compatible vehicle"
+// typed, it's the models ticked.
+export function quickPartRecord(form = {}, guides = []) {
+  const text = (v) => String(v ?? "").trim();
+  const known = new Set(guides.map((g) => g.id));
+  const guideIds = (form.guide_ids || []).filter((id) => known.has(id));
+  const models = guides.filter((g) => guideIds.includes(g.id)).map((g) => [g.make, g.model].filter(Boolean).join(" "));
+  const genuine = form.kind !== "other";
+  const min = form.min_stock;
+  return {
+    part_name: text(form.name),
+    oem_number: genuine ? text(form.number) : text(form.other_number),
+    aftermarket_number: genuine ? text(form.other_number) : text(form.number),
+    quantity_in_stock: Math.max(0, Math.floor(Number(form.quantity) || 0)),
+    unit_price: Math.max(0, Number(form.unit_price) || 0),
+    vehicle_compatibility: text(form.vehicle_compatibility) || models.join(", "),
+    category: text(form.category),
+    supplier: text(form.supplier),
+    bin_location: text(form.bin_location),
+    photo_url: text(form.photo_url),
+    min_stock: min === "" || min == null || !Number.isFinite(Number(min)) ? null : Math.max(0, Number(min)),
+    ...(guides.length ? { guide_ids: guideIds } : {}),
+  };
+}
+
 // Starter replacement numbers (src/data/partsCatalogue) as records, all
 // unchecked; ones already saved (same pair of numbers) are left out.
 export function starterInterchanges(rows = [], existing = []) {

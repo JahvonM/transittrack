@@ -194,3 +194,116 @@ test('picture slots come with a guide drawing, the steps and the chassis number 
   await page.screenshot({ path: '/tmp/tt-picture-drawing.png', fullPage: true });
   expect(errors).toEqual([]);
 });
+
+test('on a phone, Add a part is at the top: a pasted catalogue line fills it in, and a number already in stock is restocked', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const { errors, server } = await open(page, '/admin/parts', { width: 390, height: 844 });
+  await page.route('**/api/functions/v1/integrations', (r) => r.fulfill({ json: { file_url: PHOTO } }));
+  await expect(page.getByText('Ryco oil filter', { exact: true })).toBeVisible();
+  // Names fit beside the photo: the stock buttons go under them.
+  for (const name of ['Oil filter (genuine)', 'Ryco oil filter', 'Front brake pads']) {
+    expect(await page.getByText(name, { exact: true }).evaluate((el) => el.scrollWidth <= el.clientWidth), name).toBe(true);
+  }
+
+  // On screen without scrolling past the parts.
+  const add = page.getByRole('button', { name: 'Add a part' });
+  await expect(add).toBeInViewport();
+  await add.click();
+  const sheet = page.getByRole('dialog', { name: 'Add a part' });
+
+  // A row copied from a parts catalogue: number, name, count and price.
+  await page.evaluate(() => navigator.clipboard.writeText('04152-YZZA1\tELEMENT KIT, OIL FILTER\t1\t$9.80'));
+  await sheet.getByRole('button', { name: 'Paste a copied part number' }).click();
+  await expect(sheet.getByLabel('Part number')).toHaveValue('04152-YZZA1');
+  await expect(sheet.getByLabel('Name', { exact: true })).toHaveValue('Element kit, oil filter');
+  await sheet.getByLabel('Photo of the part').setInputFiles({ name: 'filter.png', mimeType: 'image/png', buffer: PNG });
+  await expect(sheet.getByRole('img', { name: 'The part' })).toBeVisible();
+  await sheet.getByRole('button', { name: 'One more' }).click();
+  await sheet.getByRole('button', { name: 'One more' }).click();
+  await sheet.getByLabel('Toyota Hiace (H200)').check();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: '/tmp/tt-quick-add.png' });
+  await sheet.getByRole('button', { name: 'Add part', exact: true }).click();
+  await expect(sheet.getByRole('status')).toContainText('Added Element kit, oil filter (3)');
+  expect(server.writes.find((w) => w.entity === 'Part' && w.op === 'create').data).toMatchObject({
+    part_name: 'Element kit, oil filter', oem_number: '04152-YZZA1', quantity_in_stock: 3, photo_url: PHOTO,
+    guide_ids: ['g1'], vehicle_compatibility: 'Toyota Hiace',
+  });
+
+  // Ready for the next one, with the model still ticked. A number already on
+  // the shelf, typed another way, is offered as a restock.
+  await expect(sheet.getByLabel('Part number')).toHaveValue('');
+  await expect(sheet.getByLabel('Toyota Hiace (H200)')).toBeChecked();
+  await sheet.getByLabel('Part number').fill('90915 yzzd2');
+  const known = sheet.getByRole('region', { name: 'Already in your parts' });
+  await expect(known).toContainText('Oil filter (genuine) · Shelf A1');
+  await expect(known).toContainText('Out of stock');
+  await expect(sheet.getByRole('button', { name: 'Add as a new part' })).toBeVisible();
+  await sheet.getByRole('button', { name: 'One more' }).click();
+  await known.getByRole('button', { name: 'Add 2 to its stock' }).click();
+  await expect(sheet.getByRole('status')).toContainText('Added 2 to Oil filter (genuine): 2 in stock');
+  expect(server.writes.find((w) => w.entity === 'Part' && w.op === 'update' && w.id === 'p1').data).toEqual({ quantity_in_stock: 2 });
+  expect(server.writes.filter((w) => w.entity === 'Part' && w.op === 'create')).toHaveLength(1);
+
+  await sheet.getByRole('button', { name: 'Done' }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByText('Element kit, oil filter', { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('the parts kiosk (/parts): one screen with no menus to add and restock parts, for admins and mechanics', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const { errors, server } = await open(page, '/parts', { role: 'mechanic', width: 1024, height: 768 });
+  await expect(page.getByRole('heading', { name: 'Parts', level: 1 })).toBeVisible();
+  // No app menus: just the form, what was added here, and sign out.
+  await expect(page.getByRole('navigation')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  const form = page.getByRole('region', { name: 'Add a part' });
+  const log = page.getByRole('complementary', { name: 'Added on this screen' });
+  await expect(log).toContainText('Nothing yet.');
+
+  await page.evaluate(() => navigator.clipboard.writeText('17801-30040 ELEMENT, AIR CLEANER FILTER'));
+  await form.getByRole('button', { name: 'Paste a copied part number' }).click();
+  await expect(form.getByLabel('Name', { exact: true })).toHaveValue('Element, air cleaner filter');
+  await form.getByRole('button', { name: 'One more' }).click();
+  await form.getByRole('button', { name: 'Add part', exact: true }).click();
+  await expect(form.getByRole('status')).toContainText('Added Element, air cleaner filter (2). Add the next one.');
+  expect(server.writes.find((w) => w.entity === 'Part' && w.op === 'create').data).toMatchObject({ part_name: 'Element, air cleaner filter', oem_number: '17801-30040', quantity_in_stock: 2 });
+
+  // A part already in stock is restocked.
+  await form.getByLabel('Part number').fill('Z418');
+  await form.getByRole('region', { name: 'Already in your parts' }).getByRole('button', { name: 'Add 1 to its stock' }).click();
+  expect(server.writes.find((w) => w.entity === 'Part' && w.op === 'update' && w.id === 'p2').data).toEqual({ quantity_in_stock: 7 });
+  await expect(log.getByRole('listitem')).toHaveCount(2);
+  await expect(log.getByRole('listitem').first()).toContainText('+1 to stock, now 7');
+  await expect(log.getByRole('listitem').last()).toContainText('New part, 2 in stock');
+  await expect(log.getByRole('link', { name: 'See all parts' })).toHaveAttribute('href', '/mechanic');
+  await page.screenshot({ path: '/tmp/tt-parts-kiosk.png' });
+  expect(errors).toEqual([]);
+});
+
+test('the parts kiosk fits a phone, and is linked from Parts', async ({ page }) => {
+  const { errors } = await open(page, '/admin/parts', { width: 390, height: 844 });
+  await page.getByRole('link', { name: /Parts kiosk/ }).click();
+  await expect(page).toHaveURL(/\/parts$/);
+  await expect(page.getByRole('heading', { name: 'Add a part' })).toBeVisible();
+  await expect(page.getByLabel('Part number')).toBeVisible();
+  // Measured once the new screen has finished sliding in.
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  expect(errors).toEqual([]);
+});
+
+test('the parts kiosk sends a signed-out visitor to sign in, then back to it; other accounts go to their own screen', async ({ page }) => {
+  await mockFleet(page, { signedIn: false });
+  await page.goto('/parts');
+  await expect(page).toHaveURL(/\/login\?returnTo=%2Fparts$/);
+
+  const passenger = await page.context().newPage();
+  await mockFleet(passenger, { role: 'staff' });
+  await passenger.goto('/parts');
+  await expect(passenger).not.toHaveURL(/\/parts$/);
+  await expect(passenger.getByRole('region', { name: 'Add a part' })).toHaveCount(0);
+});

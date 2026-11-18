@@ -87,6 +87,7 @@ const Kiosk = lazy(() => import('@/pages/Kiosk'));
 const RouteExplorer = lazy(() => import('@/pages/RouteExplorer'));
 const StaffDirectory = lazy(() => import('@/pages/StaffDirectory'));
 const ServiceHistory = lazy(() => import('@/pages/ServiceHistory'));
+const PartsKiosk = lazy(() => import('@/pages/PartsKiosk'));
 const SafetyStandards = lazy(() => import('@/pages/SafetyStandards'));
 const Buses = lazy(() => import('@/pages/Buses'));
 // Passenger More shares StaffPortal data with Home, Journey and My card.
@@ -203,6 +204,10 @@ const AuthenticatedApp = () => {
       <Route path="/driver/:stage?" element={<DriverApp />} />
       <Route path="/kiosk" element={<Kiosk />} />
       <Route path="/tablet" element={<TabletStart />} />
+      {/* The parts kiosk: signing in comes back here. */}
+      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login?returnTo=%2Fparts" replace />} />}>
+        <Route path="/parts" element={<RoleGate allow={["admin", "mechanic"]}><PartsKiosk /></RoleGate>} />
+      </Route>
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/passenger" element={<Navigate to="/staff" replace />} />
         <Route path="/company" element={<CompanyDashboard />} />
