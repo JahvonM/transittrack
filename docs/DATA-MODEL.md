@@ -50,7 +50,7 @@ Changing records through entityAccess:
 
 - **admin**: any record (except invoices, made only in billing, and app errors, which can only be marked fixed).
 - **company**: records of the kinds it can read, for its own company; it can't make a new `Company`.
-- **mechanic**: maintenance records (`Vehicle`, `Fault`, `Inspection`, `InspectionResult`, `InspectionTemplate`, `Part`, `MaintenanceSchedule`, `MaintenanceSettings`, `VehicleGuide`, `GuideFact`, `GuideDocument`) and the mechanic chat;
+- **mechanic**: maintenance records (`Vehicle`, `Fault`, `Inspection`, `InspectionResult`, `InspectionTemplate`, `Part`, `MaintenanceSchedule`, `MaintenanceSettings`, `VehicleGuide`, `GuideFact`, `GuideDocument`, `PartDiagram`, `PartInterchange`) and the mechanic chat;
   on `Vehicle` only odometer, hours, status and inspection fields. Deleting maintenance records is admin-only.
 - **staff / passenger**: their own profile fields, their own staff-chat messages and lost-item reports.
 
@@ -98,6 +98,8 @@ Changing records through entityAccess:
 | [OfficeDisplay](#officedisplay) | `office_display` | server only | — | — | — | — | through other functions |
 | [OfficeDisplayPairing](#officedisplaypairing) | `office_display_pairing` | server only | — | — | — | — | through other functions |
 | [Part](#part) | `part` | entityAccess | — | — | own company | all companies | all |
+| [PartDiagram](#partdiagram) | `part_diagram` | entityAccess | — | — | — | all companies | all |
+| [PartInterchange](#partinterchange) | `part_interchange` | entityAccess | — | — | — | all companies | all |
 | [PassengerAccessCredential](#passengeraccesscredential) | `passenger_access_credential` | server only | — | — | — | — | through other functions |
 | [PassengerCase](#passengercase) | `passenger_case` | server only | — | — | — | — | through other functions |
 | [PassengerOneTimeCredential](#passengeronetimecredential) | `passenger_one_time_credential` | server only | — | — | — | — | through other functions |
@@ -1016,6 +1018,46 @@ Table `part` · belongs to a company through `company_id` · read and changed th
 | `unit_price` | double precision | Default `0`. |
 | `supplier` | text |  |
 | `photo_url` | text | Photo of the part. |
+| `guide_ids` | jsonb (list) | The Bus library pages (VehicleGuide ids) of the bus models this part fits. Set by administrators and mechanics. |
+| `min_stock` | double precision | Warn when the stock falls to this or below; empty for no warning. |
+| `bin_location` | text | Where it is kept, e.g. Shelf B2. |
+
+### PartDiagram
+
+Table `part_diagram` · read and changed through entityAccess.
+
+Parts catalogue: a picture of one area of a bus model (front brakes, filters) with numbered pins on the parts, each pin linked to a Part in stock. Shown on the model's Bus library page. Fleet-wide: administrators and mechanics only.
+
+| Field | Type | Notes |
+|---|---|---|
+| `guide_id` | text | The VehicleGuide (bus model) this picture is of. Required. |
+| `title` | text | e.g. Front brakes. Required. |
+| `system` | text | Which part of the bus, e.g. Brakes, Engine, Suspension. |
+| `image_url` | text | The team's own photo or drawing of the area (a public file uploaded in the app). |
+| `catalogue_link` | text | Web address (https) of the maker's own diagram for this area, e.g. on Partsouq, for reference. |
+| `notes` | text |  |
+| `pins` | jsonb (list) | Numbered pins on the picture. |
+| `sort_order` | double precision |  |
+
+### PartInterchange
+
+Table `part_interchange` · read and changed through entityAccess.
+
+Parts catalogue: another part number that can be used in place of one (a newer genuine number, or an aftermarket equivalent), with where that came from and whether a mechanic has checked it. Matched to Parts by number, so it applies wherever that number is stocked. Fleet-wide: administrators and mechanics only.
+
+| Field | Type | Notes |
+|---|---|---|
+| `part_number` | text | The number it replaces, e.g. 90915-YZZD2. Matched ignoring case, spaces and dashes. Required. |
+| `alt_number` | text | The number that can be used instead, e.g. Z418. Required. |
+| `alt_brand` | text | Who makes it, e.g. Ryco or Toyota. |
+| `kind` | text | newer_genuine: the maker's later number for the same part; older_genuine: the number it replaced; aftermarket: another brand's equivalent. One of: `newer_genuine`, `older_genuine`, `aftermarket`. Default `"aftermarket"`. |
+| `applies_to` | text | When it only fits some buses, e.g. 1KD-FTV only. |
+| `notes` | text |  |
+| `source_name` | text |  |
+| `source_link` | text | Web address of the source (https). |
+| `status` | text | unchecked until a mechanic confirms the part fits; wrong keeps it visible as a warning. One of: `unchecked`, `checked`, `wrong`. Default `"unchecked"`. |
+| `checked_by` | text | Who marked it checked or wrong (set by the server). |
+| `checked_at` | timestamptz | When it was marked checked or wrong (set by the server). |
 
 ### PassengerAccessCredential
 

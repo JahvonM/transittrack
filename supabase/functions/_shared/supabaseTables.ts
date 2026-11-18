@@ -43,6 +43,8 @@ export const SUPABASE_TABLES: Record<string, string> = {
   OfficeDisplay: "office_display",
   OfficeDisplayPairing: "office_display_pairing",
   Part: "part",
+  PartDiagram: "part_diagram",
+  PartInterchange: "part_interchange",
   PassengerAccessCredential: "passenger_access_credential",
   PassengerCase: "passenger_case",
   PassengerOneTimeCredential: "passenger_one_time_credential",

@@ -41,6 +41,21 @@
     "photo_url": {
       "type": "string",
       "description": "Photo of the part."
+    },
+    "guide_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The Bus library pages (VehicleGuide ids) of the bus models this part fits. Set by administrators and mechanics."
+    },
+    "min_stock": {
+      "type": "number",
+      "description": "Warn when the stock falls to this or below; empty for no warning."
+    },
+    "bin_location": {
+      "type": "string",
+      "description": "Where it is kept, e.g. Shelf B2."
     }
   },
   "rls": {
