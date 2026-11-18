@@ -90,7 +90,7 @@ export default function MechanicDashboardTab() {
           <MaintenanceCalendarTab schedules={schedules} vehicles={vehicles} />
         </TabsContent>
         <TabsContent value="parts" className="mt-4">
-          <PartsTab parts={parts} companies={companies} onChange={load} />
+          <PartsTab parts={parts} companies={companies} onChange={load} canDelete={false} />
         </TabsContent>
         <TabsContent value="library" className="mt-4">
           <BusLibraryTab vehicles={vehicles} />

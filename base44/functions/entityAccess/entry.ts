@@ -18,7 +18,7 @@ async function uniqueAccessCode(db,entity,field) {
 ENTITY_FIELDS.KioskDevice.push('display_layout');
 // A driver's own phone (store app): belongs to a driver; the phone picks the bus.
 ENTITY_FIELDS.KioskDevice.push('personal', 'driver_id', 'driver_name');
-const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings", "VehicleGuide", "GuideFact", "GuideDocument"]);
+const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings", "VehicleGuide", "GuideFact", "GuideDocument", "PartDiagram", "PartInterchange"]);
 
 for(const name of ['InspectionResult','Fault']) ENTITY_FIELDS[name].push('client_request_id');
 ENTITY_FIELDS.GroupMessage.push('sender_id','sender_email');
@@ -65,6 +65,12 @@ ENTITY_FIELDS.Invoice=['company_id','company_name','client_id','client_name','cl
 ENTITY_FIELDS.VehicleGuide=['make','model','generation','year_from','year_to','engines','market','summary','starter_key'];
 ENTITY_FIELDS.GuideFact=['guide_id','section','label','value','detail','applies_to','interval_km','interval_months','source_name','source_link','status','checked_by','checked_at','sort_order'];
 ENTITY_FIELDS.GuideDocument=['guide_id','title','kind','file_uri','file_name','notes'];
+// Parts catalogue: pictures of a model's parts with numbered pins (shown on
+// its library page), other numbers that can replace a part, and on each part
+// the models it fits, when to warn of low stock and where it is kept.
+ENTITY_FIELDS.PartDiagram=['guide_id','title','system','image_url','catalogue_link','notes','pins','sort_order'];
+ENTITY_FIELDS.PartInterchange=['part_number','alt_number','alt_brand','kind','applies_to','notes','source_name','source_link','status','checked_by','checked_at'];
+ENTITY_FIELDS.Part.push('guide_ids','min_stock','bin_location');
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Vehicle:new Set(['driver_id']),Trip:new Set(['client_id','client_name','price','currency','shared_with_company'])};
 const SERVER_ONLY_FIELDS={StaffCheckIn:new Set(['person_key','run_key','shift_id','review_reason','saved_offline']),Driver:new Set(['username','auth_user_id','must_change_password']),Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
@@ -139,6 +145,32 @@ function guideAmount(data,field,max) {
  if(!Number.isFinite(n)||n<0||n>max) fail(400,'Invalid '+field.replace(/_/g,' '));
  data[field]=n;
 }
+// Marking a record checked or wrong records who and when; a record whose
+// answer changes goes back to unchecked unless the same save says otherwise.
+function stampChecked(data,existing,user,answer) {
+ if(Object.hasOwn(data,'status')&&!FACT_STATUSES.has(data.status)) fail(400,'Invalid status');
+ delete data.checked_by;delete data.checked_at;
+ const before=existing?.status||'unchecked';
+ const answerChanged=!!existing&&answer.some(f=>Object.hasOwn(data,f)&&(data[f]??'')!==(existing[f]??''));
+ const status=Object.hasOwn(data,'status')?data.status:answerChanged?'unchecked':before;
+ if(existing&&status===before&&!answerChanged) return;
+ data.status=status;
+ if(status==='unchecked') { data.checked_by='';data.checked_at=null; }
+ else { data.checked_by=user.full_name||user.email||'';data.checked_at=new Date().toISOString(); }
+}
+function httpsLink(data,field) {
+ text(data,field,2000);
+ if(data[field]&&!/^https:\/\/\S+$/i.test(data[field])) fail(400,'Links must start with https://');
+}
+// A library page that exists, looked up once per request (a batch of facts).
+async function guideExists(db,ctx,id) {
+ if(typeof id!=='string'||!id) return false;
+ if(!ctx.guides) ctx.guides=new Map();
+ if(!ctx.guides.has(id)) ctx.guides.set(id,db.VehicleGuide.get(id).catch(()=>null));
+ return !!(await ctx.guides.get(id));
+}
+const partKey=(value)=>String(value??'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const INTERCHANGE_KINDS=new Set(['newer_genuine','older_genuine','aftermarket']);
 async function cleanGuideRecord(db,ctx,name,data,existing) {
  const user=ctx.user;
  if(name==='VehicleGuide') {
@@ -153,14 +185,22 @@ async function cleanGuideRecord(db,ctx,name,data,existing) {
   if(data.starter_key&&!/^[a-z0-9-]{1,60}$/.test(data.starter_key)) fail(400,'Invalid starter key');
   return;
  }
- // Facts and manuals sit on a library page that exists.
+ if(name==='PartInterchange') {
+  for(const field of ['part_number','alt_number']) {
+   if((!existing||Object.hasOwn(data,field))&&(typeof data[field]!=='string'||!partKey(data[field]))) fail(400,'Give both part numbers');
+  }
+  for(const [field,max] of [['part_number',60],['alt_number',60],['alt_brand',60],['applies_to',200],['notes',1000],['source_name',200]]) text(data,field,max);
+  httpsLink(data,'source_link');
+  if(Object.hasOwn(data,'kind')&&!INTERCHANGE_KINDS.has(data.kind)) fail(400,'Invalid kind of replacement');
+  const a=Object.hasOwn(data,'part_number')?data.part_number:existing?.part_number, b=Object.hasOwn(data,'alt_number')?data.alt_number:existing?.alt_number;
+  if(partKey(a)===partKey(b)) fail(400,'A part cannot replace itself');
+  stampChecked(data,existing,user,['part_number','alt_number','alt_brand','kind','applies_to']);
+  return;
+ }
+ // Facts, manuals and part pictures sit on a library page that exists.
  if(!existing||Object.hasOwn(data,'guide_id')) {
   // One look-up per page for a batch of facts (the starter import).
-  if(!ctx.guides) ctx.guides=new Map();
-  const id=data.guide_id;
-  if(typeof id!=='string'||!id) fail(400,'Library page not found');
-  if(!ctx.guides.has(id)) ctx.guides.set(id,db.VehicleGuide.get(id).catch(()=>null));
-  if(!(await ctx.guides.get(id))) fail(400,'Library page not found');
+  if(!(await guideExists(db,ctx,data.guide_id))) fail(400,'Library page not found');
  }
  if(name==='GuideFact') {
   if((!existing||Object.hasOwn(data,'label'))&&(typeof data.label!=='string'||!data.label.trim())) fail(400,'A fact needs a label');
@@ -170,15 +210,15 @@ async function cleanGuideRecord(db,ctx,name,data,existing) {
   guideAmount(data,'interval_km',1_000_000);guideAmount(data,'interval_months',240);
   if(Object.hasOwn(data,'sort_order')&&data.sort_order!==null&&!Number.isFinite(Number(data.sort_order))) fail(400,'Invalid order');
   if(Object.hasOwn(data,'status')&&!FACT_STATUSES.has(data.status)) fail(400,'Invalid fact status');
-  delete data.checked_by;delete data.checked_at;
-  const before=existing?.status||'unchecked';
-  const answerChanged=!!existing&&FACT_ANSWER.some(f=>Object.hasOwn(data,f)&&(data[f]??'')!==(existing[f]??''));
-  const status=Object.hasOwn(data,'status')?data.status:answerChanged?'unchecked':before;
-  if(!existing||status!==before||answerChanged) {
-   data.status=status;
-   if(status==='unchecked') { data.checked_by='';data.checked_at=null; }
-   else { data.checked_by=user.full_name||user.email||'';data.checked_at=new Date().toISOString(); }
-  }
+  stampChecked(data,existing,user,FACT_ANSWER);
+  return;
+ }
+ if(name==='PartDiagram') {
+  if((!existing||Object.hasOwn(data,'title'))&&(typeof data.title!=='string'||!data.title.trim())) fail(400,'A picture needs a title');
+  for(const [field,max] of [['title',120],['system',60],['notes',2000]]) text(data,field,max);
+  httpsLink(data,'catalogue_link');
+  if(Object.hasOwn(data,'sort_order')&&data.sort_order!==null&&!Number.isFinite(Number(data.sort_order))) fail(400,'Invalid order');
+  if(Object.hasOwn(data,'pins')) data.pins=await cleanPins(db,data.pins);
   return;
  }
  if(name==='GuideDocument') {
@@ -189,7 +229,41 @@ async function cleanGuideRecord(db,ctx,name,data,existing) {
   if(!existing&&!(typeof data.file_uri==='string'&&(UPLOADED_REF.test(data.file_uri)||UPLOADED_LINK.test(data.file_uri)))) fail(400,'Upload the document in the app');
  }
 }
-const GUIDE_ENTITIES=new Set(['VehicleGuide','GuideFact','GuideDocument']);
+// Pins on a part picture: a number, a place on the picture (0 to 1 across
+// and down) and the part it points at. A pin whose part has since been
+// deleted keeps its place and label, pointing at nothing.
+async function cleanPins(db,pins) {
+ if(pins===null) return [];
+ if(!Array.isArray(pins)||pins.length>80) fail(400,'A picture can have up to 80 pins');
+ const out=pins.map(pin=>{
+  if(!pin||typeof pin!=='object'||Array.isArray(pin)) fail(400,'Invalid pin');
+  const n=Number(pin.n), x=Number(pin.x), y=Number(pin.y);
+  if(!Number.isInteger(n)||n<1||n>999||!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>1||y<0||y>1) fail(400,'Invalid pin');
+  if(pin.part_id!=null&&(typeof pin.part_id!=='string'||pin.part_id.length>64)) fail(400,'Invalid pin');
+  if(pin.label!=null&&(typeof pin.label!=='string'||pin.label.length>80)) fail(400,'Invalid pin label');
+  return {n,x:Math.round(x*10000)/10000,y:Math.round(y*10000)/10000,part_id:pin.part_id||'',label:(pin.label||'').trim()};
+ });
+ const ids=[...new Set(out.map(p=>p.part_id).filter(Boolean))];
+ if(ids.length) {
+  const found=new Set((await db.Part.filter({id:{$in:ids}},'-created_date',ids.length)).map(p=>p.id));
+  for(const pin of out) if(pin.part_id&&!found.has(pin.part_id)) pin.part_id='';
+ }
+ return out;
+}
+// A part's models, low-stock level and shelf. Only administrators and
+// mechanics see the library, so only they say which models a part fits.
+async function cleanPartFields(db,ctx,data) {
+ if(Object.hasOwn(data,'guide_ids')) {
+  if(!['admin','mechanic'].includes(ctx.user.role)) fail(403,'Administrators and mechanics only');
+  const ids=data.guide_ids??[];
+  if(!Array.isArray(ids)||ids.length>20||ids.some(id=>typeof id!=='string')) fail(400,'Invalid bus models');
+  data.guide_ids=[...new Set(ids)];
+  for(const id of data.guide_ids) if(!(await guideExists(db,ctx,id))) fail(400,'Library page not found');
+ }
+ guideAmount(data,'min_stock',100_000);
+ text(data,'bin_location',60);
+}
+const GUIDE_ENTITIES=new Set(['VehicleGuide','GuideFact','GuideDocument','PartDiagram','PartInterchange']);
 const SECURITY_FIELDS={Company:new Set(['access_code','access_code_expires_at']),KioskDevice:new Set(['pairing_code','pairing_expires_at','paired','status'])};
 const META = ['id','created_date','updated_date','created_by','created_by_id'];
 const CREDENTIALS = new Set(['driver_pin','entry_code','access_code','one_time_code','one_time_code_expires_at','nfc_tag_id','nfc_card_tag','nfc_card_uid','card_uid','card_tag','pairing_code','token','token_hash','salt','pin_hash','password','device_token','driver_grant','verification_grant']);
@@ -502,6 +576,7 @@ async function prepare(db,ctx,name,input,existing=null) {
   } else if (name!=='GroupMessage' && name!=='LostItemReport') fail(403,'Forbidden');
  }
  if(GUIDE_ENTITIES.has(name)) await cleanGuideRecord(db,ctx,name,data,existing);
+ if(name==='Part') await cleanPartFields(db,ctx,data);
  if(name==='LostItemReport' && user.role!=='admin' && user.role!=='company') {
   if(existing && existing.reporter_id!==user.id) fail(403,'Own reports only');
   data.reporter_id=user.id;data.reporter_email=user.email;data.reporter_name=user.full_name||user.email;

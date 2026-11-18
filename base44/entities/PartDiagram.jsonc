@@ -1,0 +1,87 @@
+{
+  "name": "PartDiagram",
+  "type": "object",
+  "description": "Parts catalogue: a picture of one area of a bus model (front brakes, filters) with numbered pins on the parts, each pin linked to a Part in stock. Shown on the model's Bus library page. Fleet-wide: administrators and mechanics only.",
+  "required": [
+    "guide_id",
+    "title"
+  ],
+  "properties": {
+    "guide_id": {
+      "type": "string",
+      "description": "The VehicleGuide (bus model) this picture is of."
+    },
+    "title": {
+      "type": "string",
+      "description": "e.g. Front brakes"
+    },
+    "system": {
+      "type": "string",
+      "description": "Which part of the bus, e.g. Brakes, Engine, Suspension."
+    },
+    "image_url": {
+      "type": "string",
+      "description": "The team's own photo or drawing of the area (a public file uploaded in the app)."
+    },
+    "catalogue_link": {
+      "type": "string",
+      "description": "Web address (https) of the maker's own diagram for this area, e.g. on Partsouq, for reference."
+    },
+    "notes": {
+      "type": "string"
+    },
+    "pins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "integer",
+            "description": "The number shown on the pin."
+          },
+          "x": {
+            "type": "number",
+            "description": "Across the picture, 0 (left) to 1 (right)."
+          },
+          "y": {
+            "type": "number",
+            "description": "Down the picture, 0 (top) to 1 (bottom)."
+          },
+          "part_id": {
+            "type": "string",
+            "description": "The Part it points at; empty for a label only."
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Numbered pins on the picture."
+    },
+    "sort_order": {
+      "type": "number"
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
