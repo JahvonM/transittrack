@@ -1,0 +1,208 @@
+{
+  "key": "toyota-hiace-h200",
+  "make": "Toyota",
+  "model": "Hiace",
+  "generation": "H200 (5th generation)",
+  "year_from": 2004,
+  "year_to": 2019,
+  "engines": "Diesel: 2.5 (2KD-FTV), 3.0 (1KD-FTV), 2.8 (1GD-FTV, from 2017 in some markets). Petrol: 2.0 (1TR-FE), 2.7 (2TR-FE).",
+  "market": "General export (VINs starting JTF). Specs differ by market and engine.",
+  "summary": "Starter page compiled from public sources in November 2026. Every fact links to where it came from and starts as Not checked: confirm each one on the bus (door-pillar label, engine plate) or in its owner's manual before relying on it. The engine decides the oil, filters and belts, and your buses' engines are not recorded yet, so find out which engine each bus has first.",
+  "facts": [
+    {
+      "section": "specs",
+      "label": "Engines in this generation",
+      "value": "Diesel 2.5 (2KD-FTV) and 3.0 (1KD-FTV); petrol 2.0 (1TR-FE) and 2.7 (2TR-FE)",
+      "detail": "Parts catalogues tie 2016–2017 diesels mostly to the 3.0 1KD-FTV and the petrols to the 2.7 2TR-FE; the 2.5 2KD-FTV appears mainly on earlier models (KDH200, KDH220). Not a Toyota table: confirm on each bus.",
+      "source_name": "Hiace engine guide (parts seller)",
+      "source_link": "https://autopartswd.com/toyota-hiace-engine-models-guide/"
+    },
+    {
+      "section": "specs",
+      "label": "2.8 diesel (1GD-FTV) on later H200s",
+      "value": "Model code GDH201, listed from January 2017",
+      "detail": "Toyota's parts diagrams list a 1GD-FTV oil filter for the H200 GDH201 from 01.2017, and Ryco sells a separate service kit for GDH Hiaces. So a 2017 bus could have this engine: check.",
+      "source_name": "Megazip Toyota parts diagram (GDH201)",
+      "source_link": "https://www.megazip.net/zapchasti-dlya-avtomobilej/toyota/hiace-38414/gdh201-57000/gdh201r-sstdy-933644/oil-filter-18010130"
+    },
+    {
+      "section": "specs",
+      "label": "Which engine a model code means",
+      "value": "KDH201, KDH206, KDH221, KDH223: 3.0 diesel 1KD-FTV",
+      "detail": "Read the model code on the bus's ID plate. Ryco lists these codes for its 1KD-FTV kit, and the Australian recall REC-003455 names KDH201/221/223 with the 1KD-FTV. KDH200 and KDH220 are the 2.5 2KD-FTV; GDH is the 2.8 1GD-FTV; TRH is petrol.",
+      "source_name": "Ryco filters, service kit RSK37C",
+      "source_link": "https://rycofilters.com.au/part/rsk37c"
+    },
+    {
+      "section": "fluids",
+      "label": "Engine oil amount",
+      "value": "7.0 L with filter, 6.8 L without",
+      "applies_to": "3.0 diesel (1KD-FTV)",
+      "detail": "From a 2006 Hiace owner's manual. Ryco's Hiace service article also says about 7 litres. Fill to the dipstick rather than the number.",
+      "source_name": "Toyota Hiace 2006 owner's manual (ManualsLib)",
+      "source_link": "https://www.manualslib.com/manual/2014252/Toyota-Hiace-2006.html"
+    },
+    {
+      "section": "fluids",
+      "label": "Engine oil amount",
+      "value": "About 6.9–7.5 L with filter (sources disagree)",
+      "applies_to": "2.5 diesel (2KD-FTV)",
+      "detail": "Motorreviewer: 6.9 L plus 0.3 L for the filter. Cararac's Hiace table: 7.3 L. Tractortechspecs: 7.5 L. Put in about 6.5 L, then top up to the dipstick.",
+      "source_name": "Motorreviewer 2KD-FTV engine data",
+      "source_link": "https://www.motorreviewer.com/engine.php?engine_id=172"
+    },
+    {
+      "section": "fluids",
+      "label": "Engine oil type",
+      "value": "Toyota recommends Genuine Low-Ash engine oil for Hiace KD diesels",
+      "applies_to": "Diesels (2KD-FTV, 1KD-FTV)",
+      "detail": "From Toyota New Zealand's booklet on diesel particulate filters (DPF): low-ash oil protects the DPF. The viscosity (for example 5W-30 or 15W-40) depends on market and climate: confirm in the owner's manual.",
+      "source_name": "Toyota NZ DPF information booklet",
+      "source_link": "https://www.toyota.co.nz/globalassets/owners/dpf/tso2021_01.pdf"
+    },
+    {
+      "section": "service",
+      "label": "Routine service",
+      "value": "Every 10,000 km or 6 months, whichever comes first",
+      "interval_km": 10000,
+      "interval_months": 6,
+      "detail": "Australian Toyota dealer guidance; a 2012 KDH201R logbook price list shows the same 10,000 km / 6-month steps. A bus on daily runs in heat is hard use: don't stretch it.",
+      "source_name": "Sunshine Toyota service guide (dealer)",
+      "source_link": "https://www.sunshinetoyota.com.au/blog/car-care-maintenance/servicing-maintenance-for-your-new-toyota"
+    },
+    {
+      "section": "service",
+      "label": "Diesel fuel filter",
+      "value": "Roughly every 20,000–40,000 km (sources vary)",
+      "interval_km": 20000,
+      "applies_to": "Diesels",
+      "detail": "Progressive Vans gives 20,000–40,000 km; Commercial Motor Group 20,000–30,000 km. The interval set here is the low end. Common-rail injectors are expensive, and clean fuel is what protects them.",
+      "source_name": "Progressive Vans Hiace service guide",
+      "source_link": "https://progressivevans.com.au/pages/toyota-hiace-service-intervals"
+    },
+    {
+      "section": "service",
+      "label": "Coolant replacement (Toyota Super Long Life Coolant)",
+      "value": "First at 160,000 km, then every 80,000 km",
+      "applies_to": "Taken from Toyota's Hilux schedule (same coolant): confirm for the Hiace",
+      "source_name": "Toyota Malaysia Hilux maintenance schedule",
+      "source_link": "https://toyota.com.my/media/document/maintenance-package/Hilux-20-June-22.pdf"
+    },
+    {
+      "section": "tyres",
+      "label": "Wheel nut torque",
+      "value": "100 N·m (10.5 kgf·m, 76 ft·lbf)",
+      "detail": "Given in the owner's manual's tyre table for the 185R14C and 195/70R15C sizes: confirm it for the wheels on your buses.",
+      "source_name": "Toyota Hiace owner's manual, tyres page (ManualsLib)",
+      "source_link": "https://www.manualslib.com/manual/2515002/Toyota-Hiace.html?page=195"
+    },
+    {
+      "section": "tyres",
+      "label": "Tyre pressures",
+      "value": "Use the label on the driver's door pillar",
+      "detail": "The owner's manual table lists front 325 kPa (185R14C) and 350 kPa (195/70R15C), but the scanned text was too garbled to read the rear values. Web guides for 195R15C disagree (32 to 44 psi), so don't use them.",
+      "source_name": "Toyota Hiace owner's manual, tyres page (ManualsLib)",
+      "source_link": "https://www.manualslib.com/manual/2515002/Toyota-Hiace.html?page=195"
+    },
+    {
+      "section": "tyres",
+      "label": "Tyre size",
+      "value": "Differs by market and version; LT195R15 6PR is listed for some",
+      "detail": "Fit the size and load rating on the door label or the current tyres' sidewall.",
+      "source_name": "Wheel-size.com, Hiace H200",
+      "source_link": "https://www.wheel-size.com/size/toyota/hiace/h200-2004-now/sam/"
+    },
+    {
+      "section": "filters",
+      "label": "Ryco service kit",
+      "value": "RSK37C: air A1632, fuel R2619P, cabin RCA164P, oil Z418",
+      "applies_to": "3.0 diesel 1KD-FTV (KDH201R, KDH206R, KDH221R, KDH223R)",
+      "source_name": "Ryco filters, service kit RSK37C",
+      "source_link": "https://rycofilters.com.au/part/rsk37c"
+    },
+    {
+      "section": "filters",
+      "label": "Ryco service kit",
+      "value": "RSK59C: air A2011, oil Z418, fuel R2777P, cabin RCA378C",
+      "applies_to": "2.8 diesel 1GD-FTV (GDH)",
+      "source_name": "Ryco filters, service kit RSK59C",
+      "source_link": "https://rycofilters.com.au/part/rsk59c"
+    },
+    {
+      "section": "filters",
+      "label": "Ryco service kit",
+      "value": "RSK43C",
+      "applies_to": "2.7 petrol 2TR-FE",
+      "source_name": "Ryco filters, service kits list",
+      "source_link": "https://rycofilters.com.au/service-kits"
+    },
+    {
+      "section": "filters",
+      "label": "Toyota oil filter",
+      "value": "90915-YZZD2",
+      "applies_to": "1KD-FTV and 2KD-FTV, as listed by Toyota parts sellers",
+      "detail": "Repco's catalogue gives different diesel filter numbers for some years, so confirm by chassis number before ordering.",
+      "source_name": "Nunawading Toyota genuine parts",
+      "source_link": "https://nunawadingtoyotaparts.com.au/brand-new-genuine-toyota-oil-filter-90915yzzd2"
+    },
+    {
+      "section": "filters",
+      "label": "Toyota fuel filter",
+      "value": "23390-30350",
+      "applies_to": "Listed for the Prado 1KD-FTV and the HiAce 2KD-FTV",
+      "detail": "Confirm by chassis number before ordering.",
+      "source_name": "Nunawading Toyota genuine parts",
+      "source_link": "https://nunawadingtoyotaparts.com.au/toyota-fuel-filter-element-assembly~3883"
+    },
+    {
+      "section": "problems",
+      "label": "Injector seal leaks",
+      "value": "Combustion gas gets past the injector seals and turns the engine oil to sludge",
+      "applies_to": "KD diesels (1KD-FTV, 2KD-FTV)",
+      "detail": "These engines first sealed the injectors with copper washers. When a seal fails, gas reaches the valve cover and the oil goes sludgy. Look for black deposits round the injectors and sludge under the oil cap; replace the seals when found.",
+      "source_name": "Denso technical note (copy on the PakWheels forum)",
+      "source_link": "https://fcache1.pakwheels.com/original/4X/f/8/7/f87f0f2a1c24bf579cd0bc6bc236bf9ca981f504.pdf"
+    },
+    {
+      "section": "problems",
+      "label": "Injector wear",
+      "value": "Rough idle, more smoke, less power, worse fuel economy",
+      "applies_to": "1KD-FTV",
+      "source_name": "1KD-FTV engine guide (parts seller)",
+      "source_link": "https://autopartswd.com/toyota-1kd-ftv-engine-guide/"
+    },
+    {
+      "section": "problems",
+      "label": "EGR valve clogging",
+      "value": "The EGR valve piston gums up with black deposits and sets fault codes",
+      "applies_to": "KD diesels",
+      "detail": "An owner with several of these engines recommends cleaning the EGR whenever the injectors are changed.",
+      "source_name": "Owners' forum (NewHilux.net)",
+      "source_link": "https://www.newhilux.net/phpbb/viewtopic.php?p=236065"
+    },
+    {
+      "section": "problems",
+      "label": "Blue smoke when accelerating",
+      "value": "Common causes given: EGR clogging, turbo oil seal leaks",
+      "applies_to": "Diesels (case: 2010 Hiace, manual)",
+      "source_name": "Mechanic Q&A (JustAnswer)",
+      "source_link": "https://www.justanswer.com/car/afequ-lot-blue-smoke-when-accelerating-60km-h.html"
+    },
+    {
+      "section": "recalls",
+      "label": "EGR pipe and injector pipe recall (Australia, July 2012)",
+      "value": "EGR pipes can crack and let exhaust into the cabin; injector pipes may be over-tightened, cracking injectors and leaking diesel (fire risk). Free fix: new injectors and pipes, or a new EGR pipe.",
+      "applies_to": "1KD-FTV, KDH201/221/223 (Van and Commuter)",
+      "detail": "An Australian campaign (see also REC-003439): export buses may be covered by another campaign or none. Ask a Toyota dealer to check each chassis number for open campaigns.",
+      "source_name": "Australian Government vehicle recalls, REC-003455",
+      "source_link": "https://www.vehiclerecalls.gov.au/recalls/rec-003455"
+    },
+    {
+      "section": "notes",
+      "label": "Still to find",
+      "value": "Coolant amount, gearbox oil type and amount, tyre pressures for your tyre size, belt numbers",
+      "detail": "No reliable public source turned up for these. Read them off the bus (door-pillar label, engine-bay labels) or the owner's manual, add them here, and mark them checked.",
+      "source_name": "Library research, November 2026"
+    }
+  ]
+}

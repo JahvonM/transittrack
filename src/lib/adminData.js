@@ -65,6 +65,8 @@ export const SECTION_DATA = {
   service: ["serviceQueue"],
   faults: ["faults"],
   parts: ["parts", "companies"],
+  // The library loads its own pages, facts and manuals.
+  library: [],
   schedule: ["schedules"],
   calendar: ["schedules"],
   templates: ["templates", "companies"],

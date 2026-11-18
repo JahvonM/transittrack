@@ -22,6 +22,8 @@
   "Fault": "fault",
   "FrontDeskSignIns": "front_desk_sign_ins",
   "GroupMessage": "group_message",
+  "GuideDocument": "guide_document",
+  "GuideFact": "guide_fact",
   "Incident": "incident",
   "Inspection": "inspection",
   "InspectionResult": "inspection_result",
@@ -58,6 +60,7 @@
   "Trip": "trip",
   "User": "app_user",
   "Vehicle": "vehicle",
+  "VehicleGuide": "vehicle_guide",
   "VerificationAttempt": "verification_attempt",
   "VerificationGrant": "verification_grant",
   "Workplace": "workplace"

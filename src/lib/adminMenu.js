@@ -61,7 +61,7 @@ export const ADMIN_MENU = [
   "signup-day",
   "users",
   "companies",
-  { group: "Maintenance", ids: ["service", "faults", "parts", "schedule", "calendar", "templates", "inspection-history", "service-history", "incident-reports", "safety-standards"] },
+  { group: "Maintenance", ids: ["service", "faults", "parts", "library", "schedule", "calendar", "templates", "inspection-history", "service-history", "incident-reports", "safety-standards"] },
   { group: "Operations", ids: ["kiosks", "messaging", "lost-items", "ride-history", "passenger-bookings", "support"] },
   "divider",
   "ads",

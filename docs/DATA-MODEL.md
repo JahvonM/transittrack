@@ -50,7 +50,7 @@ Changing records through entityAccess:
 
 - **admin**: any record (except invoices, made only in billing, and app errors, which can only be marked fixed).
 - **company**: records of the kinds it can read, for its own company; it can't make a new `Company`.
-- **mechanic**: maintenance records (`Vehicle`, `Fault`, `Inspection`, `InspectionResult`, `InspectionTemplate`, `Part`, `MaintenanceSchedule`, `MaintenanceSettings`) and the mechanic chat;
+- **mechanic**: maintenance records (`Vehicle`, `Fault`, `Inspection`, `InspectionResult`, `InspectionTemplate`, `Part`, `MaintenanceSchedule`, `MaintenanceSettings`, `VehicleGuide`, `GuideFact`, `GuideDocument`) and the mechanic chat;
   on `Vehicle` only odometer, hours, status and inspection fields. Deleting maintenance records is admin-only.
 - **staff / passenger**: their own profile fields, their own staff-chat messages and lost-item reports.
 
@@ -79,6 +79,8 @@ Changing records through entityAccess:
 | [Fault](#fault) | `fault` | entityAccess | — | — | own company | all companies | all |
 | [FrontDeskSignIns](#frontdesksignins) | `front_desk_sign_ins` | entityAccess | — | — | — | — | all |
 | [GroupMessage](#groupmessage) | `group_message` | entityAccess | — | own company, staff chat | own company | mechanic chat | all |
+| [GuideDocument](#guidedocument) | `guide_document` | entityAccess | — | — | — | all companies | all |
+| [GuideFact](#guidefact) | `guide_fact` | entityAccess | — | — | — | all companies | all |
 | [Incident](#incident) | `incident` | entityAccess | — | — | own company | — | all |
 | [Inspection](#inspection) | `inspection` | entityAccess | — | — | own company | all companies | all |
 | [InspectionResult](#inspectionresult) | `inspection_result` | entityAccess | — | — | own company | all companies | all |
@@ -115,6 +117,7 @@ Changing records through entityAccess:
 | [Trip](#trip) | `trip` | entityAccess | — | own company, fewer fields | own company | — | all |
 | [User](#user) | `app_user` | entityAccess | — | own profile | own profile | own profile | all |
 | [Vehicle](#vehicle) | `vehicle` | entityAccess | — | own company, fewer fields | own company | all companies | all |
+| [VehicleGuide](#vehicleguide) | `vehicle_guide` | entityAccess | — | — | — | all companies | all |
 | [VerificationAttempt](#verificationattempt) | `verification_attempt` | server only | — | — | — | — | through other functions |
 | [VerificationGrant](#verificationgrant) | `verification_grant` | server only | — | — | — | — | through other functions |
 | [Workplace](#workplace) | `workplace` | entityAccess | — | own company | own company | — | all |
@@ -581,6 +584,44 @@ Table `group_message` · belongs to a company through `vehicle_id`, then `compan
 | `edited` | boolean | Default `false`. |
 | `sender_id` | text | → User. |
 | `sender_email` | text |  |
+
+### GuideDocument
+
+Table `guide_document` · read and changed through entityAccess.
+
+Bus library: a manual or bulletin uploaded for a model (a PDF or photo), kept as a private file. For documents the company owns: not for sharing outside it.
+
+| Field | Type | Notes |
+|---|---|---|
+| `guide_id` | text | The VehicleGuide this document is for. Required. |
+| `title` | text | Required. |
+| `kind` | text | One of: `owners_manual`, `workshop_manual`, `parts_list`, `bulletin`, `other`. Default `"other"`. |
+| `file_uri` | text | Private file (storage://private/...), opened through a short-lived link. |
+| `file_name` | text |  |
+| `notes` | text | What is in it, so it can be found by searching. |
+
+### GuideFact
+
+Table `guide_fact` · read and changed through entityAccess.
+
+Bus library: one fact on a model's page (an oil capacity, a service interval, a known problem), with where it came from and whether a mechanic has checked it.
+
+| Field | Type | Notes |
+|---|---|---|
+| `guide_id` | text | The VehicleGuide this fact is on. Required. |
+| `section` | text | Where it shows: specs, fluids (oils and capacities), service (schedule), tyres, electrical, filters (filters, belts and part numbers), torque, problems (known problems and fixes), recalls, notes. One of: `specs`, `fluids`, `service`, `tyres`, `electrical`, `filters`, `torque`, `problems`, `recalls`, `notes`. Required. |
+| `label` | text | What it is, e.g. Engine oil with filter. Required. |
+| `value` | text | The answer, e.g. 7.0 litres. |
+| `detail` | text | More: how to fix a known problem, what a service item involves. |
+| `applies_to` | text | When it only applies to some buses, e.g. 2KD-FTV diesel only. |
+| `interval_km` | double precision | Service items: every so many km. |
+| `interval_months` | double precision | Service items: every so many months. |
+| `source_name` | text | Where it came from, e.g. Toyota owner's manual or an owners' forum. |
+| `source_link` | text | Web address of the source (https). |
+| `status` | text | unchecked until a mechanic confirms it on a bus or in a manual; wrong keeps it visible as a warning. One of: `unchecked`, `checked`, `wrong`. Default `"unchecked"`. |
+| `checked_by` | text | Who marked it checked or wrong (set by the server). |
+| `checked_at` | timestamptz | When it was marked checked or wrong (set by the server). |
+| `sort_order` | double precision | Order within its section. |
 
 ### Incident
 
@@ -1481,6 +1522,24 @@ Table `vehicle` · belongs to a company through `driver_id`, then `company_id` �
 | `trip_direction_started_at` | text | Server timestamp identifying the current staff journey. Not sent to the browser. |
 | `return_pickup_state` | text | Company boarding state for a return journey. One of: `pending`, `near`, `arrived`, `departed`. |
 | `return_pickup_date` | text | Server-local service date for resetting company boarding state. Not sent to the browser. |
+
+### VehicleGuide
+
+Table `vehicle_guide` · read and changed through entityAccess.
+
+Bus library: one page per bus model and generation (Admin → Bus library), with its facts (GuideFact) and manuals (GuideDocument). The buses it covers are found by make, model and year. Fleet-wide: administrators and mechanics only.
+
+| Field | Type | Notes |
+|---|---|---|
+| `make` | text | e.g. Toyota. Required. |
+| `model` | text | e.g. Hiace. Matched to Vehicle.model ignoring case, spaces and dashes. Required. |
+| `generation` | text | e.g. H200 (5th generation) |
+| `year_from` | bigint | First model year this page covers; empty for any. |
+| `year_to` | bigint | Last model year this page covers; empty for any. |
+| `engines` | text | The engines this model came with, e.g. 2.5 diesel (2KD-FTV). |
+| `market` | text | Which market's version, e.g. General export (Caribbean). Specs differ by market. |
+| `summary` | text |  |
+| `starter_key` | text | The starter file this page was filled from (src/data/busLibrary), so the same file is not imported twice. |
 
 ### VerificationAttempt
 

@@ -1,0 +1,62 @@
+{
+  "name": "GuideDocument",
+  "type": "object",
+  "description": "Bus library: a manual or bulletin uploaded for a model (a PDF or photo), kept as a private file. For documents the company owns: not for sharing outside it.",
+  "required": [
+    "guide_id",
+    "title"
+  ],
+  "properties": {
+    "guide_id": {
+      "type": "string",
+      "description": "The VehicleGuide this document is for."
+    },
+    "title": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "owners_manual",
+        "workshop_manual",
+        "parts_list",
+        "bulletin",
+        "other"
+      ],
+      "default": "other"
+    },
+    "file_uri": {
+      "type": "string",
+      "description": "Private file (storage://private/...), opened through a short-lived link."
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string",
+      "description": "What is in it, so it can be found by searching."
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

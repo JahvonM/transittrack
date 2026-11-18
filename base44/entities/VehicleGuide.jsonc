@@ -1,0 +1,68 @@
+{
+  "name": "VehicleGuide",
+  "type": "object",
+  "description": "Bus library: one page per bus model and generation (Admin → Bus library), with its facts (GuideFact) and manuals (GuideDocument). The buses it covers are found by make, model and year. Fleet-wide: administrators and mechanics only.",
+  "required": [
+    "make",
+    "model"
+  ],
+  "properties": {
+    "make": {
+      "type": "string",
+      "description": "e.g. Toyota"
+    },
+    "model": {
+      "type": "string",
+      "description": "e.g. Hiace. Matched to Vehicle.model ignoring case, spaces and dashes."
+    },
+    "generation": {
+      "type": "string",
+      "description": "e.g. H200 (5th generation)"
+    },
+    "year_from": {
+      "type": "integer",
+      "description": "First model year this page covers; empty for any."
+    },
+    "year_to": {
+      "type": "integer",
+      "description": "Last model year this page covers; empty for any."
+    },
+    "engines": {
+      "type": "string",
+      "description": "The engines this model came with, e.g. 2.5 diesel (2KD-FTV)."
+    },
+    "market": {
+      "type": "string",
+      "description": "Which market's version, e.g. General export (Caribbean). Specs differ by market."
+    },
+    "summary": {
+      "type": "string"
+    },
+    "starter_key": {
+      "type": "string",
+      "description": "The starter file this page was filled from (src/data/busLibrary), so the same file is not imported twice."
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
