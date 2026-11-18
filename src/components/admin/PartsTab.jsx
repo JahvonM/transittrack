@@ -11,7 +11,8 @@ import { Segmented, StatusChip } from "@/components/admin/kit";
 import { ModelChecklist, ReplacementsList, StockChip } from "@/components/admin/partsCatalogueKit";
 import QuickAddPart from "@/components/admin/QuickAddPart";
 import { inStockReplacements, partMatches, replacementsFor, stockLevel } from "@/lib/partsCatalogue";
-import { Camera, ChevronDown, ChevronUp, ImagePlus, Loader2, Pencil, Plus, Trash2, Search, Minus, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Camera, ChevronDown, ChevronUp, ImagePlus, Loader2, MonitorSmartphone, Pencil, Plus, Trash2, Search, Minus, X } from "lucide-react";
 
 const empty = {
   part_name: "", oem_number: "", aftermarket_number: "",
@@ -169,10 +170,15 @@ export default function PartsTab({ parts = [], onChange, canDelete = true }) {
 
   return (
     <div className="space-y-4">
-      {/* Phones and tablets: adding starts here, not under the whole list. */}
-      <Button className="h-11 w-full sm:w-auto lg:hidden" onClick={() => setQuickOpen(true)}>
-        <Plus className="mr-1.5 h-4 w-4" />Add a part
-      </Button>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {/* Phones and tablets: adding starts here, not under the whole list. */}
+        <Button className="h-11 w-full sm:w-auto lg:hidden" onClick={() => setQuickOpen(true)}>
+          <Plus className="mr-1.5 h-4 w-4" />Add a part
+        </Button>
+        <Link to="/parts" className="inline-flex items-center gap-1 text-body-sm underline underline-offset-2">
+          <MonitorSmartphone className="h-4 w-4" aria-hidden="true" />Parts kiosk: a page just for adding parts
+        </Link>
+      </div>
       <QuickAddPart open={quickOpen} onOpenChange={setQuickOpen} parts={parts} guides={guides} onSaved={onChange} />
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
         <div className="space-y-2">

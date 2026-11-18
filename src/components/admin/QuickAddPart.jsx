@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Segmented } from "@/components/admin/kit";
 import { ModelChecklist, StockChip } from "@/components/admin/partsCatalogueKit";
 import { parsePartText, partsNumbered, quickPartRecord } from "@/lib/partsCatalogue";
@@ -13,7 +13,8 @@ import { CheckCircle2, ChevronDown, ChevronUp, ClipboardPaste, ImagePlus, Loader
 // Add a part from a phone: a photo, the number (pasted from a parts catalogue
 // or typed), its name, how many, and the bus models it fits. A number already
 // in stock is offered as a restock instead of a second copy of the part. The
-// sheet stays open after each one, so a delivery can be added part by part.
+// form stays after each one, so a delivery can be added part by part. Used in
+// a sheet on the Parts screen and as the whole of the parts kiosk (/parts).
 
 const blank = (keep = {}) => ({
   name: "", number: "", other_number: "", kind: keep.kind || "genuine", quantity: 1, photo_url: "",
@@ -23,14 +24,30 @@ const blank = (keep = {}) => ({
 
 const count = (v) => Math.max(0, Math.floor(Number(v) || 0));
 
+// The sheet on the Parts screen (phones and tablets).
 export default function QuickAddPart({ open, onOpenChange, parts = [], guides = [], onSaved }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[92dvh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add a part</DialogTitle>
+          <DialogDescription>Take a photo, paste or type its number, and say how many.</DialogDescription>
+        </DialogHeader>
+        <QuickAddPartForm parts={parts} guides={guides} onSaved={onSaved} onDone={() => onOpenChange(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// onAdded hears of each part added or restocked: { name, quantity, total, restocked }.
+export function QuickAddPartForm({ parts = [], guides = [], onSaved, onDone, onAdded, large = false }) {
   const { toast } = useToast();
   const [form, setForm] = useState(() => blank());
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState("");
   const [added, setAdded] = useState("");
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  useEffect(() => { if (open) setAdded(""); }, [open]);
+  const field = large ? "h-14 text-lg" : "h-11";
 
   const qty = count(form.quantity);
   const matches = useMemo(() => partsNumbered(form.number, parts), [form.number, parts]);
@@ -89,6 +106,7 @@ export default function QuickAddPart({ open, onOpenChange, parts = [], guides = 
     try {
       await base44.entities.Part.create(quickPartRecord(form, guides));
       await onSaved?.();
+      onAdded?.({ name: form.name.trim(), quantity: qty, total: qty, restocked: false });
       done(`Added ${form.name.trim()} (${qty})`);
     } catch (err) {
       fail("Couldn't add part")(err);
@@ -105,6 +123,7 @@ export default function QuickAddPart({ open, onOpenChange, parts = [], guides = 
       if (form.photo_url && !part.photo_url) patch.photo_url = form.photo_url;
       await base44.entities.Part.update(part.id, patch);
       await onSaved?.();
+      onAdded?.({ name: part.part_name, quantity: qty, total: patch.quantity_in_stock, restocked: true });
       done(`Added ${qty} to ${part.part_name}: ${patch.quantity_in_stock} in stock`);
     } catch (err) {
       fail("Couldn't update stock")(err);
@@ -116,17 +135,11 @@ export default function QuickAddPart({ open, onOpenChange, parts = [], guides = 
   const otherLabel = form.kind === "other" ? "Genuine number (optional)" : "Other brand's number (optional)";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add a part</DialogTitle>
-          <DialogDescription>Take a photo, paste or type its number, and say how many.</DialogDescription>
-        </DialogHeader>
-
+    <div className="space-y-4">
         {added && (
           <p role="status" className="flex items-start gap-2 rounded-xl bg-secondary p-3 text-body-sm">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-            <span><strong>{added}.</strong> Add the next one, or tap Done.</span>
+            <span><strong>{added}.</strong> {onDone ? "Add the next one, or tap Done." : "Add the next one."}</span>
           </p>
         )}
 
@@ -146,7 +159,7 @@ export default function QuickAddPart({ open, onOpenChange, parts = [], guides = 
             </label>
           )}
 
-          <Button type="button" variant="outline" className="h-11 w-full" onClick={pasteCopied}>
+          <Button type="button" variant="outline" className={`w-full ${field}`} onClick={pasteCopied}>
             <ClipboardPaste className="mr-2 h-4 w-4" />Paste a copied part number
           </Button>
 
@@ -155,7 +168,7 @@ export default function QuickAddPart({ open, onOpenChange, parts = [], guides = 
             <Input
               id="quick-number" value={form.number} onChange={(e) => set("number", e.target.value)} onPaste={onNumberPaste}
               autoCapitalize="characters" autoCorrect="off" autoComplete="off" spellCheck={false} enterKeyHint="next"
-              placeholder="e.g. 04465-26420" className="h-11"
+              placeholder="e.g. 04465-26420" className={field}
             />
             <Segmented
               label="Kind of number" size="sm" value={form.kind} onChange={(v) => set("kind", v)}
@@ -182,15 +195,15 @@ export default function QuickAddPart({ open, onOpenChange, parts = [], guides = 
 
           <div className="space-y-1.5">
             <Label htmlFor="quick-name">Name</Label>
-            <Input id="quick-name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Front brake pads" className="h-11" enterKeyHint="done" />
+            <Input id="quick-name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Front brake pads" className={field} enterKeyHint="done" />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="quick-quantity">How many</Label>
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" size="icon" className="h-11 w-11" onClick={() => set("quantity", Math.max(0, qty - 1))} aria-label="One fewer"><Minus className="h-4 w-4" /></Button>
-              <Input id="quick-quantity" type="number" inputMode="numeric" min="0" value={form.quantity} onChange={(e) => set("quantity", e.target.value)} className="h-11 w-20 text-center" />
-              <Button type="button" variant="outline" size="icon" className="h-11 w-11" onClick={() => set("quantity", qty + 1)} aria-label="One more"><Plus className="h-4 w-4" /></Button>
+              <Button type="button" variant="outline" size="icon" className={large ? "h-14 w-14" : "h-11 w-11"} onClick={() => set("quantity", Math.max(0, qty - 1))} aria-label="One fewer"><Minus className="h-4 w-4" /></Button>
+              <Input id="quick-quantity" type="number" inputMode="numeric" min="0" value={form.quantity} onChange={(e) => set("quantity", e.target.value)} className={`${field} w-24 text-center`} />
+              <Button type="button" variant="outline" size="icon" className={large ? "h-14 w-14" : "h-11 w-11"} onClick={() => set("quantity", qty + 1)} aria-label="One more"><Plus className="h-4 w-4" /></Button>
             </div>
           </div>
 
@@ -217,14 +230,13 @@ export default function QuickAddPart({ open, onOpenChange, parts = [], guides = 
           )}
         </form>
 
-        <DialogFooter className="gap-2">
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Done</Button>
-          <Button type="submit" form="quick-add-part" variant={matches.length ? "outline" : "default"} disabled={!!busy || !form.name.trim()}>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          {onDone && <Button type="button" variant="ghost" onClick={onDone}>Done</Button>}
+          <Button type="submit" form="quick-add-part" variant={matches.length ? "outline" : "default"} disabled={!!busy || !form.name.trim()} className={large ? "h-14 text-lg sm:min-w-[220px]" : undefined}>
             {busy === "save" && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
             {matches.length ? "Add as a new part" : "Add part"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+    </div>
   );
 }

@@ -251,3 +251,59 @@ test('on a phone, Add a part is at the top: a pasted catalogue line fills it in,
   await expect(page.getByText('Element kit, oil filter', { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('the parts kiosk (/parts): one screen with no menus to add and restock parts, for admins and mechanics', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const { errors, server } = await open(page, '/parts', { role: 'mechanic', width: 1024, height: 768 });
+  await expect(page.getByRole('heading', { name: 'Parts', level: 1 })).toBeVisible();
+  // No app menus: just the form, what was added here, and sign out.
+  await expect(page.getByRole('navigation')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  const form = page.getByRole('region', { name: 'Add a part' });
+  const log = page.getByRole('complementary', { name: 'Added on this screen' });
+  await expect(log).toContainText('Nothing yet.');
+
+  await page.evaluate(() => navigator.clipboard.writeText('17801-30040 ELEMENT, AIR CLEANER FILTER'));
+  await form.getByRole('button', { name: 'Paste a copied part number' }).click();
+  await expect(form.getByLabel('Name', { exact: true })).toHaveValue('Element, air cleaner filter');
+  await form.getByRole('button', { name: 'One more' }).click();
+  await form.getByRole('button', { name: 'Add part', exact: true }).click();
+  await expect(form.getByRole('status')).toContainText('Added Element, air cleaner filter (2). Add the next one.');
+  expect(server.writes.find((w) => w.entity === 'Part' && w.op === 'create').data).toMatchObject({ part_name: 'Element, air cleaner filter', oem_number: '17801-30040', quantity_in_stock: 2 });
+
+  // A part already in stock is restocked.
+  await form.getByLabel('Part number').fill('Z418');
+  await form.getByRole('region', { name: 'Already in your parts' }).getByRole('button', { name: 'Add 1 to its stock' }).click();
+  expect(server.writes.find((w) => w.entity === 'Part' && w.op === 'update' && w.id === 'p2').data).toEqual({ quantity_in_stock: 7 });
+  await expect(log.getByRole('listitem')).toHaveCount(2);
+  await expect(log.getByRole('listitem').first()).toContainText('+1 to stock, now 7');
+  await expect(log.getByRole('listitem').last()).toContainText('New part, 2 in stock');
+  await expect(log.getByRole('link', { name: 'See all parts' })).toHaveAttribute('href', '/mechanic');
+  await page.screenshot({ path: '/tmp/tt-parts-kiosk.png' });
+  expect(errors).toEqual([]);
+});
+
+test('the parts kiosk fits a phone, and is linked from Parts', async ({ page }) => {
+  const { errors } = await open(page, '/admin/parts', { width: 390, height: 844 });
+  await page.getByRole('link', { name: /Parts kiosk/ }).click();
+  await expect(page).toHaveURL(/\/parts$/);
+  await expect(page.getByRole('heading', { name: 'Add a part' })).toBeVisible();
+  await expect(page.getByLabel('Part number')).toBeVisible();
+  // Measured once the new screen has finished sliding in.
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  expect(errors).toEqual([]);
+});
+
+test('the parts kiosk sends a signed-out visitor to sign in, then back to it; other accounts go to their own screen', async ({ page }) => {
+  await mockFleet(page, { signedIn: false });
+  await page.goto('/parts');
+  await expect(page).toHaveURL(/\/login\?returnTo=%2Fparts$/);
+
+  const passenger = await page.context().newPage();
+  await mockFleet(passenger, { role: 'staff' });
+  await passenger.goto('/parts');
+  await expect(passenger).not.toHaveURL(/\/parts$/);
+  await expect(passenger.getByRole('region', { name: 'Add a part' })).toHaveCount(0);
+});
