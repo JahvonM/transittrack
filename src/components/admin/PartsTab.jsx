@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { confirmAction } from "@/components/ConfirmHost";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
@@ -6,17 +6,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusChip } from "@/components/admin/kit";
-import { Camera, ImagePlus, Loader2, Plus, Trash2, Search, Minus, X } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Segmented, StatusChip } from "@/components/admin/kit";
+import { ModelChecklist, ReplacementsList, StockChip } from "@/components/admin/partsCatalogueKit";
+import { inStockReplacements, partMatches, replacementsFor, stockLevel } from "@/lib/partsCatalogue";
+import { Camera, ChevronDown, ChevronUp, ImagePlus, Loader2, Pencil, Plus, Trash2, Search, Minus, X } from "lucide-react";
 
 const empty = {
   part_name: "", oem_number: "", aftermarket_number: "",
   vehicle_compatibility: "", category: "", quantity_in_stock: 0, unit_price: 0, supplier: "", photo_url: "",
+  min_stock: "", bin_location: "", guide_ids: [],
 };
 
 async function uploadPhoto(file) {
   const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
   return file_url;
+}
+
+// What to send for the catalogue fields: a warning level or nothing, and
+// only models that still have a library page.
+function catalogueFields(form, guides) {
+  const known = new Set(guides.map((g) => g.id));
+  return {
+    min_stock: form.min_stock === "" || form.min_stock == null ? null : Number(form.min_stock),
+    bin_location: (form.bin_location || "").trim(),
+    ...(guides.length ? { guide_ids: (form.guide_ids || []).filter((id) => known.has(id)) } : {}),
+  };
 }
 
 // Square part photo; tap to add or replace it.
@@ -47,11 +62,33 @@ function PartPhoto({ part, onChanged }) {
   );
 }
 
-export default function PartsTab({ parts = [], onChange }) {
+// Admin → Parts and the mechanics' Parts tab: the stock, and for each part
+// the bus models it fits, when to warn of low stock, where it's kept, and the
+// numbers that can replace it (with which of those are on the shelf).
+export default function PartsTab({ parts = [], onChange, canDelete = true }) {
   const { toast } = useToast();
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState("");
+  const [show, setShow] = useState("all");
+  const [openId, setOpenId] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [guides, setGuides] = useState([]);
+  const [interchanges, setInterchanges] = useState([]);
+
+  // The library's model pages and the replacement numbers. Not every
+  // screen that shows parts can read them (a company manager can't), and
+  // the tab works without them.
+  const loadCatalogue = async () => {
+    const [g, i] = await Promise.all([
+      base44.entities.VehicleGuide.list("make", 200).catch(() => []),
+      base44.entities.PartInterchange.list("-created_date", 5000).catch(() => []),
+    ]);
+    setGuides(g || []);
+    setInterchanges(i || []);
+  };
+  useEffect(() => { loadCatalogue(); }, []);
+  const refresh = async () => { await Promise.all([onChange?.(), loadCatalogue()]); };
 
   const [uploading, setUploading] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -74,7 +111,8 @@ export default function PartsTab({ parts = [], onChange }) {
     if (!form.part_name.trim()) return;
     setSaving(true);
     try {
-      await base44.entities.Part.create({ ...form, part_name: form.part_name.trim() });
+      const { min_stock: _m, bin_location: _b, guide_ids: _g, ...base } = form;
+      await base44.entities.Part.create({ ...base, part_name: form.part_name.trim(), ...catalogueFields(form, guides) });
       setForm(empty);
       onChange();
     } catch (e) {
@@ -106,11 +144,26 @@ export default function PartsTab({ parts = [], onChange }) {
     }
   };
 
-  const filtered = parts.filter((p) => {
-    if (!query.trim()) return true;
-    const q = query.toLowerCase();
-    return p.part_name?.toLowerCase().includes(q) || p.oem_number?.toLowerCase().includes(q) || p.vehicle_compatibility?.toLowerCase().includes(q);
-  });
+  const saveEdit = async (draft) => {
+    try {
+      const { id, part_name, oem_number, aftermarket_number, vehicle_compatibility, category, supplier, unit_price } = draft;
+      await base44.entities.Part.update(id, {
+        part_name: part_name.trim(), oem_number, aftermarket_number, vehicle_compatibility, category, supplier,
+        unit_price: Number(unit_price) || 0, ...catalogueFields(draft, guides),
+      });
+      setEditing(null);
+      onChange();
+    } catch (e) {
+      toast({ title: "Couldn't save part", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const guideName = (id) => {
+    const g = guides.find((x) => x.id === id);
+    return g ? [g.make, g.model].filter(Boolean).join(" ") : null;
+  };
+  const lowCount = parts.filter((p) => stockLevel(p) !== "ok").length;
+  const filtered = parts.filter((p) => (show === "low" ? stockLevel(p) !== "ok" : true) && partMatches(p, query, interchanges));
 
   return (
     <div className="space-y-4">
@@ -118,32 +171,67 @@ export default function PartsTab({ parts = [], onChange }) {
         <div className="space-y-2">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search parts…" className="pl-9" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search parts or any part number…" aria-label="Search parts" className="pl-9" />
           </div>
+          <Segmented
+            label="Which parts"
+            size="sm"
+            value={show}
+            onChange={setShow}
+            options={[{ value: "all", label: "All", count: parts.length }, { value: "low", label: "Low or out of stock", count: lowCount }]}
+          />
           {filtered.length === 0 && (
-            <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No parts yet.</CardContent></Card>
+            <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">{parts.length ? "No parts match." : "No parts yet."}</CardContent></Card>
           )}
-          {filtered.map((p) => (
-            <Card key={p.id}>
-              <CardContent className="py-3 flex items-center gap-3">
-                <PartPhoto part={p} onChanged={onChange} />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">{p.part_name}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {[p.oem_number, p.vehicle_compatibility, p.supplier].filter(Boolean).join(" · ") || p.category || "—"}
+          {filtered.map((p) => {
+            const reps = replacementsFor(p, interchanges);
+            const spare = stockLevel(p) === "ok" ? [] : inStockReplacements(p, parts, interchanges);
+            const models = (p.guide_ids || []).map(guideName).filter(Boolean);
+            const isOpen = openId === p.id;
+            return (
+              <Card key={p.id}>
+                <CardContent className="py-3">
+                  <div className="flex items-center gap-3">
+                    <PartPhoto part={p} onChanged={onChange} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{p.part_name}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {[p.oem_number, p.vehicle_compatibility, p.supplier].filter(Boolean).join(" · ") || p.category || "—"}
+                      </div>
+                      {(models.length > 0 || p.bin_location) && (
+                        <div className="text-xs text-muted-foreground truncate">{[models.join(", "), p.bin_location && `Kept: ${p.bin_location}`].filter(Boolean).join(" · ")}</div>
+                      )}
+                    </div>
+                    <StockChip part={p} />
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => adjustStock(p, -1)} aria-label={`One fewer ${p.part_name}`}><Minus className="w-3 h-3" /></Button>
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => adjustStock(p, 1)} aria-label={`One more ${p.part_name}`}><Plus className="w-3 h-3" /></Button>
+                    </div>
+                    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => remove(p.id)} aria-label={`Delete ${p.part_name}`}>
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
                   </div>
-                </div>
-                <StatusChip tone={p.quantity_in_stock > 0 ? "neutral" : "danger"}>{p.quantity_in_stock} in stock</StatusChip>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => adjustStock(p, -1)}><Minus className="w-3 h-3" /></Button>
-                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => adjustStock(p, 1)}><Plus className="w-3 h-3" /></Button>
-                </div>
-                <Button variant="ghost" size="icon" className="shrink-0" onClick={() => remove(p.id)}>
-                  <Trash2 className="w-4 h-4 text-destructive" />
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                  {spare.length > 0 && (
+                    <p className="mt-2 text-body-sm">Replacement on the shelf: {spare.map(({ part }) => `${part.part_name} (${part.quantity_in_stock})`).join(", ")}</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => setOpenId(isOpen ? null : p.id)} aria-expanded={isOpen}>
+                      {isOpen ? <ChevronUp className="mr-1 h-4 w-4" /> : <ChevronDown className="mr-1 h-4 w-4" />}
+                      Replacements{reps.length ? ` (${reps.length})` : ""}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditing({ ...empty, ...p, min_stock: p.min_stock ?? "", bin_location: p.bin_location || "", guide_ids: p.guide_ids || [] })}>
+                      <Pencil className="mr-1 h-4 w-4" />Details
+                    </Button>
+                  </div>
+                  {isOpen && (
+                    <div className="mt-2 border-t border-border pt-2">
+                      <ReplacementsList part={p} parts={parts} interchanges={interchanges} canDelete={canDelete} onChange={refresh} />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
         <Card>
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><Plus className="w-4 h-4" /> Add a part</CardTitle></CardHeader>
@@ -165,16 +253,7 @@ export default function PartsTab({ parts = [], onChange }) {
                 </label>
               )}
             </div>
-            <div className="space-y-1.5"><Label htmlFor="part-part_name">Part name</Label><Input id="part-part_name" value={form.part_name} onChange={(e) => set("part_name", e.target.value)} /></div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5"><Label htmlFor="part-oem_number">OEM #</Label><Input id="part-oem_number" value={form.oem_number} onChange={(e) => set("oem_number", e.target.value)} /></div>
-              <div className="space-y-1.5"><Label htmlFor="part-aftermarket_number">Aftermarket #</Label><Input id="part-aftermarket_number" value={form.aftermarket_number} onChange={(e) => set("aftermarket_number", e.target.value)} /></div>
-            </div>
-            <div className="space-y-1.5"><Label htmlFor="part-vehicle_compatibility">Compatible vehicle</Label><Input id="part-vehicle_compatibility" value={form.vehicle_compatibility} onChange={(e) => set("vehicle_compatibility", e.target.value)} placeholder="e.g. Toyota Hiace" /></div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5"><Label htmlFor="part-category">Category</Label><Input id="part-category" value={form.category} onChange={(e) => set("category", e.target.value)} /></div>
-              <div className="space-y-1.5"><Label htmlFor="part-supplier">Supplier</Label><Input id="part-supplier" value={form.supplier} onChange={(e) => set("supplier", e.target.value)} /></div>
-            </div>
+            <PartFields form={form} set={set} guides={guides} idPrefix="part" />
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5"><Label htmlFor="part-quantity_in_stock">Qty in stock</Label><Input id="part-quantity_in_stock" type="number" value={form.quantity_in_stock} onChange={(e) => set("quantity_in_stock", Number(e.target.value))} /></div>
               <div className="space-y-1.5"><Label htmlFor="part-unit_price">Unit price</Label><Input id="part-unit_price" type="number" value={form.unit_price} onChange={(e) => set("unit_price", Number(e.target.value))} /></div>
@@ -185,6 +264,68 @@ export default function PartsTab({ parts = [], onChange }) {
           </CardContent>
         </Card>
       </div>
+      {editing && <EditPartDialog initial={editing} guides={guides} onCancel={() => setEditing(null)} onSave={saveEdit} />}
     </div>
+  );
+}
+
+// The fields a part has, for adding one and for its Details.
+function PartFields({ form, set, guides, idPrefix }) {
+  const id = (k) => `${idPrefix}-${k}`;
+  return (
+    <>
+      <div className="space-y-1.5"><Label htmlFor={id("part_name")}>Part name</Label><Input id={id("part_name")} value={form.part_name} onChange={(e) => set("part_name", e.target.value)} /></div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1.5"><Label htmlFor={id("oem_number")}>OEM #</Label><Input id={id("oem_number")} value={form.oem_number} onChange={(e) => set("oem_number", e.target.value)} /></div>
+        <div className="space-y-1.5"><Label htmlFor={id("aftermarket_number")}>Aftermarket #</Label><Input id={id("aftermarket_number")} value={form.aftermarket_number} onChange={(e) => set("aftermarket_number", e.target.value)} /></div>
+      </div>
+      <div className="space-y-1.5"><Label htmlFor={id("vehicle_compatibility")}>Compatible vehicle</Label><Input id={id("vehicle_compatibility")} value={form.vehicle_compatibility} onChange={(e) => set("vehicle_compatibility", e.target.value)} placeholder="e.g. Toyota Hiace" /></div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1.5"><Label htmlFor={id("category")}>Category</Label><Input id={id("category")} value={form.category} onChange={(e) => set("category", e.target.value)} /></div>
+        <div className="space-y-1.5"><Label htmlFor={id("supplier")}>Supplier</Label><Input id={id("supplier")} value={form.supplier} onChange={(e) => set("supplier", e.target.value)} /></div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1.5"><Label htmlFor={id("min_stock")}>Warn at (qty)</Label><Input id={id("min_stock")} type="number" min="0" value={form.min_stock} onChange={(e) => set("min_stock", e.target.value)} placeholder="e.g. 2" /></div>
+        <div className="space-y-1.5"><Label htmlFor={id("bin_location")}>Kept at</Label><Input id={id("bin_location")} value={form.bin_location} onChange={(e) => set("bin_location", e.target.value)} placeholder="Shelf B2" /></div>
+      </div>
+      {guides.length > 0 && (
+        <fieldset className="space-y-1.5">
+          <legend className="text-sm font-medium">Fits these bus models</legend>
+          <ModelChecklist guides={guides} value={form.guide_ids || []} onChange={(v) => set("guide_ids", v)} idPrefix={id("model")} />
+        </fieldset>
+      )}
+    </>
+  );
+}
+
+function EditPartDialog({ initial, guides, onCancel, onSave }) {
+  const [form, setForm] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!form.part_name.trim()) return;
+    setSaving(true);
+    await onSave(form);
+    setSaving(false);
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onCancel()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <form onSubmit={submit} className="space-y-3">
+          <DialogHeader>
+            <DialogTitle>{initial.part_name}</DialogTitle>
+            <DialogDescription>Numbers, where it's kept, when to warn of low stock, and which bus models it fits.</DialogDescription>
+          </DialogHeader>
+          <PartFields form={form} set={set} guides={guides} idPrefix="edit" />
+          <div className="space-y-1.5"><Label htmlFor="edit-unit_price">Unit price</Label><Input id="edit-unit_price" type="number" value={form.unit_price} onChange={(e) => set("unit_price", e.target.value)} /></div>
+          {stockLevel(form) !== "ok" && <StatusChip tone="warning">Stock is at or under the warning level</StatusChip>}
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+            <Button type="submit" disabled={saving || !form.part_name.trim()}>{saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}Save</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

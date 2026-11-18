@@ -11,6 +11,9 @@ import { EmptyState, Panel, PageIntro, Segmented, StatusChip, Toolbar } from "@/
 import BusLoader from "@/components/BusLoader";
 import { ArrowLeft, BookOpen, Bus, Check, ExternalLink, FileText, Loader2, Pencil, Plus, Search, Trash2, TriangleAlert, Undo2, Upload, X } from "lucide-react";
 import { STARTERS } from "@/data/busLibrary";
+import { DiagramsPanel, ModelPartsPanel } from "@/components/admin/PartDiagrams";
+import REPLACEMENTS from "@/data/partsCatalogue/replacements.json";
+import { starterInterchanges } from "@/lib/partsCatalogue";
 import {
   DOCUMENT_KINDS, FACT_STATUS, MAX_DOCUMENT_BYTES, SECTIONS,
   busRecordWarnings, busesOf, bySection, checkedCounts, chunks, documentKindLabel, documentText,
@@ -39,6 +42,9 @@ export default function BusLibraryTab({ vehicles = [], canDelete = false }) {
   const [guides, setGuides] = useState([]);
   const [facts, setFacts] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [parts, setParts] = useState([]);
+  const [diagrams, setDiagrams] = useState([]);
+  const [interchanges, setInterchanges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [openId, setOpenId] = useState(null);
@@ -47,14 +53,20 @@ export default function BusLibraryTab({ vehicles = [], canDelete = false }) {
 
   const load = async () => {
     try {
-      const [g, f, d] = await Promise.all([
+      const [g, f, d, p, pd, pi] = await Promise.all([
         base44.entities.VehicleGuide.list("make", 200),
         base44.entities.GuideFact.list("sort_order", 5000),
         base44.entities.GuideDocument.list("-created_date", 500),
+        base44.entities.Part.list("part_name", 2000),
+        base44.entities.PartDiagram.list("sort_order", 500),
+        base44.entities.PartInterchange.list("-created_date", 5000),
       ]);
       setGuides(g || []);
       setFacts(f || []);
       setDocuments(d || []);
+      setParts(p || []);
+      setDiagrams(pd || []);
+      setInterchanges(pi || []);
       setLoadError("");
     } catch (e) {
       setLoadError(e?.message || "The library could not be loaded.");
@@ -82,6 +94,20 @@ export default function BusLibraryTab({ vehicles = [], canDelete = false }) {
     }
   };
 
+  const importReplacements = async () => {
+    setImporting("replacements");
+    try {
+      const rows = starterInterchanges(REPLACEMENTS, interchanges);
+      for (const batch of chunks(rows)) await base44.entities.PartInterchange.bulkCreate(batch);
+      toast({ title: "Replacement numbers added", description: `${rows.length} numbers, all marked not checked. They show on any part with a matching number.` });
+    } catch (e) {
+      fail("Couldn't add the replacement numbers")(e);
+    } finally {
+      await load();
+      setImporting("");
+    }
+  };
+
   const saveGuide = async (form) => {
     const data = {
       ...form,
@@ -104,10 +130,14 @@ export default function BusLibraryTab({ vehicles = [], canDelete = false }) {
   const deleteGuide = async (guide) => {
     const own = facts.filter((f) => f.guide_id === guide.id);
     const docs = documents.filter((d) => d.guide_id === guide.id);
-    if (!(await confirmAction({ title: `Delete the ${guideTitle(guide)} page?`, description: `Its ${own.length} facts and ${docs.length} documents are deleted with it.` }))) return;
+    const pictures = diagrams.filter((d) => d.guide_id === guide.id);
+    const linked = parts.filter((p) => Array.isArray(p.guide_ids) && p.guide_ids.includes(guide.id));
+    if (!(await confirmAction({ title: `Delete the ${guideTitle(guide)} page?`, description: `Its ${own.length} facts, ${docs.length} documents and ${pictures.length} part pictures are deleted with it. Parts stay in stock.` }))) return;
     try {
       for (const f of own) await base44.entities.GuideFact.delete(f.id);
       for (const d of docs) await base44.entities.GuideDocument.delete(d.id);
+      for (const d of pictures) await base44.entities.PartDiagram.delete(d.id);
+      for (const p of linked) await base44.entities.Part.update(p.id, { guide_ids: p.guide_ids.filter((id) => id !== guide.id) });
       await base44.entities.VehicleGuide.delete(guide.id);
       setOpenId(null);
     } catch (e) {
@@ -135,6 +165,9 @@ export default function BusLibraryTab({ vehicles = [], canDelete = false }) {
           guide={open}
           facts={facts.filter((f) => f.guide_id === open.id)}
           documents={documents.filter((d) => d.guide_id === open.id)}
+          diagrams={diagrams.filter((d) => d.guide_id === open.id)}
+          parts={parts}
+          interchanges={interchanges}
           buses={busesOf(open, vehicles)}
           canDelete={canDelete}
           onBack={() => setOpenId(null)}
@@ -157,6 +190,8 @@ export default function BusLibraryTab({ vehicles = [], canDelete = false }) {
         importing={importing}
         onOpen={setOpenId}
         onImport={importStarter}
+        newReplacements={starterInterchanges(REPLACEMENTS, interchanges).length}
+        onImportReplacements={importReplacements}
         onNew={(bus) => setGuideForm({ ...EMPTY_GUIDE, make: bus?.make || "", model: bus?.model || "", year_from: bus?.year || "", year_to: bus?.year || "" })}
       />
       {guideDialog}
@@ -164,7 +199,7 @@ export default function BusLibraryTab({ vehicles = [], canDelete = false }) {
   );
 }
 
-function LibraryHome({ guides, facts, documents, vehicles, importing, onOpen, onImport, onNew }) {
+function LibraryHome({ guides, facts, documents, vehicles, importing, onOpen, onImport, onNew, newReplacements = 0, onImportReplacements }) {
   const [query, setQuery] = useState("");
   const starters = unimportedStarters(STARTERS, guides);
   const uncovered = uncoveredBuses(guides, vehicles);
@@ -240,8 +275,8 @@ function LibraryHome({ guides, facts, documents, vehicles, importing, onOpen, on
         </div>
       )}
 
-      {starters.length > 0 && (
-        <Panel title="Ready to add" description="Starter pages researched from public sources. Every fact comes with its source and starts as not checked.">
+      {(starters.length > 0 || newReplacements > 0) && (
+        <Panel title="Ready to add" description="Researched from public sources. Everything comes with its source and starts as not checked.">
           <ul className="divide-y divide-border">
             {starters.map((starter) => (
               <li key={starter.key} className="flex flex-wrap items-center gap-3 py-3">
@@ -255,6 +290,18 @@ function LibraryHome({ guides, facts, documents, vehicles, importing, onOpen, on
                 </Button>
               </li>
             ))}
+            {newReplacements > 0 && (
+              <li className="flex flex-wrap items-center gap-3 py-3">
+                <div className="min-w-[200px] flex-1">
+                  <p className="font-semibold">Replacement part numbers</p>
+                  <p className="text-body-sm text-muted-foreground">{newReplacements} aftermarket numbers for Hiace and NV350 filters, from parts catalogues</p>
+                </div>
+                <Button onClick={onImportReplacements} disabled={!!importing}>
+                  {importing === "replacements" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Plus className="mr-1.5 h-4 w-4" />}
+                  Add these
+                </Button>
+              </li>
+            )}
           </ul>
         </Panel>
       )}
@@ -275,7 +322,7 @@ function LibraryHome({ guides, facts, documents, vehicles, importing, onOpen, on
   );
 }
 
-function GuidePage({ guide, facts, documents, buses, canDelete, onBack, onEdit, onDelete, onChange }) {
+function GuidePage({ guide, facts, documents, diagrams = [], parts = [], interchanges = [], buses, canDelete, onBack, onEdit, onDelete, onChange }) {
   const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [show, setShow] = useState("all");
@@ -348,6 +395,9 @@ function GuidePage({ guide, facts, documents, buses, canDelete, onBack, onEdit, 
           })}
         </ul>
       </Panel>
+
+      <ModelPartsPanel guide={guide} parts={parts} interchanges={interchanges} onChange={onChange} />
+      <DiagramsPanel guide={guide} diagrams={diagrams} parts={parts} interchanges={interchanges} canDelete={canDelete} onChange={onChange} />
 
       <Toolbar actions={<Button onClick={() => setFactForm({ ...EMPTY_FACT })}><Plus className="mr-1.5 h-4 w-4" />Add a fact</Button>}>
         <div className="relative w-full max-w-xs">

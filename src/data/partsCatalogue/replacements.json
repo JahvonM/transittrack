@@ -1,0 +1,77 @@
+[
+  {
+    "part_number": "90915-YZZD2",
+    "alt_number": "Z418",
+    "alt_brand": "Ryco",
+    "kind": "aftermarket",
+    "applies_to": "Toyota KD diesels (Hiace, Hilux), as listed",
+    "notes": "Ryco's own Hiace 1KD-FTV kit (RSK37C) also uses Z418.",
+    "source_name": "Fred Auto parts listing",
+    "source_link": "https://www.fredauto.com.au/oil-filter-refer-ryco-z418-fits-toyota-hiace-hilux"
+  },
+  {
+    "part_number": "90915-YZZD2",
+    "alt_number": "WZ418",
+    "alt_brand": "Wesfil",
+    "kind": "aftermarket",
+    "notes": "A Basco filter listing groups 90915-YZZD2 with Ryco Z418, Wesfil WZ418 and Sakura C-1123.",
+    "source_name": "Basco BFO-1123 listing (Allied Auto)",
+    "source_link": "https://alliedautoonline.com.au/products/basco-bfo-1123-oil-filter-interchangeable-with-z418-c-1123-wz418"
+  },
+  {
+    "part_number": "90915-YZZD2",
+    "alt_number": "C-1123",
+    "alt_brand": "Sakura",
+    "kind": "aftermarket",
+    "notes": "From the same Basco listing; a filter cross-reference site lists both Sakura C1110 and C1123 against Ryco Z418, so check which one matches.",
+    "source_name": "Basco BFO-1123 listing (Allied Auto)",
+    "source_link": "https://alliedautoonline.com.au/products/basco-bfo-1123-oil-filter-interchangeable-with-z418-c-1123-wz418"
+  },
+  {
+    "part_number": "90915-YZZD2",
+    "alt_number": "BFO-1123",
+    "alt_brand": "Basco",
+    "kind": "aftermarket",
+    "source_name": "Basco BFO-1123 listing (Allied Auto)",
+    "source_link": "https://alliedautoonline.com.au/products/basco-bfo-1123-oil-filter-interchangeable-with-z418-c-1123-wz418"
+  },
+  {
+    "part_number": "23390-0L041",
+    "alt_number": "R2619P",
+    "alt_brand": "Ryco",
+    "kind": "aftermarket",
+    "applies_to": "Hiace 2.5 and 3.0 diesels (KDH200R, KDH201R, KDH220R in Ryco's listings)",
+    "notes": "The cross-reference lists R2619P with Toyota 23390-0L020, 23390-0L030 and 23390-0L041.",
+    "source_name": "Baldwin PF46088 cross-reference (FindItParts)",
+    "source_link": "https://www.finditparts.com/p/pf46088-baldwin-fuel-filter-used-for-toyota-isuzu-applications-8711675"
+  },
+  {
+    "part_number": "23390-0L050",
+    "alt_number": "R2619P",
+    "alt_brand": "Ryco",
+    "kind": "aftermarket",
+    "notes": "A Basco fuel filter is listed as interchangeable with both.",
+    "source_name": "Basco fuel filter listing (Bunnings)",
+    "source_link": "https://www.bunnings.com.au/basco-fuel-filter-interchangeable-with-f-10200-r2619p-for-isuzu-toyota-mazda_p1053057"
+  },
+  {
+    "part_number": "16546-02N01",
+    "alt_number": "QFA0075",
+    "alt_brand": "Quinton Hazell",
+    "kind": "aftermarket",
+    "applies_to": "NV350 air filter",
+    "notes": "Listed for the same Nissan number, but the sizes given differ between listings: measure the old filter before ordering.",
+    "source_name": "Pièces Discount 24 OEM listing",
+    "source_link": "https://www.piecesdiscount24.fr/oen-1654602n01"
+  },
+  {
+    "part_number": "16546-02N01",
+    "alt_number": "B20507PR",
+    "alt_brand": "JC Premium",
+    "kind": "aftermarket",
+    "applies_to": "NV350 air filter",
+    "notes": "Listed for the same Nissan number, but the sizes given differ between listings: measure the old filter before ordering.",
+    "source_name": "Pièces Discount 24 OEM listing",
+    "source_link": "https://www.piecesdiscount24.fr/oen-1654602n01"
+  }
+]
