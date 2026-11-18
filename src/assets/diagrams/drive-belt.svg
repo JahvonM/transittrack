@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 640" role="img" aria-labelledby="t d">
+<title id="t">Drive belt: guide drawing</title>
+<desc id="d">Pulleys at the front of an engine with one belt around them: crankshaft pulley, air-conditioning compressor, power steering pump, water pump, alternator and the belt tensioner.</desc>
+<style>
+.b{fill:#e2e8f0;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.m{fill:#cbd5e1;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.d{fill:#94a3b8;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.k{fill:#475569;stroke:#1e293b;stroke-width:2}
+.a{fill:#67e8f9;stroke:#0e7490;stroke-width:3;stroke-linejoin:round}
+.ln{fill:none;stroke:#1e293b;stroke-linecap:round;stroke-linejoin:round}
+.ld{fill:none;stroke:#64748b;stroke-width:2}
+.t{font:700 30px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+.s{font:500 17px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#475569}
+.l{font:600 22px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+</style>
+<rect width="800" height="640" fill="#f8fafc"/>
+<text class="t" x="24" y="44">Drive belt</text>
+<text class="s" x="24" y="72">Guide drawing: not to scale, not from Toyota or Nissan diagrams</text>
+<text class="s" x="24" y="96">Belt routing differs by engine: follow the label under the bonnet</text>
+<circle class="m" cx="400" cy="470" r="70"/><circle class="k" cx="400" cy="470" r="14"/>
+<circle class="m" cx="200" cy="420" r="50"/><circle class="k" cx="200" cy="420" r="10"/>
+<circle class="m" cx="240" cy="200" r="45"/><circle class="k" cx="240" cy="200" r="10"/>
+<circle class="m" cx="400" cy="250" r="42"/><circle class="k" cx="400" cy="250" r="10"/>
+<circle class="m" cx="560" cy="230" r="40"/><circle class="k" cx="560" cy="230" r="9"/>
+<path class="ln" stroke="#475569" stroke-width="10" d="M470 330 L520 385"/><circle class="k" cx="520" cy="385" r="9"/>
+<circle class="d" cx="470" cy="330" r="26"/>
+<path d="M400,540 C 360,540 335,520 333,490 L 245,455 C 215,470 160,460 151,420 C 145,385 165,365 190,372 L 197,232 C 190,200 210,158 245,156 C 270,156 290,180 286,205 L 360,215 C 380,205 420,205 440,215 L 525,205 C 545,185 590,190 600,225 C 605,255 585,272 560,270 L 495,322 C 497,345 480,357 465,355 L 468,455 C 478,500 445,540 400,540 Z" fill="none" stroke="#0e7490" stroke-width="10" stroke-linejoin="round"/>
+<path class="ld" d="M420 535 L470 595"/><circle cx="420" cy="535" r="5" fill="#0f172a"/><text class="l" x="480" y="615" text-anchor="start">Crankshaft pulley</text>
+<path class="ld" d="M600 230 L640 205"/><circle cx="600" cy="230" r="5" fill="#0f172a"/><text class="l" x="648" y="212" text-anchor="start">Alternator</text>
+<path class="ld" d="M160 440 L80 520"/><circle cx="160" cy="440" r="5" fill="#0f172a"/><text class="l" x="24" y="545" text-anchor="start">A/C compressor</text>
+<path class="ld" d="M210 170 L150 140"/><circle cx="210" cy="170" r="5" fill="#0f172a"/><text class="l" x="24" y="132" text-anchor="start">Power steering pump</text>
+<path class="ld" d="M494 320 L640 330"/><circle cx="494" cy="320" r="5" fill="#0f172a"/><text class="l" x="648" y="337" text-anchor="start">Tensioner</text>
+<path class="ld" d="M420 215 L440 165"/><circle cx="420" cy="215" r="5" fill="#0f172a"/><text class="l" x="420" y="157" text-anchor="start">Water pump</text>
+</svg>

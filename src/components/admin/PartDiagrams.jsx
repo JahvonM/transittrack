@@ -5,18 +5,24 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { EmptyState, Panel, StatusChip } from "@/components/admin/kit";
-import { ArrowLeft, ExternalLink, ImagePlus, Link2, Loader2, MapPin, Package, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, ImagePlus, Link2, Loader2, MapPin, Package, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { GUIDE_DRAWINGS, pictureSource } from "@/lib/partDrawings";
 import { ReplacementsList, StockChip } from "@/components/admin/partsCatalogueKit";
 import { fitsGuide, inStockReplacements, nextPinNumber, partMatches, partsForGuide, pinPlace, stockLevel } from "@/lib/partsCatalogue";
 
 // On a Bus library page: the parts that fit the model, and pictures of its
 // areas (front brakes, filters…) with numbered pins on the parts. Pictures are
-// the team's own photos; the maker's diagram is a link, never a copy.
+// the team's own photos, or until there is one a guide drawing built into the
+// app (our own, generic); the maker's diagram is a link, never a copy.
 
 const SELECT = "h-10 w-full rounded-lg border border-input bg-background px-3 text-body-sm";
 const uploadPhoto = async (file) => (await base44.integrations.Core.UploadPublicFile({ file })).file_url;
 const pinCount = (n) => `${n} ${n === 1 ? "pin" : "pins"}`;
+const EMPTY_PICTURE = { title: "", system: "", catalogue_link: "", image_url: "", drawing_key: "", notes: "" };
+const pictureForm = (d) => ({ title: d.title || "", system: d.system || "", catalogue_link: d.catalogue_link || "", image_url: d.image_url || "", drawing_key: d.drawing_key || "", notes: d.notes || "", hadPins: (d.pins || []).length > 0 });
+const pictureData = (f) => ({ title: f.title.trim(), system: f.system.trim(), catalogue_link: f.catalogue_link.trim(), image_url: f.image_url, drawing_key: f.drawing_key || null, notes: f.notes.trim() });
 const numbers = (part) => [part.oem_number, part.aftermarket_number].filter(Boolean).join(" · ");
 
 export function ModelPartsPanel({ guide, parts, interchanges, onChange }) {
@@ -88,7 +94,7 @@ export function ModelPartsPanel({ guide, parts, interchanges, onChange }) {
   );
 }
 
-export function DiagramsPanel({ guide, diagrams, parts, interchanges, canDelete, onChange }) {
+export function DiagramsPanel({ guide, diagrams, parts, interchanges, buses = [], canDelete, onChange }) {
   const { toast } = useToast();
   const [openId, setOpenId] = useState(null);
   const [form, setForm] = useState(null);
@@ -100,7 +106,7 @@ export function DiagramsPanel({ guide, diagrams, parts, interchanges, canDelete,
     if (!form.title.trim()) return;
     setSaving(true);
     try {
-      const made = await base44.entities.PartDiagram.create({ guide_id: guide.id, title: form.title.trim(), system: form.system.trim(), catalogue_link: form.catalogue_link.trim(), image_url: form.image_url, pins: [], sort_order: (diagrams.length + 1) * 10 });
+      const made = await base44.entities.PartDiagram.create({ guide_id: guide.id, ...pictureData(form), pins: [], sort_order: (diagrams.length + 1) * 10 });
       setForm(null);
       await onChange();
       setOpenId(made.id);
@@ -112,15 +118,15 @@ export function DiagramsPanel({ guide, diagrams, parts, interchanges, canDelete,
   };
 
   if (open) {
-    return <DiagramView diagram={open} guide={guide} parts={parts} interchanges={interchanges} canDelete={canDelete} onBack={() => setOpenId(null)} onChange={onChange} />;
+    return <DiagramView diagram={open} guide={guide} parts={parts} interchanges={interchanges} buses={buses} canDelete={canDelete} onBack={() => setOpenId(null)} onChange={onChange} />;
   }
 
   return (
     <Panel
       title="Part pictures"
       icon={MapPin}
-      description="Photos of each area of the bus with numbered pins on the parts. Tap a pin to see the part, its stock and what can replace it."
-      actions={!form && <Button size="sm" variant="outline" onClick={() => setForm({ title: "", system: "", catalogue_link: "", image_url: "" })}><Plus className="mr-1.5 h-4 w-4" />Add a picture</Button>}
+      description="Each area of the bus with numbered pins on the parts. Tap a pin to see the part, its stock and what can replace it. A guide drawing shows until you add a photo of your own bus."
+      actions={!form && <Button size="sm" variant="outline" onClick={() => setForm({ ...EMPTY_PICTURE })}><Plus className="mr-1.5 h-4 w-4" />Add a picture</Button>}
     >
       {form && <PictureForm form={form} setForm={setForm} saving={saving} onSubmit={create} onCancel={() => setForm(null)} />}
       {!form && diagrams.length === 0 && (
@@ -130,15 +136,18 @@ export function DiagramsPanel({ guide, diagrams, parts, interchanges, canDelete,
       )}
       {diagrams.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {diagrams.map((d) => (
-            <button key={d.id} type="button" onClick={() => setOpenId(d.id)} className="overflow-hidden rounded-xl border border-border bg-card text-left transition-colors hover:bg-accent/40">
-              {d.image_url ? <img src={d.image_url} alt="" className="h-36 w-full object-cover" /> : <span className="grid h-36 place-items-center bg-secondary text-body-sm text-muted-foreground">No photo yet</span>}
-              <span className="block p-3">
-                <span className="block font-semibold">{d.title}</span>
-                <span className="block text-body-sm text-muted-foreground">{[d.system, pinCount((d.pins || []).length)].filter(Boolean).join(" · ")}</span>
-              </span>
-            </button>
-          ))}
+          {diagrams.map((d) => {
+            const source = pictureSource(d);
+            return (
+              <button key={d.id} type="button" onClick={() => setOpenId(d.id)} className="overflow-hidden rounded-xl border border-border bg-card text-left transition-colors hover:bg-accent/40">
+                {source ? <img src={source.url} alt="" className={`h-36 w-full ${source.isDrawing ? "bg-white object-contain" : "object-cover"}`} /> : <span className="grid h-36 place-items-center bg-secondary text-body-sm text-muted-foreground">No photo yet</span>}
+                <span className="block p-3">
+                  <span className="block font-semibold">{d.title}</span>
+                  <span className="block text-body-sm text-muted-foreground">{[d.system, pinCount((d.pins || []).length), source?.isDrawing && "guide drawing"].filter(Boolean).join(" · ")}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
     </Panel>
@@ -167,6 +176,17 @@ function PictureForm({ form, setForm, saving, onSubmit, onCancel, submitLabel = 
           <Label htmlFor="pic-link">Maker's diagram link (optional)</Label>
           <Input id="pic-link" type="url" value={form.catalogue_link} onChange={set("catalogue_link")} placeholder="https://partsouq.com/… (the page for this area of your bus)" />
         </div>
+        <div className="space-y-1">
+          <Label htmlFor="pic-drawing">Guide drawing (shown until there's a photo)</Label>
+          <select id="pic-drawing" className={SELECT} value={form.drawing_key || ""} onChange={set("drawing_key")}>
+            <option value="">None</option>
+            {GUIDE_DRAWINGS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1 sm:col-span-2">
+          <Label htmlFor="pic-notes">Notes (optional)</Label>
+          <Textarea id="pic-notes" rows={3} value={form.notes || ""} onChange={set("notes")} placeholder="How to find this area's diagram, what to check here" />
+        </div>
       </div>
       <div className="space-y-1">
         <span className="text-body-sm font-medium">Photo</span>
@@ -182,6 +202,7 @@ function PictureForm({ form, setForm, saving, onSubmit, onCancel, submitLabel = 
             <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={pick} aria-label="Photo of this area" />
           </label>
         )}
+        {form.hadPins && <p className="text-caption text-muted-foreground">Pins stay where they are: after changing the picture, check them with Edit pins.</p>}
       </div>
       <div className="flex gap-2">
         <Button type="submit" disabled={saving || uploading || !form.title.trim()}>{saving && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}{submitLabel}</Button>
@@ -191,7 +212,7 @@ function PictureForm({ form, setForm, saving, onSubmit, onCancel, submitLabel = 
   );
 }
 
-function DiagramView({ diagram, guide, parts, interchanges, canDelete, onBack, onChange }) {
+function DiagramView({ diagram, guide, parts, interchanges, buses = [], canDelete, onBack, onChange }) {
   const { toast } = useToast();
   const [pins, setPins] = useState(diagram.pins || []);
   const [editing, setEditing] = useState(false);
@@ -205,6 +226,18 @@ function DiagramView({ diagram, guide, parts, interchanges, canDelete, onBack, o
   const shown = editing ? pins : diagram.pins || [];
   const chosen = shown.find((p) => p.n === selected);
   const chosenPart = chosen?.part_id ? partById.get(chosen.part_id) : null;
+  const source = pictureSource(diagram);
+  const withVin = buses.filter((b) => String(b.vin || "").trim());
+
+  // The maker's catalogue finds a bus's own diagrams by its chassis number.
+  const copyVin = async (bus) => {
+    try {
+      await navigator.clipboard.writeText(String(bus.vin).trim());
+      toast({ title: "Chassis number copied", description: `${bus.name || "Bus"}: paste it into the maker's diagram search.` });
+    } catch {
+      toast({ title: "Couldn't copy", description: "Your browser didn't allow copying. Find the chassis number in Vehicles.", variant: "destructive" });
+    }
+  };
 
   const addPin = (e) => {
     if (!editing || !imageRef.current) return;
@@ -230,7 +263,7 @@ function DiagramView({ diagram, guide, parts, interchanges, canDelete, onBack, o
     e.preventDefault();
     setSaving(true);
     try {
-      await base44.entities.PartDiagram.update(diagram.id, { title: details.title.trim(), system: details.system.trim(), catalogue_link: details.catalogue_link.trim(), image_url: details.image_url });
+      await base44.entities.PartDiagram.update(diagram.id, pictureData(details));
       setDetails(null);
       await onChange();
     } catch (err) {
@@ -266,22 +299,38 @@ function DiagramView({ diagram, guide, parts, interchanges, canDelete, onBack, o
             <>
               <Button size="sm" onClick={savePins} disabled={saving}>{saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Save pins</Button>
               <Button size="sm" variant="ghost" onClick={() => { setPins(diagram.pins || []); setEditing(false); setSelected(null); }}>Cancel</Button>
-              <span className="self-center text-body-sm text-muted-foreground">Tap the photo where a part is to add a pin.</span>
+              <span className="self-center text-body-sm text-muted-foreground">Tap the picture where a part is to add a pin.</span>
             </>
           ) : (
             <>
-              <Button size="sm" variant="outline" onClick={() => { setPins(diagram.pins || []); setEditing(true); }} disabled={!diagram.image_url}><MapPin className="mr-1 h-4 w-4" />Edit pins</Button>
-              <Button size="sm" variant="ghost" onClick={() => setDetails({ title: diagram.title || "", system: diagram.system || "", catalogue_link: diagram.catalogue_link || "", image_url: diagram.image_url || "" })}><Pencil className="mr-1 h-4 w-4" />Edit picture</Button>
+              <Button size="sm" variant="outline" onClick={() => { setPins(diagram.pins || []); setEditing(true); }} disabled={!source}><MapPin className="mr-1 h-4 w-4" />Edit pins</Button>
+              <Button size="sm" variant="ghost" onClick={() => setDetails(pictureForm(diagram))}><Pencil className="mr-1 h-4 w-4" />Edit picture</Button>
               {canDelete && <Button size="sm" variant="ghost" onClick={remove}><Trash2 className="mr-1 h-4 w-4" />Delete</Button>}
             </>
           )}
         </div>
       )}
 
-      {diagram.image_url ? (
-        <div className="relative mx-auto max-w-3xl select-none overflow-hidden rounded-xl border border-border">
+      {(diagram.notes || withVin.length > 0) && !details && (
+        <div className="mb-3 space-y-2 rounded-xl bg-secondary p-3">
+          {diagram.notes && <p className="whitespace-pre-line text-body-sm">{diagram.notes}</p>}
+          {withVin.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {withVin.map((bus) => (
+                <Button key={bus.id} size="sm" variant="outline" onClick={() => copyVin(bus)}>
+                  <Copy className="mr-1 h-4 w-4" />Copy {bus.name || "bus"}'s chassis number
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {source?.isDrawing && <p className="mb-2 text-caption text-muted-foreground">Guide drawing: generic, not your exact bus. Add a photo of your own bus with Edit picture.</p>}
+      {source ? (
+        <div className={`relative mx-auto max-w-3xl select-none overflow-hidden rounded-xl border border-border ${source.isDrawing ? "bg-white" : ""}`}>
           {/* Pins are placed with a pointer; every pin is also a button, and listed below. */}
-          <img ref={imageRef} src={diagram.image_url} alt={diagram.title} onClick={addPin} className={editing ? "w-full cursor-crosshair" : "w-full"} draggable={false} />
+          <img ref={imageRef} src={source.url} alt={source.isDrawing ? `${diagram.title}: guide drawing` : diagram.title} onClick={addPin} className={editing ? "w-full cursor-crosshair" : "w-full"} draggable={false} />
           {shown.map((pin) => {
             const part = pin.part_id ? partById.get(pin.part_id) : null;
             const name = part?.part_name || pin.label || "No part yet";

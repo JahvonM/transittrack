@@ -13,6 +13,8 @@ import { ArrowLeft, BookOpen, Bus, Check, ExternalLink, FileText, Loader2, Penci
 import { STARTERS } from "@/data/busLibrary";
 import { DiagramsPanel, ModelPartsPanel } from "@/components/admin/PartDiagrams";
 import REPLACEMENTS from "@/data/partsCatalogue/replacements.json";
+import PICTURES from "@/data/partsCatalogue/pictures.json";
+import { starterPictures } from "@/lib/partDrawings";
 import { starterInterchanges } from "@/lib/partsCatalogue";
 import {
   DOCUMENT_KINDS, FACT_STATUS, MAX_DOCUMENT_BYTES, SECTIONS,
@@ -108,6 +110,20 @@ export default function BusLibraryTab({ vehicles = [], canDelete = false }) {
     }
   };
 
+  const importPictures = async () => {
+    setImporting("pictures");
+    try {
+      const rows = starterPictures(PICTURES, guides, diagrams);
+      for (const batch of chunks(rows)) await base44.entities.PartDiagram.bulkCreate(batch);
+      toast({ title: "Picture slots added", description: `${rows.length} areas, each with a guide drawing until you add a photo.` });
+    } catch (e) {
+      fail("Couldn't add the picture slots")(e);
+    } finally {
+      await load();
+      setImporting("");
+    }
+  };
+
   const saveGuide = async (form) => {
     const data = {
       ...form,
@@ -192,6 +208,8 @@ export default function BusLibraryTab({ vehicles = [], canDelete = false }) {
         onImport={importStarter}
         newReplacements={starterInterchanges(REPLACEMENTS, interchanges).length}
         onImportReplacements={importReplacements}
+        newPictures={starterPictures(PICTURES, guides, diagrams).length}
+        onImportPictures={importPictures}
         onNew={(bus) => setGuideForm({ ...EMPTY_GUIDE, make: bus?.make || "", model: bus?.model || "", year_from: bus?.year || "", year_to: bus?.year || "" })}
       />
       {guideDialog}
@@ -199,7 +217,7 @@ export default function BusLibraryTab({ vehicles = [], canDelete = false }) {
   );
 }
 
-function LibraryHome({ guides, facts, documents, vehicles, importing, onOpen, onImport, onNew, newReplacements = 0, onImportReplacements }) {
+function LibraryHome({ guides, facts, documents, vehicles, importing, onOpen, onImport, onNew, newReplacements = 0, onImportReplacements, newPictures = 0, onImportPictures }) {
   const [query, setQuery] = useState("");
   const starters = unimportedStarters(STARTERS, guides);
   const uncovered = uncoveredBuses(guides, vehicles);
@@ -275,7 +293,7 @@ function LibraryHome({ guides, facts, documents, vehicles, importing, onOpen, on
         </div>
       )}
 
-      {(starters.length > 0 || newReplacements > 0) && (
+      {(starters.length > 0 || newReplacements > 0 || newPictures > 0) && (
         <Panel title="Ready to add" description="Researched from public sources. Everything comes with its source and starts as not checked.">
           <ul className="divide-y divide-border">
             {starters.map((starter) => (
@@ -290,6 +308,18 @@ function LibraryHome({ guides, facts, documents, vehicles, importing, onOpen, on
                 </Button>
               </li>
             ))}
+            {newPictures > 0 && (
+              <li className="flex flex-wrap items-center gap-3 py-3">
+                <div className="min-w-[200px] flex-1">
+                  <p className="font-semibold">Part picture slots</p>
+                  <p className="text-body-sm text-muted-foreground">{newPictures} areas (oil, fuel and air filters, brakes, suspension, cooling, belt), each with a guide drawing and how to find the maker's diagram</p>
+                </div>
+                <Button onClick={onImportPictures} disabled={!!importing}>
+                  {importing === "pictures" ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Plus className="mr-1.5 h-4 w-4" />}
+                  Add these
+                </Button>
+              </li>
+            )}
             {newReplacements > 0 && (
               <li className="flex flex-wrap items-center gap-3 py-3">
                 <div className="min-w-[200px] flex-1">
@@ -397,7 +427,7 @@ function GuidePage({ guide, facts, documents, diagrams = [], parts = [], interch
       </Panel>
 
       <ModelPartsPanel guide={guide} parts={parts} interchanges={interchanges} onChange={onChange} />
-      <DiagramsPanel guide={guide} diagrams={diagrams} parts={parts} interchanges={interchanges} canDelete={canDelete} onChange={onChange} />
+      <DiagramsPanel guide={guide} diagrams={diagrams} parts={parts} interchanges={interchanges} buses={buses} canDelete={canDelete} onChange={onChange} />
 
       <Toolbar actions={<Button onClick={() => setFactForm({ ...EMPTY_FACT })}><Plus className="mr-1.5 h-4 w-4" />Add a fact</Button>}>
         <div className="relative w-full max-w-xs">

@@ -1035,6 +1035,7 @@ Parts catalogue: a picture of one area of a bus model (front brakes, filters) wi
 | `title` | text | e.g. Front brakes. Required. |
 | `system` | text | Which part of the bus, e.g. Brakes, Engine, Suspension. |
 | `image_url` | text | The team's own photo or drawing of the area (a public file uploaded in the app). |
+| `drawing_key` | text | A guide drawing built into the app (src/assets/diagrams), shown while there is no photo. Generic, not drawn from Toyota or Nissan diagrams. One of: `oil-filter`, `fuel-filter`, `air-filter`, `front-brakes`, `rear-brakes`, `front-suspension`, `cooling`, `drive-belt`. |
 | `catalogue_link` | text | Web address (https) of the maker's own diagram for this area, e.g. on Partsouq, for reference. |
 | `notes` | text |  |
 | `pins` | jsonb (list) | Numbered pins on the picture. |

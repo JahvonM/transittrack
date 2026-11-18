@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 640" role="img" aria-labelledby="t d">
+<title id="t">Front suspension: guide drawing</title>
+<desc id="d">Front suspension seen from the front: upper and lower arms from the frame to the wheel hub, ball joints, bushes, the shock absorber, the tie-rod end and the anti-roll bar link.</desc>
+<style>
+.b{fill:#e2e8f0;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.m{fill:#cbd5e1;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.d{fill:#94a3b8;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.k{fill:#475569;stroke:#1e293b;stroke-width:2}
+.a{fill:#67e8f9;stroke:#0e7490;stroke-width:3;stroke-linejoin:round}
+.ln{fill:none;stroke:#1e293b;stroke-linecap:round;stroke-linejoin:round}
+.ld{fill:none;stroke:#64748b;stroke-width:2}
+.t{font:700 30px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+.s{font:500 17px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#475569}
+.l{font:600 22px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+</style>
+<rect width="800" height="640" fill="#f8fafc"/>
+<text class="t" x="24" y="44">Front suspension</text>
+<text class="s" x="24" y="72">Guide drawing: not to scale, not from Toyota or Nissan diagrams</text>
+<rect class="b" x="60" y="150" width="60" height="330" rx="8"/>
+<rect class="k" x="450" y="170" width="100" height="330" rx="40"/>
+<rect class="d" x="405" y="250" width="45" height="170" rx="10"/>
+<polygon class="m" points="130,225 130,255 405,275 405,255"/>
+<polygon class="m" points="120,420 120,450 405,410 405,390"/>
+<path class="ln" stroke="#94a3b8" stroke-width="26" d="M320 405 L270 160"/>
+<path class="ln" stroke="#475569" stroke-width="8" d="M285 230 L270 160"/>
+<path class="ln" stroke="#475569" stroke-width="8" d="M405 330 L170 340"/>
+<path class="ln" stroke="#475569" stroke-width="6" d="M240 430 L240 525"/>
+<path class="ln" stroke="#475569" stroke-width="10" d="M240 525 L70 525"/>
+<circle class="a" cx="405" cy="265" r="12"/><circle class="a" cx="405" cy="400" r="12"/><circle class="a" cx="405" cy="330" r="10"/>
+<circle class="k" cx="130" cy="240" r="14"/><circle class="k" cx="120" cy="435" r="14"/>
+<path class="ld" d="M417 262 L575 200"/><circle cx="417" cy="262" r="5" fill="#0f172a"/><text class="l" x="582" y="207" text-anchor="start">Upper ball joint</text>
+<path class="ld" d="M415 330 L575 300"/><circle cx="415" cy="330" r="5" fill="#0f172a"/><text class="l" x="582" y="307" text-anchor="start">Tie-rod end</text>
+<path class="ld" d="M417 402 L575 400"/><circle cx="417" cy="402" r="5" fill="#0f172a"/><text class="l" x="582" y="407" text-anchor="start">Lower ball joint</text>
+<path class="ld" d="M275 180 L330 115"/><circle cx="275" cy="180" r="5" fill="#0f172a"/><text class="l" x="300" y="108" text-anchor="start">Shock absorber</text>
+<path class="ld" d="M120 450 L170 560"/><circle cx="120" cy="450" r="5" fill="#0f172a"/><text class="l" x="130" y="588" text-anchor="start">Arm bushes</text>
+<path class="ld" d="M240 480 L330 565"/><circle cx="240" cy="480" r="5" fill="#0f172a"/><text class="l" x="320" y="588" text-anchor="start">Anti-roll bar link</text>
+</svg>

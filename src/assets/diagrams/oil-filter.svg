@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 640" role="img" aria-labelledby="t d">
+<title id="t">Engine oil &amp; oil filter: guide drawing</title>
+<desc id="d">Side of an engine: oil filler cap on top, dipstick, the oil filter on the side of the block, the sump underneath with its drain plug.</desc>
+<style>
+.b{fill:#e2e8f0;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.m{fill:#cbd5e1;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.d{fill:#94a3b8;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.k{fill:#475569;stroke:#1e293b;stroke-width:2}
+.a{fill:#67e8f9;stroke:#0e7490;stroke-width:3;stroke-linejoin:round}
+.ln{fill:none;stroke:#1e293b;stroke-linecap:round;stroke-linejoin:round}
+.ld{fill:none;stroke:#64748b;stroke-width:2}
+.t{font:700 30px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+.s{font:500 17px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#475569}
+.l{font:600 22px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+</style>
+<rect width="800" height="640" fill="#f8fafc"/>
+<text class="t" x="24" y="44">Engine oil &amp; oil filter</text>
+<text class="s" x="24" y="72">Guide drawing: not to scale, not from Toyota or Nissan diagrams</text>
+<rect class="d" x="200" y="150" width="320" height="60" rx="14"/>
+<rect class="k" x="300" y="128" width="50" height="26" rx="6"/>
+<rect class="m" x="180" y="200" width="360" height="230" rx="12"/>
+<path class="d" d="M200 430 L520 430 L500 500 L220 500 Z"/>
+<circle class="k" cx="360" cy="505" r="12"/>
+<path class="ln" stroke="#475569" stroke-width="6" d="M442 118 L452 300"/>
+<circle cx="440" cy="105" r="13" fill="none" stroke="#f59e0b" stroke-width="6"/>
+<rect class="a" x="100" y="300" width="80" height="110" rx="14"/>
+<path class="ln" stroke="#0e7490" stroke-width="3" d="M100 330 H180 M100 355 H180 M100 380 H180"/>
+<path class="ld" d="M350 140 L600 120"/><circle cx="350" cy="140" r="5" fill="#0f172a"/><text class="l" x="608" y="127" text-anchor="start">Oil filler cap</text>
+<path class="ld" d="M450 110 L600 182"/><circle cx="450" cy="110" r="5" fill="#0f172a"/><text class="l" x="608" y="189" text-anchor="start">Dipstick</text>
+<path class="ld" d="M470 330 L600 320"/><circle cx="470" cy="330" r="5" fill="#0f172a"/><text class="l" x="608" y="327" text-anchor="start">Engine block</text>
+<path class="ld" d="M512 470 L600 450"/><circle cx="512" cy="470" r="5" fill="#0f172a"/><text class="l" x="608" y="457" text-anchor="start">Sump (oil pan)</text>
+<path class="ld" d="M372 505 L545 545"/><circle cx="372" cy="505" r="5" fill="#0f172a"/><text class="l" x="552" y="552" text-anchor="start">Drain plug &amp; washer</text>
+<path class="ld" d="M110 320 L70 250"/><circle cx="110" cy="320" r="5" fill="#0f172a"/><text class="l" x="24" y="240" text-anchor="start">Oil filter</text>
+</svg>

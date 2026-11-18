@@ -57,6 +57,14 @@ describe('part pictures', () => {
     expect(sdk.writes).toEqual([]);
   });
 
+  it('take a built-in guide drawing, or none', async () => {
+    const sdk = catalogue('mechanic');
+    const set = (drawing_key) => call(sdk, { entity: 'PartDiagram', operation: 'update', id: 'd1', data: { drawing_key } });
+    expect((await json(await set('front-brakes'))).body.result.drawing_key).toBe('front-brakes');
+    expect((await json(await set(''))).body.result.drawing_key).toBe(null);
+    for (const bad of ['https://example.com/brakes.svg', '../oil-filter', 'gearbox']) expect((await set(bad)).status).toBe(400);
+  });
+
   it('keep tidy pins: a place on the picture, a number, a part that exists', async () => {
     const sdk = catalogue('mechanic');
     for (const pins of [

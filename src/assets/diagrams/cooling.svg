@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 640" role="img" aria-labelledby="t d">
+<title id="t">Cooling system: guide drawing</title>
+<desc id="d">Radiator with its cap, the fan, upper and lower hoses to the engine, the thermostat housing, the water pump and the coolant reservoir.</desc>
+<style>
+.b{fill:#e2e8f0;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.m{fill:#cbd5e1;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.d{fill:#94a3b8;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.k{fill:#475569;stroke:#1e293b;stroke-width:2}
+.a{fill:#67e8f9;stroke:#0e7490;stroke-width:3;stroke-linejoin:round}
+.ln{fill:none;stroke:#1e293b;stroke-linecap:round;stroke-linejoin:round}
+.ld{fill:none;stroke:#64748b;stroke-width:2}
+.t{font:700 30px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+.s{font:500 17px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#475569}
+.l{font:600 22px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+</style>
+<rect width="800" height="640" fill="#f8fafc"/>
+<text class="t" x="24" y="44">Cooling system</text>
+<text class="s" x="24" y="72">Guide drawing: not to scale, not from Toyota or Nissan diagrams</text>
+<rect class="m" x="80" y="170" width="230" height="300" rx="10"/><path d="M100 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M114 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M128 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M142 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M156 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M170 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M184 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M198 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M212 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M226 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M240 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M254 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M268 202 V438" stroke="#94a3b8" stroke-width="2"/><path d="M282 202 V438" stroke="#94a3b8" stroke-width="2"/>
+<rect class="d" x="80" y="170" width="230" height="30" rx="8"/><rect class="d" x="80" y="440" width="230" height="30" rx="8"/>
+<rect class="k" x="250" y="148" width="40" height="24" rx="6"/>
+<ellipse class="d" cx="365" cy="320" rx="14" ry="110"/>
+<rect class="b" x="430" y="200" width="300" height="230" rx="14"/>
+<circle class="d" cx="450" cy="380" r="26"/>
+<rect class="a" x="440" y="180" width="50" height="36" rx="8"/>
+<path class="ln" stroke-width="16" d="M310 190 C 360 160, 410 170, 445 196"/>
+<path class="ln" stroke-width="16" d="M310 450 C 380 470, 420 430, 450 405"/>
+<rect class="b" x="130" y="500" width="110" height="80" rx="14"/>
+<path class="ln" stroke="#94a3b8" stroke-width="2" d="M140 525 H230 M140 555 H230"/>
+<text class="s" x="185" y="520" text-anchor="middle">MAX</text><text class="s" x="185" y="574" text-anchor="middle">MIN</text>
+<path class="ln" stroke="#475569" stroke-width="4" d="M240 520 C 280 500, 290 200, 275 172"/>
+<path class="ld" d="M100 178 L60 150"/><circle cx="100" cy="178" r="5" fill="#0f172a"/><text class="l" x="24" y="140" text-anchor="start">Radiator</text>
+<path class="ld" d="M270 148 L230 112"/><circle cx="270" cy="148" r="5" fill="#0f172a"/><text class="l" x="130" y="104" text-anchor="start">Radiator cap</text>
+<path class="ld" d="M380 168 L420 128"/><circle cx="380" cy="168" r="5" fill="#0f172a"/><text class="l" x="400" y="120" text-anchor="start">Upper hose</text>
+<path class="ld" d="M490 198 L555 160"/><circle cx="490" cy="198" r="5" fill="#0f172a"/><text class="l" x="560" y="153" text-anchor="start">Thermostat housing</text>
+<path class="ld" d="M470 395 L560 500"/><circle cx="470" cy="395" r="5" fill="#0f172a"/><text class="l" x="568" y="507" text-anchor="start">Water pump</text>
+<path class="ld" d="M365 430 L350 598"/><circle cx="365" cy="430" r="5" fill="#0f172a"/><text class="l" x="330" y="622" text-anchor="start">Fan</text>
+<path class="ld" d="M400 445 L470 598"/><circle cx="400" cy="445" r="5" fill="#0f172a"/><text class="l" x="420" y="622" text-anchor="start">Lower hose</text>
+<path class="ld" d="M130 560 L100 588"/><circle cx="130" cy="560" r="5" fill="#0f172a"/><text class="l" x="24" y="612" text-anchor="start">Coolant reservoir</text>
+</svg>

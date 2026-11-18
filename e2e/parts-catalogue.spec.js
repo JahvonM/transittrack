@@ -13,7 +13,7 @@ const PHOTO = 'https://ghqtest.supabase.co/storage/v1/object/public/public/uploa
 
 function catalogue() {
   return {
-    VehicleGuide: [{ id: 'g1', make: 'Toyota', model: 'Hiace', generation: 'H200', year_from: 2004, year_to: 2019 }],
+    VehicleGuide: [{ id: 'g1', make: 'Toyota', model: 'Hiace', generation: 'H200', year_from: 2004, year_to: 2019, starter_key: 'toyota-hiace-h200' }],
     GuideFact: [],
     GuideDocument: [],
     Part: [
@@ -28,7 +28,7 @@ function catalogue() {
 
 async function open(page, path, { role = 'admin', width = 1440, height = 900 } = {}) {
   const data = fleetData();
-  Object.assign(data.tables.Vehicle[0], { make: 'Toyota', model: 'Hiace', year: 2016 });
+  Object.assign(data.tables.Vehicle[0], { make: 'Toyota', model: 'Hiace', year: 2016, vin: 'TESTVIN0000000001' });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   // One set of tables: Admin's first load reads the fixture's, later reads
@@ -88,7 +88,7 @@ test('a model page shows its parts, low stock and a replacement on the shelf; a 
 
 test('Admin → Parts: low stock, replacement numbers and the models a part fits', async ({ page }) => {
   const { errors, server } = await open(page, '/admin/parts');
-  await expect(page.getByText('Ryco oil filter')).toBeVisible();
+  await expect(page.getByText('Ryco oil filter', { exact: true })).toBeVisible();
 
   // Low or out of stock.
   await page.getByRole('group', { name: 'Which parts' }).getByRole('button', { name: /Low or out of stock/ }).click();
@@ -152,5 +152,45 @@ test('a mechanic has the library, with part pictures, in their dashboard', async
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await page.screenshot({ path: '/tmp/tt-catalogue-mechanic.png' });
+  expect(errors).toEqual([]);
+});
+
+test('picture slots come with a guide drawing, the steps and the chassis number to copy; pins go on the drawing', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const { errors, server } = await open(page, '/admin/library');
+  const row = page.getByRole('region', { name: 'Ready to add' }).getByRole('listitem').filter({ hasText: 'Part picture slots' });
+  // Front brakes is already there, so seven of the Hiace's eight areas.
+  await expect(row).toContainText('7 areas');
+  await row.getByRole('button', { name: 'Add these' }).click();
+  const batch = server.writes.find((w) => w.entity === 'PartDiagram' && w.op === 'bulkCreate');
+  expect(batch.data).toHaveLength(7);
+  expect(batch.data.every((d) => d.guide_id === 'g1' && d.drawing_key && /^https:\/\/partsouq\.com\//.test(d.catalogue_link) && d.pins.length === 0)).toBe(true);
+  await expect(page.getByRole('region', { name: 'Ready to add' })).not.toContainText('Part picture slots');
+
+  await page.getByRole('button', { name: /Toyota Hiace/ }).click();
+  const pictures = page.getByRole('region', { name: 'Part pictures' });
+  await expect(pictures.getByRole('button', { name: /Cooling system/ })).toContainText('guide drawing');
+  await pictures.getByRole('button', { name: /Engine oil & oil filter/ }).click();
+  const picture = page.getByRole('region', { name: 'Engine oil & oil filter' });
+  const drawing = picture.getByRole('img', { name: 'Engine oil & oil filter: guide drawing' });
+  await expect(drawing).toBeVisible();
+  expect(await drawing.evaluate((img) => img.complete && img.naturalWidth > 0)).toBe(true);
+  await expect(picture).toContainText('paste the number into its search box');
+  await expect(picture).toContainText('Guide drawing: generic, not your exact bus');
+
+  // The maker's catalogue finds the bus by its chassis number.
+  await picture.getByRole('button', { name: "Copy Bus 1's chassis number" }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('TESTVIN0000000001');
+
+  // A pin on the drawing, on the oil filter.
+  await picture.getByRole('button', { name: 'Edit pins' }).click();
+  const box = await drawing.boundingBox();
+  await drawing.click({ position: { x: box.width * 0.18, y: box.height * 0.55 } });
+  await picture.getByLabel('Part', { exact: true }).selectOption('p1');
+  await picture.getByRole('button', { name: 'Save pins' }).click();
+  const saved = server.writes.find((w) => w.entity === 'PartDiagram' && w.op === 'update');
+  expect(saved.data.pins).toEqual([expect.objectContaining({ n: 1, part_id: 'p1' })]);
+  await expect(picture.getByRole('button', { name: 'Pin 1: Oil filter (genuine)' })).toBeVisible();
+  await page.screenshot({ path: '/tmp/tt-picture-drawing.png', fullPage: true });
   expect(errors).toEqual([]);
 });

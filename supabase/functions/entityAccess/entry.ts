@@ -70,7 +70,7 @@ ENTITY_FIELDS.GuideDocument=['guide_id','title','kind','file_uri','file_name','n
 // Parts catalogue: pictures of a model's parts with numbered pins (shown on
 // its library page), other numbers that can replace a part, and on each part
 // the models it fits, when to warn of low stock and where it is kept.
-ENTITY_FIELDS.PartDiagram=['guide_id','title','system','image_url','catalogue_link','notes','pins','sort_order'];
+ENTITY_FIELDS.PartDiagram=['guide_id','title','system','image_url','drawing_key','catalogue_link','notes','pins','sort_order'];
 ENTITY_FIELDS.PartInterchange=['part_number','alt_number','alt_brand','kind','applies_to','notes','source_name','source_link','status','checked_by','checked_at'];
 ENTITY_FIELDS.Part.push('guide_ids','min_stock','bin_location');
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Vehicle:new Set(['driver_id']),Trip:new Set(['client_id','client_name','price','currency','shared_with_company'])};
@@ -173,6 +173,8 @@ async function guideExists(db,ctx,id) {
 }
 const partKey=(value)=>String(value??'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const INTERCHANGE_KINDS=new Set(['newer_genuine','older_genuine','aftermarket']);
+// The guide drawings built into the app (src/assets/diagrams).
+const GUIDE_DRAWINGS=new Set(['oil-filter','fuel-filter','air-filter','front-brakes','rear-brakes','front-suspension','cooling','drive-belt']);
 async function cleanGuideRecord(db,ctx,name,data,existing) {
  const user=ctx.user;
  if(name==='VehicleGuide') {
@@ -220,6 +222,10 @@ async function cleanGuideRecord(db,ctx,name,data,existing) {
   for(const [field,max] of [['title',120],['system',60],['notes',2000]]) text(data,field,max);
   httpsLink(data,'catalogue_link');
   if(Object.hasOwn(data,'sort_order')&&data.sort_order!==null&&!Number.isFinite(Number(data.sort_order))) fail(400,'Invalid order');
+  if(Object.hasOwn(data,'drawing_key')) {
+   if(data.drawing_key===null||data.drawing_key==='') data.drawing_key=null;
+   else if(!GUIDE_DRAWINGS.has(data.drawing_key)) fail(400,'Unknown guide drawing');
+  }
   if(Object.hasOwn(data,'pins')) data.pins=await cleanPins(db,data.pins);
   return;
  }
