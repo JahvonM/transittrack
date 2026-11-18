@@ -12,6 +12,7 @@ import { StatusChip } from "@/components/admin/kit";
 import KioskDeviceDialog from "@/components/admin/KioskDeviceDialog";
 import UsbDeviceSetup from "@/components/admin/UsbDeviceSetup";
 import TabletNetworkControls from "@/components/admin/TabletNetworkControls";
+import TabletGpsControls from "@/components/admin/TabletGpsControls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -438,6 +439,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                         ); })()}
                         {d.native_tracking_health?.active && <p className="text-sm text-muted-foreground mt-1">Background GPS · {Date.now()-Date.parse(d.native_tracking_health.reported_at)<180000 ? "reporting" : "report is stale"} · {d.native_tracking_health.pending || 0} saved · {d.native_tracking_health.review || 0} need review</p>}
                         {!own && <TabletNetworkControls device={d} onRefresh={loadDevices} />}
+                        {!own && <TabletGpsControls device={d} onRefresh={loadDevices} />}
                         {!own && <TabletManagementControls device={d} onRefresh={loadDevices} />}
                         <GpsCoordsLine device={d} />
                         {!own && helperLinkLost(d) && (

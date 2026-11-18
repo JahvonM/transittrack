@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SignaturePad from "@/components/SignaturePad";
 import KioskConnectionBadge from "@/components/kiosk/KioskConnectionBadge";
+import TabletBattery from "@/components/kiosk/TabletBattery";
 import JobTypeIcon from "@/components/jobs/JobTypeIcon";
 import { deviceRequest } from "@/lib/deviceAuth";
 import { blobToBase64 } from "@/lib/chatMedia";
@@ -194,6 +195,7 @@ export default function JobSigningKiosk({ device, deviceId, online, onBusChanged
           {device?.vehicle_name && <p className="truncate text-sm text-muted-foreground">{device.vehicle_name}</p>}
         </div>
         <span className="font-display text-lg font-semibold tabular-nums">{time(now)}</span>
+        <TabletBattery />
         <SigningJobControls deviceId={deviceId} busName={device?.vehicle_name} savedCount={savedHere().size} hidden={!!shownSign} openRequest={controlsRequest}
           onBusChanged={(bus) => { setJobs([]); setRequestedJob(null); onBusChanged?.(bus); }} onShowNameSign={job=>setNameSign({name:job.passenger_name||job.client_name||"Welcome",subtitle:job.flight_number?"Flight "+job.flight_number:"Welcome to Grenada"})} onShowSignature={trip=>{setThanks(null);setRequestedJob(trip.id);setJobs(prev=>[trip,...prev.filter(j=>j.id!==trip.id)]);}}/>
         <KioskConnectionBadge online={online} />

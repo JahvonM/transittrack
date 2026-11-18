@@ -30,6 +30,7 @@ import QrScanner from "./QrScanner";
 import SlideToUnlock from "./SlideToUnlock";
 import Logo from "@/components/Logo";
 import KioskConnectionBadge from "./KioskConnectionBadge";
+import TabletBattery from "./TabletBattery";
 import BoardingSettingsGate, { useHold } from "./BoardingSettingsGate";
 import { startBoardingBluetooth, nativeBoardingBluetoothAvailable, boardingBluetoothState } from "@/lib/nativeBoardingBluetooth";
 import { takeBleCodes, markBleCodeSeen } from "@/lib/bluetoothBoarding";
@@ -77,6 +78,7 @@ export function TopStatusBar({ device, vehicle, route, now, online, holdProps })
       {route?.name && <small>{route.name}</small>}
       <span>{now.toLocaleTimeString([], { timeZone: TRANSIT_TIME_ZONE, hour: "2-digit", minute: "2-digit" })}</span>
       <small>{now.toLocaleDateString([], { timeZone: TRANSIT_TIME_ZONE, weekday: "short", month: "short", day: "numeric" })}</small>
+      <TabletBattery />
       <KioskConnectionBadge online={online} />
     </div>
   </header>;

@@ -23,6 +23,7 @@ import BusInfoDisplay from "@/components/kiosk/BusInfoDisplay";
 import { boardingLayout, KIOSK_LAYOUT_KEY } from "@/lib/kioskLayout";
 import JobSigningKiosk from "@/components/kiosk/JobSigningKiosk";
 import KioskConnectionBadge from "@/components/kiosk/KioskConnectionBadge";
+import TabletBattery from "@/components/kiosk/TabletBattery";
 import { saveDevice, loadDevice, forgetTablet, saveDirectory, directoryInfo, warmPhotos, offlineLookup, noteStatus } from "@/lib/kioskOffline";
 import { isNetworkFailure } from "@/lib/offlineQueue";
 import { httpStatus } from "@/lib/requestError";
@@ -313,7 +314,7 @@ export default function Kiosk() {
 
   if (status === "pairing")
     return (
-      <JourneyLoading context="Boarding tablet" label="Connecting this tablet…" company={device?.company_name ? {name:device.company_name,logo_url:device.company_logo_url} : null} vehicle={device?.context?.vehicle} onRetry={() => window.location.reload()} />
+      <JourneyLoading battery context="Boarding tablet" label="Connecting this tablet…" company={device?.company_name ? {name:device.company_name,logo_url:device.company_logo_url} : null} vehicle={device?.context?.vehicle} onRetry={() => window.location.reload()} />
     );
 
   if (status === "error")
@@ -370,7 +371,7 @@ export default function Kiosk() {
     <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-gradient-to-br from-primary/15 via-background to-background">
       <div className="max-w-md w-full space-y-4">
         <Card className="relative rounded-3xl shadow-xl border-border/60 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
-          <KioskConnectionBadge online={online} className="absolute top-3 right-3 z-10" />
+          <div className="absolute top-3 right-3 z-10 flex items-center gap-2"><TabletBattery /><KioskConnectionBadge online={online} /></div>
           <CardHeader className="text-center pb-4 pt-6">
             {device?.company_logo_url ? (
               <img

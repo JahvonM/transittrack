@@ -785,3 +785,22 @@ for(const [orient,size] of [['landscape',{width:1280,height:800}],['portrait',{w
  await page.waitForTimeout(500);
  await shot('code');
 });
+
+test('the top bar shows the tablet battery, red when it runs low', async ({ page }) => {
+  // Kiosk mode hides Android's own status bar, so the kiosk shows the battery itself.
+  await page.addInitScript(() => {
+    const battery = { level: 0.12, charging: false, addEventListener() {}, removeEventListener() {} };
+    Object.defineProperty(Navigator.prototype, 'getBattery', { value: () => Promise.resolve(battery), configurable: true });
+  });
+  await setup(page);
+  await page.goto('/kiosk');
+  const bar = page.locator('.tt-board-header');
+  const level = bar.getByRole('img', { name: 'Battery 12%', exact: true });
+  await expect(level).toBeVisible();
+  await expect(level).toHaveAttribute('data-state', 'low');
+  // Next to the connection light, inside the top bar.
+  const [b, header] = await Promise.all([level.boundingBox(), bar.boundingBox()]);
+  expect(b.y).toBeGreaterThanOrEqual(header.y);
+  expect(b.y + b.height).toBeLessThanOrEqual(header.y + header.height);
+});
+

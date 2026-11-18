@@ -788,6 +788,7 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `driver_
 | `device_info` | text | Reported by the tablet: which map it can draw (full/basic), WebGL 2 support and browser. |
 | `update_requested_at` | timestamptz | When an admin pressed Send update; the tablet reloads to the newest version the next time it is idle. |
 | `directory_sent_at` | timestamptz | When an admin last sent the staff card list to this tablet; the tablet re-downloads it on its next check-in. |
+| `gps_source` | text | Driver tablets: the GPS Admin chose. 'usb' uses the USB GPS module (the tablet's own GPS fills in if it goes quiet), 'tablet' uses the tablet's own GPS. Empty: the choice made on the tablet stays. One of: `usb`, `tablet`. |
 | `reader_mode` | text | What a boarding tablet records: 'both' asks the rider each time; 'boarding' or 'exit' records that direction only (one reader per door). One of: `both`, `boarding`, `exit`. Default `"both"`. |
 | `nfc_spot` | text | Where passengers tap their card on this boarding device, for the hint on screen. 'auto' follows the layout. One of: `auto`, `above_screen`, `back_top`, `back_middle`, `external`. Default `"auto"`. |
 | `require_active_trip` | boolean | Refuse taps unless a driver's shift is open on the bus. Off: taps are recorded and marked 'no active trip'. Default `false`. |

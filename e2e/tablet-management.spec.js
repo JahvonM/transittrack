@@ -21,6 +21,7 @@ async function setup(page, { managed = true, release = null, supportEnabled = fa
     }
     if (url.includes("/functions/v1/entityAccess")) {
       if (["create", "update", "delete"].includes(b.operation)) writes.push(b);
+      if (b.operation === "update" && b.entity === "KioskDevice" && b.id === device.id) Object.assign(device, b.data);
       if (b.entity === "User") return r.fulfill({ json: { result: { id: "admin", role: "admin", full_name: "Test Admin" } } });
       if (b.entity === "AdminBootstrap") return r.fulfill({ json: { result: { datasets: Object.fromEntries((b.datasets || []).map(key => [key, key === "kiosks" ? [device, ...others] : []])), errors: {} } } });
       if (b.entity === "KioskDevice") return r.fulfill({ json: { result: [device, ...others] } });
@@ -201,3 +202,20 @@ test("an admin renews a pass in its last 30 days after confirming, and only that
   await expect(page.getByText("Pass renewed", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Renew pass for / })).toHaveCount(0);
 });
+
+test("admin switches a driver tablet between the GPS module and the tablet's own GPS", async ({ page }) => {
+  const { writes, controls } = await setup(page, { kiosk: { gps_source: "usb", gps: "Fix (8 sats)" } });
+  await page.goto("/admin/kiosks");
+  const gps = page.getByRole("radiogroup", { name: "GPS for Driver tablet test" });
+  await expect(gps.getByRole("radio", { name: "Set on the tablet" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByText("Using the GPS module · Fix (8 sats)", { exact: true })).toBeVisible();
+  await gps.getByRole("radio", { name: "Tablet's own GPS" }).click();
+  await expect.poll(() => writes.find(w => w.entity === "KioskDevice" && w.operation === "update")).toMatchObject({ id: "tablet-managed", data: { gps_source: "tablet" } });
+  await expect(gps.getByRole("radio", { name: "Tablet's own GPS" })).toHaveAttribute("aria-checked", "true");
+  // The tablet still says it uses the module until its next check-in.
+  await expect(page.getByText(/Using the GPS module · Fix \(8 sats\)\. Switching/)).toBeVisible();
+  await gps.getByRole("radio", { name: "Set on the tablet" }).click();
+  await expect.poll(() => writes.filter(w => w.entity === "KioskDevice").at(-1)?.data).toEqual({ gps_source: null });
+  expect(controls).toEqual([]);
+});
+

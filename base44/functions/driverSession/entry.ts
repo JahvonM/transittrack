@@ -430,6 +430,8 @@ function cleanHelperHealth(h: unknown): Record<string, unknown> | null {
   if (typeof o.parked === 'boolean') out.parked = o.parked;
   const reader = str(o.reader, 40); if (reader) out.reader = reader;
   const gps = str(o.gps, 40); if (gps) out.gps = gps;
+  // Which GPS the tablet is using now: the USB module or its own.
+  if (o.gps_source === 'usb' || o.gps_source === 'tablet') out.gps_source = o.gps_source;
   const hotspot = str(o.hotspot, 40); if (hotspot) out.hotspot = hotspot;
   const lastCard = str(o.last_card_at, 40); if (lastCard) out.last_card_at = lastCard;
   // Helper 1.9: whether Admin set this driver tablet's hotspot to always on.
@@ -1140,6 +1142,8 @@ export default async function(req) {
             status: i.status, created_date: i.created_date,
           })),
           update_requested_at: device.update_requested_at || null,
+          // Admin's GPS choice for this tablet ('usb', 'tablet' or null: the tablet's own setting).
+          gps_source: !ownDevice && ['usb', 'tablet'].includes(device.gps_source) ? device.gps_source : null,
           network_command: network?.command || null,
           control_notice: controlNotice(device),
           support_notice: supportNotice(device),

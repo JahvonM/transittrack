@@ -32,6 +32,14 @@
       "format": "date-time",
       "type": "string"
     },
+    "gps_source": {
+      "type": "string",
+      "enum": [
+        "usb",
+        "tablet"
+      ],
+      "description": "Driver tablets: the GPS Admin chose. 'usb' uses the USB GPS module (the tablet's own GPS fills in if it goes quiet), 'tablet' uses the tablet's own GPS. Empty: the choice made on the tablet stays."
+    },
     "reader_mode": {
       "type": "string",
       "enum": [
