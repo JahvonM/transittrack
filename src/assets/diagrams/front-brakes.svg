@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 640" role="img" aria-labelledby="t d">
+<title id="t">Front disc brake: guide drawing</title>
+<desc id="d">Brake disc on the hub with the caliper over its edge; the pads sit inside the caliper; brake hose and bleed nipple on top.</desc>
+<style>
+.b{fill:#e2e8f0;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.m{fill:#cbd5e1;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.d{fill:#94a3b8;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.k{fill:#475569;stroke:#1e293b;stroke-width:2}
+.a{fill:#67e8f9;stroke:#0e7490;stroke-width:3;stroke-linejoin:round}
+.ln{fill:none;stroke:#1e293b;stroke-linecap:round;stroke-linejoin:round}
+.ld{fill:none;stroke:#64748b;stroke-width:2}
+.t{font:700 30px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+.s{font:500 17px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#475569}
+.l{font:600 22px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+</style>
+<rect width="800" height="640" fill="#f8fafc"/>
+<text class="t" x="24" y="44">Front disc brake</text>
+<text class="s" x="24" y="72">Guide drawing: not to scale, not from Toyota or Nissan diagrams</text>
+<circle class="b" cx="300" cy="370" r="190"/>
+<circle cx="300" cy="370" r="150" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 8"/>
+<circle class="m" cx="300" cy="370" r="85"/><circle class="k" cx="300" cy="318" r="10"/><circle class="k" cx="349.5" cy="353.9" r="10"/><circle class="k" cx="330.6" cy="412.1" r="10"/><circle class="k" cx="269.4" cy="412.1" r="10"/><circle class="k" cx="250.5" cy="353.9" r="10"/><circle cx="300" cy="370" r="22" fill="#f8fafc" stroke="#1e293b" stroke-width="3"/>
+<rect class="d" x="425" y="255" width="110" height="230" rx="28"/>
+<rect class="a" x="470" y="290" width="22" height="160" rx="6"/>
+<circle class="k" cx="535" cy="285" r="9"/><circle class="k" cx="535" cy="455" r="9"/>
+<circle class="k" cx="508" cy="268" r="9"/>
+<path class="ln" stroke-width="9" d="M500 256 C 512 196, 552 156, 612 140"/><circle class="k" cx="617" cy="139" r="10"/>
+<path class="ld" d="M481 370 L600 370"/><circle cx="481" cy="370" r="5" fill="#0f172a"/><text class="l" x="608" y="377" text-anchor="start">Brake pads</text>
+<text class="s" x="608" y="400">(inside the caliper)</text>
+<path class="ld" d="M535 455 L600 478"/><circle cx="535" cy="455" r="5" fill="#0f172a"/><text class="l" x="608" y="485" text-anchor="start">Caliper &amp; bolts</text>
+<path class="ld" d="M508 268 L600 240"/><circle cx="508" cy="268" r="5" fill="#0f172a"/><text class="l" x="608" y="247" text-anchor="start">Bleed nipple</text>
+<text class="l" x="640" y="147">Brake hose</text>
+<path class="ld" d="M170 250 L110 170"/><circle cx="170" cy="250" r="5" fill="#0f172a"/><text class="l" x="24" y="162" text-anchor="start">Brake disc</text>
+<path class="ld" d="M270 412 L160 585"/><circle cx="270" cy="412" r="5" fill="#0f172a"/><text class="l" x="24" y="608" text-anchor="start">Hub &amp; wheel studs</text>
+</svg>
