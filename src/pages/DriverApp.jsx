@@ -56,6 +56,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { idleFor, useTabletUpdates } from "@/lib/tabletUpdate";
+import { applyAdminGpsChoice } from "@/lib/driverGps";
 import { rememberUnlockDay, forgetUnlockDay, unlockDayMarked, localDayKey } from "@/lib/localDay";
 
 // "navigate" is kept as an alias: Track and Navigate are one Drive screen.
@@ -117,6 +118,10 @@ export default function DriverApp() {
     requestedAt: session?.update_requested_at,
     isIdle: () => idleFor(3 * 60 * 1000) && (window.__ttHelperHealth?.parked === true || (session?.vehicle?.speed || 0) < 0.5),
   });
+  // Admin → Kiosk tablets chose this tablet's GPS (module or the tablet's own):
+  // switch to it when the choice arrives, which is within one check-in.
+  const adminGps = session && !session.personal ? session.gps_source || null : null;
+  useEffect(() => { if (adminGps) void applyAdminGpsChoice(adminGps).catch(() => {}); }, [adminGps]);
   const [localDone, setLocalDone] = useState(readLocalDone);
 
   // Driver tablets are mounted and always powered — keep the screen on so
@@ -457,12 +462,12 @@ export default function DriverApp() {
 
   if (!deviceId) {
     if (autoPairing)
-      return <JourneyLoading context="Driver tablet" label="Connecting this tablet…" onRetry={() => window.location.reload()} />;
+      return <JourneyLoading battery context="Driver tablet" label="Connecting this tablet…" onRetry={() => window.location.reload()} />;
     return <DriverPairing onPaired={handlePaired} />;
   }
 
   if (loading && !session)
-    return <JourneyLoading context="Driver tablet" label="Loading your bus and route…" company={session?.company_name ? {name:session.company_name,logo_url:session.company_logo_url} : null} vehicle={session?.vehicle} onRetry={() => window.location.reload()} />;
+    return <JourneyLoading battery context="Driver tablet" label="Loading your bus and route…" company={session?.company_name ? {name:session.company_name,logo_url:session.company_logo_url} : null} vehicle={session?.vehicle} onRetry={() => window.location.reload()} />;
 
   if (!session && sessionError)
     return <div className="min-h-[100dvh] grid place-items-center p-6"><ErrorState title="Couldn't reconnect to this tablet" description={sessionError} onRetry={refresh} retrying={loading} /></div>;

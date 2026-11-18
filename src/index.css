@@ -1069,3 +1069,14 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-pickup-sheet .tt-pickup-finde
    bottom of the screen step aside so the field being typed in stays in view
    (src/lib/typingKeyboard.js sets html[data-typing]). */
 html[data-typing] .tt-hide-while-typing { display: none !important; }
+
+/* Tablet battery at the top of the kiosk screens (src/components/kiosk/TabletBattery.jsx). */
+.tt-battery { display:inline-flex; align-items:center; gap:4px; flex-shrink:0; font-size:13px; font-weight:600; line-height:1; white-space:nowrap; font-variant-numeric:tabular-nums; }
+/* Stronger than the headers' own "svg" rules (driver header icons are cyan and 20px). */
+span.tt-battery > svg.tt-battery-icon { width:24px; height:13px; flex-shrink:0; color:inherit; }
+span.tt-battery > svg.tt-battery-bolt { width:12px; height:12px; flex-shrink:0; color:inherit; }
+.tt-board-trip > span.tt-battery { font-size:15px; }
+.tt-kiosk-phone .tt-board-trip > span.tt-battery { font-size:13px; }
+.tt-loading-status { display:flex; align-items:center; gap:12px; color:#99b5ce; }
+.tt-battery[data-state="warn"] { color:hsl(var(--warning)); }
+.tt-battery[data-state="low"] { color:hsl(var(--destructive)); }

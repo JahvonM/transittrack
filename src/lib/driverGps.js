@@ -8,6 +8,19 @@ export async function readUsbGpsState() {
   try { return await UsbGps.getState(); } catch { return unsupported; }
 }
 export async function setUsbGpsEnabled(enabled) { return UsbGps.setEnabled({ enabled: !!enabled }); }
+
+// Admin → Kiosk tablets can choose a driver tablet's GPS: the USB module
+// ("usb") or the tablet's own ("tablet"). Anything else leaves the choice
+// made on the tablet alone.
+export const adminGpsChoice = value => (value === "usb" || value === "tablet" ? value : null);
+export async function applyAdminGpsChoice(choice) {
+  const want = adminGpsChoice(choice);
+  if (!want || !integratedGpsAvailable()) return null;
+  const state = await readUsbGpsState();
+  if (!state?.available) return null;
+  const enabled = want === "usb";
+  return state.enabled === enabled ? state : setUsbGpsEnabled(enabled);
+}
 export async function openUsbAutoAcceptSettings() { await UsbGps.openAutoAcceptSettings(); }
 export async function rescanUsbGps() {
   if (integratedGpsAvailable()) await UsbGps.rescan();

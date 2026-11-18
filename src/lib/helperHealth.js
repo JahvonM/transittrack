@@ -39,6 +39,8 @@ export function helperHealthPayload() {
       report.recovery_count = n.recovery?.count;
       report.usb_devices = n.usbDevices;
       if (n.gps?.enabled || n.gps?.backgroundManaged) report.gps = n.gps.status;
+      // Which GPS is in use, for Admin's GPS switch: the USB module or the tablet's own.
+      if (typeof n.gps?.enabled === "boolean") report.gps_source = n.gps.enabled ? "usb" : "tablet";
       if (n.reader?.enabled) {
         report.reader = n.reader.status;
         if (n.reader.lastTapAt) report.last_card_at = new Date(n.reader.lastTapAt).toISOString();

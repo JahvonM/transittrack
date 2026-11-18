@@ -4,6 +4,7 @@ import { Bus } from "lucide-react";
 import LiveClock from "@/components/LiveClock";
 import WeatherWidget from "@/components/WeatherWidget";
 import BusArtwork from "@/components/BusArtwork";
+import TabletBattery from "@/components/kiosk/TabletBattery";
 
 // The unlock screen's identity panel: which bus this tablet is, who's
 // driving, and the time. Quiet on purpose; the PIN is the action.
@@ -24,6 +25,7 @@ export default function DriverGreeting({ driverName, subtitle, compact = false }
             : <Bus className={compact ? "h-7 w-7" : "h-9 w-9"} />}
         </span>
         {!compact && <BusArtwork width={168} className="-my-6 h-auto max-w-[45%]" />}
+        {compact && <TabletBattery />}
       </div>
       <div>
         <p className={`text-muted-foreground ${compact ? "text-body-sm" : "text-body"}`}>{dateStr}</p>
@@ -33,6 +35,7 @@ export default function DriverGreeting({ driverName, subtitle, compact = false }
       <div className={`flex flex-wrap items-center gap-3 ${compact ? "[@media(max-width:599px)]:hidden" : ""}`}>
         <LiveClock seconds={false} mono={false} className={`font-display font-semibold ${compact ? "text-title" : "text-headline"}`} />
         <WeatherWidget variant="chip" />
+        {!compact && <TabletBattery />}
       </div>
     </section>
   );

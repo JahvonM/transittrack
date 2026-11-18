@@ -77,7 +77,7 @@ export default function DriverDevicePanel({ session, deviceId, onUnpair, onChang
         { id: "gps", label: "GPS", content: <DriverBackgroundPanel vehicle={vehicle} phone /> },
         { id: "tablet", label: `This ${noun}`, content: thisTablet },
       ] : [
-        { id: "gps", label: "GPS", content: <><UsbGpsPanel /><DriverBackgroundPanel vehicle={vehicle} /></> },
+        { id: "gps", label: "GPS", content: <><UsbGpsPanel adminChoice={session?.gps_source} /><DriverBackgroundPanel vehicle={vehicle} /></> },
         { id: "connection", label: "Connection", content: <><TabletNetworkPanel /><NativeNetworkPanel /><TabletCellularPanel /></> },
         { id: "startup", label: "Startup", content: <TabletRecoveryPanel /> },
         { id: "health", label: "Tablet health", content: <TabletDiagnosticsPanel /> },

@@ -36,6 +36,8 @@ ENTITY_FIELDS.KioskDevice.push('network_status');
 ENTITY_FIELDS.KioskDevice.push('control_status');
 // Boarding tablets: what the reader records, and whether taps need an open shift.
 ENTITY_FIELDS.KioskDevice.push('reader_mode','require_active_trip','nfc_spot');
+// Driver tablets: GPS module or the tablet's own GPS, chosen in Admin → Kiosk tablets.
+ENTITY_FIELDS.KioskDevice.push('gps_source');
 // A tap's person, run and review flag (written by kioskCheckIn only).
 ENTITY_FIELDS.StaffCheckIn.push('person_key','run_key','shift_id','review_reason','saved_offline');
 // Why a card is or isn't working (active, suspended, lost, revoked, replaced).
@@ -430,6 +432,7 @@ async function prepare(db,ctx,name,input,existing=null) {
  if(name==='KioskDevice' && data.nfc_spot!==undefined && !['auto','above_screen','back_top','back_middle','external'].includes(data.nfc_spot)) fail(400,'Invalid card reader position');
  if(name==='KioskDevice' && data.reader_mode!==undefined && !['both','boarding','exit'].includes(data.reader_mode)) fail(400,'Invalid reader mode');
  if(name==='KioskDevice' && data.require_active_trip!==undefined && typeof data.require_active_trip!=='boolean') fail(400,'Invalid trip setting');
+ if(name==='KioskDevice' && data.gps_source!==undefined && data.gps_source!==null && !['usb','tablet'].includes(data.gps_source)) fail(400,'Invalid GPS choice');
  if(name==='Invoice') fail(403,'Invoices are made and changed in Completed & billing');
  if(name==='BookingRequest') fail(403,'Booking requests are answered from Jobs → Requests');
  if(name==='Trip') {

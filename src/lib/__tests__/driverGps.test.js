@@ -5,11 +5,11 @@ vi.mock("@capacitor/core", () => ({
   registerPlugin: () => ({
     getState: async () => f.state,
     addListener: async (name, cb) => { f.listeners[name] = cb; return { remove: async () => { f.removed.push(name); delete f.listeners[name]; } }; },
-    setEnabled: async ({ enabled }) => ({ ...f.state, enabled }),
+    setEnabled: async ({ enabled }) => { f.setCalls = [...(f.setCalls || []), enabled]; return { ...f.state, enabled }; },
     rescan: async () => {}
   })
 }));
-import { watchDriverPosition, usbPosition, readUsbGpsState, USB_BACKUP_AFTER_MS } from "../driverGps";
+import { watchDriverPosition, usbPosition, readUsbGpsState, USB_BACKUP_AFTER_MS, applyAdminGpsChoice, adminGpsChoice } from "../driverGps";
 let browserSuccess, browserFailure, stop;
 const watch = vi.fn((s, e) => { browserSuccess = s; browserFailure = e; return 17; });
 const clear = vi.fn();
@@ -162,5 +162,31 @@ describe("tablet GPS backup when the USB GPS module goes quiet", () => {
     expect(clear).toHaveBeenCalledWith(17);
     vi.advanceTimersByTime(USB_BACKUP_AFTER_MS * 2);
     expect(watch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Admin's GPS choice for the tablet", () => {
+  beforeEach(() => { f.setCalls = []; });
+  it("switches the tablet to the module or to its own GPS, only when it differs", async () => {
+    f.state = { available: true, enabled: false, status: "Off" };
+    expect(await applyAdminGpsChoice("usb")).toMatchObject({ enabled: true });
+    expect(f.setCalls).toEqual([true]);
+    f.state = { available: true, enabled: true, status: "Fix (8 sats)" };
+    await applyAdminGpsChoice("usb");
+    expect(f.setCalls).toEqual([true]);
+    await applyAdminGpsChoice("tablet");
+    expect(f.setCalls).toEqual([true, false]);
+  });
+  it("leaves the tablet alone without a choice, or without the built-in GPS", async () => {
+    f.state = { available: true, enabled: true, status: "Fix (8 sats)" };
+    expect(await applyAdminGpsChoice(null)).toBeNull();
+    expect(await applyAdminGpsChoice("satellite")).toBeNull();
+    f.state = { available: false, enabled: false, status: "Unsupported" };
+    expect(await applyAdminGpsChoice("usb")).toBeNull();
+    f.installed = false;
+    expect(await applyAdminGpsChoice("tablet")).toBeNull();
+    f.installed = true;
+    expect(f.setCalls).toEqual([]);
+    expect(adminGpsChoice("tablet")).toBe("tablet");
   });
 });
