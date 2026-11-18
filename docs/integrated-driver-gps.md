@@ -8,7 +8,7 @@ The driver tablet can now opt into reading a supported USB GPS receiver directly
 - Uses direct Capacitor position events rather than installing an Android mock-location provider. No mock-location ADB grant is needed for the integrated reader.
 - NMEA GGA supplies satellites/HDOP/altitude; checksummed RMC supplies valid coordinates, speed in metres per second and heading.
 - The existing driver tracking and navigation consumers select one source at a time. Upload throttling, offline queues, credentials, company/vehicle assignment and backend stop alerts are unchanged.
-- Explicit USB mode reports a disconnected receiver instead of silently switching to potentially stale Android/mock-provider coordinates.
+- USB mode shows the receiver's status (looking, lost, not plugged in). If the receiver gives no position for 30 seconds (no signal, unplugged, or it gave up), the tablet's own GPS fills in until the receiver has a position again, so the bus never sits on an old position. The driver screen says "USB GPS has no signal · using the tablet's own GPS" meanwhile. This happens on the driver screen (`src/lib/driverGps.js`) and in the background GPS service with the screen off (`DriverLocationService`, `GpsBackupPolicy`); the wait is `USB_BACKUP_AFTER_MS` / `GpsBackupPolicy.BACKUP_AFTER_MS`. The separate Helper app's mock-location GPS is unchanged.
 - The source selection survives restarts. Reconnect scans run while the app is foregrounded. Backgrounding releases USB; returning restarts it. This is not background GPS, boot autostart or device-owner kiosk lockdown.
 - USB permission denial switches integrated mode off, avoiding repeated denial prompts. The settings switch can retry.
 - Existing screen-awake support remains in use.

@@ -58,8 +58,13 @@ class DriverLocationService:Service() {
  private var wake:PowerManager.WakeLock?=null
  @Volatile private var durableLatest:JSONObject?=null
  private val ticks=object:Runnable{override fun run(){tick();if(!closed)main.postDelayed(this,15000)}}
+ // USB GPS module gone quiet: the tablet's own GPS fills in (GpsBackupPolicy).
+ private var usbStartedAt=0L
+ private var usbFixAt=0L
+ private var backup=false
+ private val backupCheck=object:Runnable{override fun run(){checkBackup();if(!closed)main.postDelayed(this,5000)}}
  private val locationListener=object:LocationListener {
-  override fun onLocationChanged(p:Location) { sample(p.latitude,p.longitude,if(p.hasAccuracy())p.accuracy.toDouble() else 999.0,if(p.hasSpeed())p.speed.toDouble() else 0.0,if(p.hasBearing())p.bearing.toDouble() else Double.NaN,p.time) }
+  override fun onLocationChanged(p:Location) { if(usb&&!backup)return; sample(p.latitude,p.longitude,if(p.hasAccuracy())p.accuracy.toDouble() else 999.0,if(p.hasSpeed())p.speed.toDouble() else 0.0,if(p.hasBearing())p.bearing.toDouble() else Double.NaN,p.time) }
   override fun onProviderEnabled(provider:String){}
   override fun onProviderDisabled(provider:String){report("Tablet GPS is off")}
   @Deprecated("Legacy Android callback") override fun onStatusChanged(provider:String?,status:Int,extras:Bundle?){}
@@ -97,7 +102,7 @@ class DriverLocationService:Service() {
    if(Build.VERSION.SDK_INT>=33){registerReceiver(battery,IntentFilter(Intent.ACTION_BATTERY_CHANGED),flags);registerReceiver(permission,IntentFilter(UsbGpsReader.ACTION_PERMISSION),flags)}
    else {registerReceiver(battery,IntentFilter(Intent.ACTION_BATTERY_CHANGED));registerReceiver(permission,IntentFilter(UsbGpsReader.ACTION_PERMISSION))}
    UsbGpsPlugin.nativeOwnershipChanged()
-   changeSource();main.post(ticks)
+   changeSource();main.post(ticks);main.postDelayed(backupCheck,5000)
   }catch(e:Exception){report("Android could not start background GPS; reopen driver app");stopSelf()}
  }
  override fun onStartCommand(intent:Intent?,flags:Int,id:Int):Int {
@@ -109,7 +114,27 @@ class DriverLocationService:Service() {
   return DriverTrackingPolicy.leaseValid(System.currentTimeMillis(),l.optLong("verified_at"),l.optLong("expires_ms")) && getSharedPreferences("tt_driver_background",MODE_PRIVATE).getBoolean("enabled",false)
  }
  private fun report(value:String){message=value;UsbGpsPlugin.nativeOwnershipChanged()}
- private fun stopSources(){reader?.stop();reader=null;try{location?.removeUpdates(locationListener)}catch(_:Exception){};location=null;try{wake?.let{if(it.isHeld)it.release()}}catch(_:Exception){};wake=null}
+ private fun stopSources(){reader?.stop();reader=null;backup=false;try{location?.removeUpdates(locationListener)}catch(_:Exception){};location=null;try{wake?.let{if(it.isHeld)it.release()}}catch(_:Exception){};wake=null}
+ private fun startTabletGps(waiting:String):Boolean=try{
+  location=getSystemService(LOCATION_SERVICE) as LocationManager
+  val fine=checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED
+  val coarse=checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)==PackageManager.PERMISSION_GRANTED
+  if(!fine&&!coarse)throw SecurityException()
+  val provider=if(fine)LocationManager.GPS_PROVIDER else LocationManager.NETWORK_PROVIDER
+  location?.requestLocationUpdates(provider,power.gpsIntervalMs(BuildConfig.KIOSK),0f,locationListener,Looper.getMainLooper());report(waiting);true
+ }catch(e:Exception){report("Location permission or tablet GPS unavailable");false}
+ private fun checkBackup(){
+  if(closed||!usb||backup||reader==null||power.parked())return
+  val now=SystemClock.elapsedRealtime()
+  if(!GpsBackupPolicy.useTablet(now,usbStartedAt,usbFixAt))return
+  backup=startTabletGps("USB GPS has no signal - using tablet GPS")
+  if(backup){TabletDiagnostics.record("gps","GPS_TABLET_BACKUP")}else{usbStartedAt=now}
+ }
+ private fun stopBackup(){
+  backup=false
+  try{location?.removeUpdates(locationListener)}catch(_:Exception){};location=null
+  TabletDiagnostics.record("gps","GPS_USB_RESTORED")
+ }
  private fun changeSource(){
   if(closed)return
   stopSources()
@@ -120,18 +145,17 @@ class DriverLocationService:Service() {
   usb=getSharedPreferences("transittrack_usb_gps",MODE_PRIVATE).getBoolean("enabled",false)
   if(usb){
    report("Looking for USB GPS")
+   usbStartedAt=SystemClock.elapsedRealtime();usbFixAt=0L
    val next=UsbGpsReader(this,object:UsbGpsReader.Listener{
-    override fun onStatus(value:String){main.post{if(!closed&&usb&&!power.parked())report(value)}}
-    override fun onFix(f:NmeaGpsParser.Fix){main.post{if(!closed&&usb&&!power.parked())sample(f.latitude,f.longitude,f.accuracy,if(f.speed.isFinite())f.speed else 0.0,f.heading,f.timestamp)}}
+    // While the tablet GPS fills in, its "Fix (...)" stays the status shown.
+    override fun onStatus(value:String){main.post{if(!closed&&usb&&!backup&&!power.parked())report(value)}}
+    override fun onFix(f:NmeaGpsParser.Fix){main.post{if(!closed&&usb&&!power.parked()){
+     usbFixAt=SystemClock.elapsedRealtime()
+     if(backup)stopBackup()
+     sample(f.latitude,f.longitude,f.accuracy,if(f.speed.isFinite())f.speed else 0.0,f.heading,f.timestamp)
+    }}}
    });reader=next;GpsUsbRuntime.worker.execute(next)
-  }else try{
-   location=getSystemService(LOCATION_SERVICE) as LocationManager
-   val fine=checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED
-   val coarse=checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)==PackageManager.PERMISSION_GRANTED
-   if(!fine&&!coarse)throw SecurityException()
-   val provider=if(fine)LocationManager.GPS_PROVIDER else LocationManager.NETWORK_PROVIDER
-   location?.requestLocationUpdates(provider,power.gpsIntervalMs(BuildConfig.KIOSK),0f,locationListener,Looper.getMainLooper());report("Waiting for tablet GPS")
-  }catch(e:Exception){report("Location permission or tablet GPS unavailable")}
+  }else startTabletGps("Waiting for tablet GPS")
  }
  private fun sample(lat:Double,lng:Double,accuracy:Double,speed:Double,heading:Double,t:Long){
   val now=System.currentTimeMillis()
@@ -139,8 +163,10 @@ class DriverLocationService:Service() {
   if(!DriverTrackingPolicy.sample(lat,lng,accuracy,speed,t,now)||power.parked())return
   val coords=JSObject().put("latitude",lat).put("longitude",lng).put("accuracy",accuracy).put("speed",speed)
   if(heading.isFinite())coords.put("heading",heading)
-  latest=JSObject().put("coords",coords).put("timestamp",t).put("nativeManaged",true)
-  message=if(usb)"Fix (USB background GPS)" else "Fix (tablet background GPS)"
+  val position=JSObject().put("coords",coords).put("timestamp",t).put("nativeManaged",true)
+  if(usb&&backup)position.put("backup",true)
+  latest=position
+  message=if(!usb)"Fix (tablet background GPS)" else if(backup)"Fix (tablet GPS - USB GPS has no signal)" else "Fix (USB background GPS)"
   if(now-lastSaved<8000){latest!!.put("nativePersisted",false);UsbGpsPlugin.nativePosition(latest!!);return}
   val l=lease?:return
   val point=JSONObject().put("queue_id",UUID.randomUUID().toString()).put("lat",lat).put("lng",lng).put("speed",speed).put("accuracy",accuracy)
@@ -205,7 +231,7 @@ class DriverLocationService:Service() {
   }
  }
  override fun onDestroy(){
-  closed=true;main.removeCallbacks(ticks);stopSources()
+  closed=true;main.removeCallbacks(ticks);main.removeCallbacks(backupCheck);stopSources()
   try{unregisterReceiver(battery)}catch(_:Exception){};try{unregisterReceiver(permission)}catch(_:Exception){}
   instance=null;latest=null;network.shutdown();disk.shutdown()
   // A worker may still finish an acknowledged upload; close only once it has exited.
