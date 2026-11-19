@@ -8,6 +8,7 @@ export const SUPABASE_TABLES: Record<string, string> = {
   BookingRequest: "booking_request",
   Broadcast: "broadcast",
   CardHolder: "card_holder",
+  CatalogueGroup: "catalogue_group",
   Client: "client",
   ClientError: "client_error",
   Company: "company",

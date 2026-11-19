@@ -12,6 +12,7 @@ import BusLoader from "@/components/BusLoader";
 import { ArrowLeft, BookOpen, Bus, Check, ExternalLink, FileText, Loader2, Pencil, Plus, Search, Trash2, TriangleAlert, Undo2, Upload, X } from "lucide-react";
 import { STARTERS } from "@/data/busLibrary";
 import { DiagramsPanel, ModelPartsPanel } from "@/components/admin/PartDiagrams";
+import MakerCatalogue from "@/components/admin/MakerCatalogue";
 import REPLACEMENTS from "@/data/partsCatalogue/replacements.json";
 import PICTURES from "@/data/partsCatalogue/pictures.json";
 import { starterPictures } from "@/lib/partDrawings";
@@ -428,6 +429,7 @@ function GuidePage({ guide, facts, documents, diagrams = [], parts = [], interch
 
       <ModelPartsPanel guide={guide} parts={parts} interchanges={interchanges} onChange={onChange} />
       <DiagramsPanel guide={guide} diagrams={diagrams} parts={parts} interchanges={interchanges} buses={buses} canDelete={canDelete} onChange={onChange} />
+      <MakerCatalogue guide={guide} buses={buses} parts={parts} guides={[guide]} canDelete={canDelete} onStockChange={onChange} />
 
       <Toolbar actions={<Button onClick={() => setFactForm({ ...EMPTY_FACT })}><Plus className="mr-1.5 h-4 w-4" />Add a fact</Button>}>
         <div className="relative w-full max-w-xs">
