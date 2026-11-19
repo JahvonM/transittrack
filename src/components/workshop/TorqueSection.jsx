@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -8,14 +8,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { StatusChip } from "@/components/admin/kit";
 import { FACT_STATUS, guideTitle } from "@/lib/busLibrary";
 import {
-  TORQUE_SYSTEMS, blankTorque, findVehicle, ftLb, nmText, torqueBySystem, torqueCounts, torqueData, torqueForm, torqueProblem, visibleTorque,
+  TORQUE_SYSTEMS, blankTorque, ftLb, nmText, torqueBySystem, torqueCounts, torqueData, torqueForm, torqueProblem, visibleTorque,
 } from "@/lib/workshop";
-import { EditSheet, FIELD, Field, Notice, ScreenBar, hostOf, pluralize, useWorkshop } from "@/components/workshop/kit";
+import { EditSheet, FIELD, Field, Notice, hostOf, pluralize, useWorkshop } from "@/components/workshop/kit";
 import { Check, ExternalLink, Plus, Search, Wrench, X } from "lucide-react";
 
-// A vehicle's torque values, from its model page: by part of the vehicle,
-// the N·m in large type, and It's right / It's wrong on every value. Every
-// researched value starts "Not checked" until a mechanic confirms it.
+// A vehicle's torque values, from its model page, as a catalogue table: by
+// part of the vehicle, the N·m in large type, and It's right / It's wrong on
+// every value. Every researched value starts "Not checked" until a mechanic
+// confirms it.
 
 const dateLabel = (iso) => {
   const t = Date.parse(iso || "");
@@ -46,37 +47,39 @@ export function TorqueBadges({ spec }) {
   );
 }
 
-function TorqueCard({ spec, onEdit, onMark, marking }) {
+// Bolt | Torque | Checked on a tablet held sideways; the checks go under
+// the bolt on narrower screens.
+const ROW = "lg:grid lg:grid-cols-[minmax(0,1fr)_7rem_16rem] lg:items-start lg:gap-4";
+
+function TorqueRow({ spec, onEdit, onMark, marking }) {
   const status = FACT_STATUS[spec.status] ? spec.status : "unchecked";
   const host = hostOf(spec.source_link);
   return (
-    <li className="rounded-2xl border border-border bg-card">
-      <button type="button" onClick={() => onEdit(spec)} className="flex w-full items-start gap-4 rounded-t-2xl p-4 text-left hover:bg-accent/30" aria-label={`Edit ${spec.item}`}>
-        <span className="min-w-0 flex-1 space-y-1">
-          <span className="block text-title-sm font-semibold">{spec.item}</span>
-          {(spec.size || spec.applies_to) && <span className="block text-body-sm text-muted-foreground">{[spec.size, spec.applies_to].filter(Boolean).join(" · ")}</span>}
-          {spec.stages && <span className="block text-body font-medium">{spec.stages}</span>}
-          {spec.sequence && <span className="block text-body-sm">{spec.sequence}</span>}
-          {(spec.new_bolt || spec.thread_lock) && <span className="flex flex-wrap gap-1.5 pt-1"><TorqueBadges spec={spec} /></span>}
-        </span>
-        <TorqueFigure spec={spec} />
+    <li className={`${ROW} grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 px-4 py-3`}>
+      <button type="button" onClick={() => onEdit(spec)} className="min-w-0 space-y-0.5 rounded text-left" aria-label={`Edit ${spec.item}`}>
+        <span className="block text-body font-semibold text-primary hover:underline">{spec.item}</span>
+        {(spec.size || spec.applies_to) && <span className="block text-body-sm text-muted-foreground">{[spec.size, spec.applies_to].filter(Boolean).join(" · ")}</span>}
+        {spec.stages && <span className="block text-body-sm font-medium text-foreground">{spec.stages}</span>}
+        {spec.sequence && <span className="block text-body-sm text-foreground">{spec.sequence}</span>}
+        {(spec.new_bolt || spec.thread_lock) && <span className="flex flex-wrap gap-1.5 pt-1"><TorqueBadges spec={spec} /></span>}
       </button>
-      <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2.5">
+      <TorqueFigure spec={spec} size="md" />
+      <div className="col-span-2 flex flex-wrap items-center gap-2 lg:col-span-1 lg:justify-end">
         <StatusChip tone={FACT_STATUS[status].tone}>{FACT_STATUS[status].label}</StatusChip>
         {status !== "unchecked" && spec.checked_by && <span className="text-caption text-muted-foreground">{spec.checked_by}{spec.checked_at ? `, ${dateLabel(spec.checked_at)}` : ""}</span>}
-        {spec.source_link ? (
-          <a href={spec.source_link} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center gap-1 text-caption text-muted-foreground underline underline-offset-2">
-            {spec.source_name || host}<ExternalLink className="h-3 w-3" aria-hidden="true" />
-          </a>
-        ) : spec.source_name ? <span className="text-caption text-muted-foreground">{spec.source_name}</span> : null}
-        <span className="ml-auto flex gap-2">
+        <span className="flex gap-1.5">
           {status !== "checked" && (
-            <Button size="sm" variant="secondary" className="h-11 rounded-xl" disabled={marking} onClick={() => onMark(spec, "checked")}><Check className="mr-1 h-4 w-4" aria-hidden="true" />It's right</Button>
+            <Button size="sm" variant="outline" className="h-10 rounded-lg" disabled={marking} onClick={() => onMark(spec, "checked")}><Check className="mr-1 h-4 w-4" aria-hidden="true" />It's right</Button>
           )}
           {status !== "wrong" && (
-            <Button size="sm" variant="ghost" className="h-11 rounded-xl" disabled={marking} onClick={() => onMark(spec, "wrong")}><X className="mr-1 h-4 w-4" aria-hidden="true" />It's wrong</Button>
+            <Button size="sm" variant="ghost" className="h-10 rounded-lg" disabled={marking} onClick={() => onMark(spec, "wrong")}><X className="mr-1 h-4 w-4" aria-hidden="true" />It's wrong</Button>
           )}
         </span>
+        {spec.source_link ? (
+          <a href={spec.source_link} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[40px] w-full items-center gap-1 text-caption text-muted-foreground underline underline-offset-2 lg:justify-end">
+            Source: {spec.source_name || host}<ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+          </a>
+        ) : spec.source_name ? <span className="w-full text-caption text-muted-foreground lg:text-right">Source: {spec.source_name}</span> : null}
       </div>
     </li>
   );
@@ -176,23 +179,17 @@ const SHOW = [
   { id: "wrong", label: "Wrong" },
 ];
 
-export default function TorqueScreen() {
-  const { kind, id } = useParams();
+// The Torque section of a vehicle's catalogue page.
+export default function TorqueSection({ kind, guide }) {
   const { toast } = useToast();
-  const { vehicles, specs, put, isAdmin } = useWorkshop();
-  const vehicle = findVehicle(vehicles, kind, id);
+  const { specs, put, isAdmin } = useWorkshop();
   const [query, setQuery] = useState("");
   const [show, setShow] = useState("all");
   const [editing, setEditing] = useState(null);
   const [marking, setMarking] = useState("");
-  const guide = vehicle?.guide;
-  const mine = useMemo(() => (guide ? specs.filter((s) => s.guide_id === guide.id) : []), [specs, guide]);
+  const mine = useMemo(() => specs.filter((s) => s.guide_id === guide.id), [specs, guide]);
   const counts = torqueCounts(mine);
   const groups = torqueBySystem(visibleTorque(mine, { query, show }));
-  const back = `/workshop/${kind}/${id}`;
-
-  if (!vehicle) return <Navigate to="/workshop" replace />;
-  if (!guide) return <Navigate to={back} replace />;
 
   const mark = async (spec, status) => {
     setMarking(spec.id);
@@ -206,22 +203,26 @@ export default function TorqueScreen() {
   };
 
   return (
-    <>
-      <ScreenBar back={back} backLabel={vehicle.name} title="Torque" subtitle={`${guideTitle(guide)} · ${pluralize(counts.total, "value")}${counts.unchecked ? `, ${counts.unchecked} not checked` : ""}`}>
-        <Button className="h-12 rounded-xl text-body" onClick={() => setEditing({})}><Plus className="mr-1.5 h-5 w-5" aria-hidden="true" />Add a torque</Button>
-      </ScreenBar>
+    <section aria-labelledby="torque-title">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 id="torque-title" className="text-title-sm font-semibold">Torque values</h3>
+          <p className="text-body-sm text-muted-foreground">{pluralize(counts.total, "value")}{counts.unchecked ? `, ${counts.unchecked} not checked` : ""} · shared by every {kind === "car" ? "car" : "bus"} of this model</p>
+        </div>
+        <Button className="h-12 rounded-lg text-body" onClick={() => setEditing({})}><Plus className="mr-1.5 h-5 w-5" aria-hidden="true" />Add a torque</Button>
+      </div>
 
       {mine.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
           <div className="relative min-w-[220px] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a bolt" aria-label="Find a bolt" className="h-12 rounded-xl pl-10 text-body md:text-body" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a bolt" aria-label="Find a bolt" className="h-12 rounded-lg bg-card pl-10 text-body md:text-body" />
           </div>
-          <div role="group" aria-label="Show" className="flex rounded-xl border border-border p-1">
+          <div role="group" aria-label="Show" className="flex rounded-lg border border-border bg-card p-1">
             {SHOW.map((s) => (
               <button
                 key={s.id} type="button" aria-pressed={show === s.id} onClick={() => setShow(s.id)}
-                className={`h-10 rounded-lg px-3 text-body-sm font-semibold ${show === s.id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                className={`h-10 rounded-md px-3 text-body-sm font-semibold ${show === s.id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
               >
                 {s.label}{s.id !== "all" && counts[s.id] ? ` ${counts[s.id]}` : ""}
               </button>
@@ -231,19 +232,22 @@ export default function TorqueScreen() {
       )}
 
       {mine.length === 0 ? (
-        <Notice action={isAdmin ? <Button asChild variant="secondary" className="h-12 rounded-xl"><Link to="/workshop/models">Models</Link></Button> : null}>
+        <Notice action={isAdmin ? <Button asChild variant="outline" className="h-12 rounded-lg"><Link to="/workshop/models">Models</Link></Button> : null}>
           <p className="flex items-center gap-2 font-semibold"><Wrench className="h-4 w-4" aria-hidden="true" />No torque values for the {guideTitle(guide)} yet.</p>
-          <p className="text-muted-foreground">Add them from the manual or your own checks{isAdmin ? ", or add the researched ones in Models › Ready to add" : ""}. Every {kind === "car" ? "car" : "bus"} of this model shares them.</p>
+          <p className="text-muted-foreground">Add them from the manual or your own checks{isAdmin ? ", or add the researched ones in Models › Ready to add" : ""}.</p>
         </Notice>
       ) : groups.size === 0 ? (
         <p className="py-6 text-center text-body text-muted-foreground">Nothing matches.</p>
       ) : (
-        <div className="space-y-6">
+        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <div aria-hidden="true" className={`${ROW} hidden border-b border-border bg-muted px-4 py-2 text-caption font-semibold uppercase tracking-wide text-muted-foreground`}>
+            <span>Bolt</span><span className="text-right">Torque</span><span className="text-right">Checked</span>
+          </div>
           {[...groups].map(([system, list]) => (
             <section key={system} aria-labelledby={`sys-${system}`}>
-              <h3 id={`sys-${system}`} className="mb-2 text-body font-semibold text-muted-foreground">{TORQUE_SYSTEMS.find((s) => s.id === system)?.label} <span className="tabular-nums">({list.length})</span></h3>
-              <ul className="space-y-3">
-                {list.map((spec) => <TorqueCard key={spec.id} spec={spec} onEdit={setEditing} onMark={mark} marking={marking === spec.id} />)}
+              <h4 id={`sys-${system}`} className="border-b border-border bg-secondary/60 px-4 py-2 text-body-sm font-semibold">{TORQUE_SYSTEMS.find((s) => s.id === system)?.label} <span className="tabular-nums text-muted-foreground">({list.length})</span></h4>
+              <ul className="divide-y divide-border border-b border-border last:border-b-0">
+                {list.map((spec) => <TorqueRow key={spec.id} spec={spec} onEdit={setEditing} onMark={mark} marking={marking === spec.id} />)}
               </ul>
             </section>
           ))}
@@ -251,6 +255,6 @@ export default function TorqueScreen() {
       )}
 
       {editing && <TorqueSheet key={editing.id || "new"} editing={editing} guide={guide} onClose={() => setEditing(null)} />}
-    </>
+    </section>
   );
 }

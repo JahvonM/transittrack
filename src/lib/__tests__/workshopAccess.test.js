@@ -16,6 +16,10 @@ function workshop(role) {
   sdk.tables.WorkshopVehicle = [{ id: 'w1', name: 'BMW X3', make: 'BMW', model: 'X3', year: 2013 }];
   sdk.tables.Part = [{ id: 'p1', part_name: 'Brake pads', quantity_in_stock: 2 }];
   sdk.tables.PartDiagram = [{ id: 'd1', guide_id: 'g1', title: 'Front brakes', pins: [] }];
+  sdk.tables.CatalogueGroup = [
+    { id: 'c1', guide_id: 'g1', code: '4702', title: 'FRONT DISC BRAKE CALIPER', parts: [] },
+    { id: 'c2', guide_id: 'g2', code: '34_1', title: 'Front brake', parts: [] },
+  ];
   return sdk;
 }
 const TORQUE = { guide_id: 'g1', system: 'wheels_brakes', item: 'Caliper bracket bolts', size: 'M12', nm: 107, source_link: 'https://example.com/hiace' };
@@ -99,9 +103,33 @@ describe('bolt pins', () => {
     expect(sdk.tables.PartDiagram.find((d) => d.id === 'd1').pins.map((p) => [p.n, p.part_id, p.torque_id])).toEqual([[1, 'p1', 't1'], [2, '', ''], [3, '', '']]);
   });
 
+  it("keep the maker's number for the row they point at", async () => {
+    const sdk = workshop('mechanic');
+    expect((await call(sdk, { entity: 'PartDiagram', operation: 'update', id: 'd1', data: { pins: [{ n: 1, x: 0.1, y: 0.1, ref: ' 47750 ' }] } })).status).toBe(200);
+    expect(sdk.tables.PartDiagram.find((d) => d.id === 'd1').pins[0].ref).toBe('47750');
+    expect((await call(sdk, { entity: 'PartDiagram', operation: 'update', id: 'd1', data: { pins: [{ n: 1, x: 0.1, y: 0.1, ref: 'x'.repeat(21) }] } })).status).toBe(400);
+    expect((await call(sdk, { entity: 'PartDiagram', operation: 'update', id: 'd1', data: { pins: [{ n: 1, x: 0.1, y: 0.1, ref: 7 }] } })).status).toBe(400);
+  });
+
   it('refuse a torque id that is not text', async () => {
     const sdk = workshop('mechanic');
     expect((await call(sdk, { entity: 'PartDiagram', operation: 'update', id: 'd1', data: { pins: [{ n: 1, x: 0.1, y: 0.1, torque_id: { $ne: '' } }] } })).status).toBe(400);
     expect(sdk.writes).toEqual([]);
+  });
+});
+
+describe("photos of the maker's diagrams", () => {
+  it('link only to a catalogue diagram on the same model page, and can be unlinked', async () => {
+    const sdk = workshop('mechanic');
+    const link = (catalogue_group_id) => call(sdk, { entity: 'PartDiagram', operation: 'update', id: 'd1', data: { catalogue_group_id } });
+    expect((await link('c1')).status).toBe(200);
+    expect(sdk.tables.PartDiagram.find((d) => d.id === 'd1').catalogue_group_id).toBe('c1');
+    expect((await link('c2')).status).toBe(400);
+    expect((await link('missing')).status).toBe(400);
+    expect((await link({ $ne: '' })).status).toBe(400);
+    expect((await link('')).status).toBe(200);
+    expect(sdk.tables.PartDiagram.find((d) => d.id === 'd1').catalogue_group_id).toBe('');
+    const made = await call(sdk, { entity: 'PartDiagram', operation: 'create', data: { guide_id: 'g2', title: 'Front brake', catalogue_group_id: 'c1' } });
+    expect(made.status).toBe(400);
   });
 });

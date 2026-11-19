@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  TORQUE_SYSTEMS, TORQUE_TEXT_LIMITS, MAX_NM, carData, carProblem, ftLb, guideFor, pageFromStarter, readyTorque,
+  TORQUE_SYSTEMS, TORQUE_TEXT_LIMITS, MAX_NM, carData, carProblem, catalogueCategories, categorySlug, diagramRows, ftLb,
+  groupMatches, groupRefs, guideFor, modelCodeFor, pageFromStarter, pictureForGroup, pinKey, pinLabel, readyTorque,
   starterTorque, torqueBySystem, torqueData, torqueForm, torqueProblem, visibleTorque, workshopVehicles,
 } from "../workshop.js";
 import { TORQUE_STARTERS } from "../../data/workshop/torque/index.js";
@@ -143,5 +144,55 @@ describe("starter torque tables", () => {
     expect(readyTorque(starters, guides, specs).map((r) => [r.starter.key, r.count, r.needsPage, r.blocked])).toEqual([
       ["bus", 1, false, true], ["car", 1, true, false],
     ]);
+  });
+});
+
+describe("the catalogue", () => {
+  const groups = [
+    { id: "c2", guide_id: "g1", vehicle_id: "bus-a", model_code: "KDH212R-JEMDY", category: "Engine / Fuel / Tool", code: "2302", title: "FUEL FILTER", sort_order: 20 },
+    { id: "c1", guide_id: "g1", vehicle_id: "bus-a", model_code: "KDH212R-JEMDY", category: "Engine / Fuel / Tool", code: "1502", title: "OIL FILTER", sort_order: 10 },
+    { id: "c3", guide_id: "g1", category: "", code: "4702", title: "FRONT DISC BRAKE CALIPER", sort_order: 30,
+      parts: [
+        { ref: "47750", number: "47750-26310", name: "Cylinder assy, disc brake", qty: "1" },
+        { ref: "47750", number: "47730-26310", name: "Cylinder assy, disc brake, LH", qty: "1" },
+        { ref: "04465", number: "04465-26420", name: "Pad kit", qty: "1" },
+        { ref: "", number: "90105-10334", name: "Bolt", qty: "2" },
+      ] },
+  ];
+
+  it("lists the maker's categories in its order, with their diagrams", () => {
+    expect([...catalogueCategories(groups)].map(([c, list]) => [c, list.map((g) => g.code)])).toEqual([
+      ["Engine / Fuel / Tool", ["1502", "2302"]], ["Other", ["4702"]],
+    ]);
+    expect(categorySlug("Engine / Fuel / Tool")).toBe("engine-fuel-tool");
+    expect(categorySlug("A ENGINE MECHANICAL")).toBe("a-engine-mechanical");
+    expect(categorySlug("  ")).toBe("other");
+    expect(groupMatches(groups[1], "oil")).toBe(true);
+    expect(groupMatches(groups[1], "1502")).toBe(true);
+    expect(groupMatches(groups[1], "fuel")).toBe(false);
+  });
+
+  it("knows a vehicle's model code and a diagram's photo", () => {
+    expect(modelCodeFor({ id: "bus-a" }, groups)).toBe("KDH212R-JEMDY");
+    expect(modelCodeFor({ id: "bus-b" }, groups)).toBe("");
+    const diagrams = [{ id: "d1", catalogue_group_id: "" }, { id: "d2", catalogue_group_id: "c3" }];
+    expect(pictureForGroup(groups[2], diagrams).id).toBe("d2");
+    expect(pictureForGroup(groups[0], diagrams)).toBe(null);
+  });
+
+  it("pairs a maker's diagram's rows with the numbers on its photo, by the maker's number", () => {
+    const pins = [{ n: 1, ref: "47750", x: 0.2, y: 0.2 }, { n: 2, ref: "", x: 0.5, y: 0.5 }];
+    const rows = diagramRows({ group: groups[2], pins });
+    expect(rows.map((r) => [r.key, r.pins.map((p) => p.n)])).toEqual([["ref:47750", [1]], ["ref:47750", [1]], ["ref:04465", []], ["row:3", []]]);
+    expect(pinKey(pins[0], true)).toBe("ref:47750");
+    expect(pinKey(pins[1], true)).toBe("pin:2");
+    expect([pinLabel(pins[0]), pinLabel(pins[1])]).toEqual(["47750", "2"]);
+    expect(groupRefs(groups[2]).map((r) => r.ref)).toEqual(["47750", "04465"]);
+  });
+
+  it("lists a plain picture's own numbers in order", () => {
+    const rows = diagramRows({ pins: [{ n: 3 }, { n: 1 }] });
+    expect(rows.map((r) => [r.key, r.ref])).toEqual([["pin:1", "1"], ["pin:3", "3"]]);
+    expect(pinKey({ n: 3, ref: "47750" }, false)).toBe("pin:3");
   });
 });

@@ -70,7 +70,7 @@ ENTITY_FIELDS.GuideDocument=['guide_id','title','kind','file_uri','file_name','n
 // Parts catalogue: pictures of a model's parts with numbered pins (shown on
 // its library page), other numbers that can replace a part, and on each part
 // the models it fits, when to warn of low stock and where it is kept.
-ENTITY_FIELDS.PartDiagram=['guide_id','title','system','image_url','drawing_key','catalogue_link','notes','pins','sort_order'];
+ENTITY_FIELDS.PartDiagram=['guide_id','title','system','image_url','drawing_key','catalogue_link','notes','pins','sort_order','catalogue_group_id'];
 ENTITY_FIELDS.PartInterchange=['part_number','alt_number','alt_brand','kind','applies_to','notes','source_name','source_link','status','checked_by','checked_at'];
 ENTITY_FIELDS.Part.push('guide_ids','min_stock','bin_location');
 // The maker's catalogue: a diagram's parts as listed by Toyota or Nissan,
@@ -244,7 +244,17 @@ async function cleanGuideRecord(db,ctx,name,data,existing) {
    if(data.drawing_key===null||data.drawing_key==='') data.drawing_key=null;
    else if(!GUIDE_DRAWINGS.has(data.drawing_key)) fail(400,'Unknown guide drawing');
   }
-  if(Object.hasOwn(data,'pins')) data.pins=await cleanPins(db,data.pins,Object.hasOwn(data,'guide_id')?data.guide_id:existing?.guide_id);
+  const guideId=Object.hasOwn(data,'guide_id')?data.guide_id:existing?.guide_id;
+  // A photo of one of the maker's catalogue diagrams, on the same model page.
+  if(Object.hasOwn(data,'catalogue_group_id')) {
+   if(data.catalogue_group_id===null||data.catalogue_group_id==='') data.catalogue_group_id='';
+   else {
+    if(typeof data.catalogue_group_id!=='string'||data.catalogue_group_id.length>64) fail(400,'Invalid catalogue diagram');
+    const group=(await db.CatalogueGroup.filter({id:data.catalogue_group_id},'-created_date',1))[0];
+    if(!group||group.guide_id!==guideId) fail(400,'That catalogue diagram is not on this model page');
+   }
+  }
+  if(Object.hasOwn(data,'pins')) data.pins=await cleanPins(db,data.pins,guideId);
   return;
  }
  if(name==='TorqueSpec') {
@@ -278,8 +288,9 @@ async function cleanGuideRecord(db,ctx,name,data,existing) {
 }
 // Pins on a part picture: a number, a place on the picture (0 to 1 across
 // and down), the part it points at and/or the bolt's torque (one on the same
-// model page). A pin whose part or torque has since been deleted keeps its
-// place and label, pointing at nothing.
+// model page), and the number it has on the maker's diagram (ref). A pin
+// whose part or torque has since been deleted keeps its place and label,
+// pointing at nothing.
 async function cleanPins(db,pins,guideId) {
  if(pins===null) return [];
  if(!Array.isArray(pins)||pins.length>80) fail(400,'A picture can have up to 80 pins');
@@ -290,7 +301,8 @@ async function cleanPins(db,pins,guideId) {
   if(pin.part_id!=null&&(typeof pin.part_id!=='string'||pin.part_id.length>64)) fail(400,'Invalid pin');
   if(pin.label!=null&&(typeof pin.label!=='string'||pin.label.length>80)) fail(400,'Invalid pin label');
   if(pin.torque_id!=null&&(typeof pin.torque_id!=='string'||pin.torque_id.length>64)) fail(400,'Invalid pin');
-  return {n,x:Math.round(x*10000)/10000,y:Math.round(y*10000)/10000,part_id:pin.part_id||'',torque_id:pin.torque_id||'',label:(pin.label||'').trim()};
+  if(pin.ref!=null&&(typeof pin.ref!=='string'||pin.ref.length>20)) fail(400,'Invalid pin');
+  return {n,x:Math.round(x*10000)/10000,y:Math.round(y*10000)/10000,part_id:pin.part_id||'',torque_id:pin.torque_id||'',ref:(pin.ref||'').trim(),label:(pin.label||'').trim()};
  });
  const ids=[...new Set(out.map(p=>p.part_id).filter(Boolean))];
  if(ids.length) {

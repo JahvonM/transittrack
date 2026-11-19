@@ -146,7 +146,7 @@ export default function Models() {
 
   return (
     <>
-      <ScreenBar back="/workshop" backLabel="Home" title="Models" subtitle="Torque values and bolt maps belong to a model page, shared by every vehicle of that model.">
+      <ScreenBar crumbs={[{ to: "/workshop", label: "Workshop" }, { label: "Models" }]} title="Models" subtitle="Torque values and bolt maps belong to a model page, shared by every vehicle of that model.">
         <Button className="h-12 rounded-xl text-body" onClick={() => setEditing({})}><Plus className="mr-1.5 h-5 w-5" aria-hidden="true" />New model page</Button>
       </ScreenBar>
 
@@ -155,7 +155,7 @@ export default function Models() {
           <h3 id="ready" className="mb-2 flex items-center gap-2 text-body font-semibold text-muted-foreground"><Sparkles className="h-4 w-4" aria-hidden="true" />Ready to add</h3>
           <ul className="space-y-3">
             {ready.map((r) => (
-              <li key={r.starter.key} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4">
+              <li key={r.starter.key} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4">
                 <div className="min-w-[220px] flex-1">
                   <p className="text-title-sm font-semibold">{r.starter.label}</p>
                   <p className="text-body-sm text-muted-foreground">
@@ -188,7 +188,7 @@ export default function Models() {
               const pictures = diagrams.filter((d) => d.guide_id === g.id).length;
               return (
                 <li key={g.id}>
-                  <button type="button" onClick={() => setEditing(g)} className="w-full rounded-2xl border border-border bg-card p-4 text-left hover:bg-accent/30">
+                  <button type="button" onClick={() => setEditing(g)} className="w-full rounded-lg border border-border bg-card p-4 text-left hover:bg-accent/30">
                     <span className="block text-title-sm font-semibold">{guideTitle(g)}{g.generation ? <span className="font-normal text-muted-foreground"> · {g.generation}</span> : null}</span>
                     <span className="block text-body-sm text-muted-foreground">{[yearsLabel(g), pluralize(torque, "torque value"), pluralize(pictures, "picture")].join(" · ")}</span>
                     <span className="block text-body-sm">{using.length ? `Used by ${using.join(", ")}` : "No vehicle uses it yet"}</span>

@@ -187,3 +187,62 @@ export function readyTorque(starters = [], guides = [], specs = []) {
 }
 
 export const pageFromStarter = (starter) => guideFromStarter({ ...starter.page, key: starter.guide_key });
+
+// ----- the catalogue (a parts catalogue's layout) -----
+
+// The maker's categories on a model page, in the catalogue's own order, each
+// with its diagrams: "Engine / Fuel / Tool" → 1502 OIL FILTER, 2302 FUEL FILTER…
+export function catalogueCategories(groups = []) {
+  const out = new Map();
+  const sorted = [...groups].sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) || String(a.code).localeCompare(String(b.code)));
+  for (const g of sorted) {
+    const key = String(g.category || "").trim() || "Other";
+    if (!out.has(key)) out.set(key, []);
+    out.get(key).push(g);
+  }
+  return out;
+}
+
+// The team's photo of one of the maker's diagrams.
+export const pictureForGroup = (group, diagrams = []) => (group ? diagrams.find((d) => d.catalogue_group_id === group.id) || null : null);
+
+// Every word of the filter in a diagram's number or name.
+export const groupMatches = (group, query) => matchesSearch(query, group.code, group.title, group.detail);
+
+// The chassis code the maker's catalogue knows a vehicle by (pasted with its
+// list of diagrams).
+export const modelCodeFor = (vehicle, groups = []) =>
+  groups.find((g) => g.vehicle_id === vehicle?.id && String(g.model_code || "").trim())?.model_code || "";
+
+// What a pin is called on its picture: the number on the maker's diagram
+// when it has one, else its own number.
+export const pinLabel = (pin) => String(pin?.ref || "").trim() || String(pin?.n ?? "");
+
+// The rows of a diagram's table, each with the key its pins share: on a
+// photo of a maker's diagram, the maker's parts list (a pin points at a row
+// by the row's number on the drawing); on any other picture, its pins.
+export function diagramRows({ group = null, pins = [] } = {}) {
+  if (group) {
+    return (group.parts || []).map((part, i) => {
+      const ref = String(part.ref || "").trim();
+      return { key: ref ? `ref:${ref}` : `row:${i}`, ref, part, pins: ref ? pins.filter((p) => String(p.ref || "").trim() === ref) : [] };
+    });
+  }
+  return [...pins].sort((a, b) => a.n - b.n).map((pin) => ({ key: `pin:${pin.n}`, ref: String(pin.n), part: null, pins: [pin] }));
+}
+
+// The row key a pin highlights.
+export const pinKey = (pin, grouped) => (grouped && String(pin?.ref || "").trim() ? `ref:${String(pin.ref).trim()}` : `pin:${pin?.n}`);
+
+// The numbers on a maker's diagram, once each, for choosing a pin's row.
+export const groupRefs = (group) => {
+  const seen = new Map();
+  for (const part of group?.parts || []) {
+    const ref = String(part.ref || "").trim();
+    if (ref && !seen.has(ref)) seen.set(ref, part);
+  }
+  return [...seen].map(([ref, part]) => ({ ref, part }));
+};
+
+// A category's name in a page address: "Engine / Fuel / Tool" → engine-fuel-tool.
+export const categorySlug = (name) => String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "other";

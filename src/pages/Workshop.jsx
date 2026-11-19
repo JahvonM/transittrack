@@ -1,24 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import useFutureAppearance from "@/hooks/useFutureAppearance";
+import useWorkshopAppearance from "@/hooks/useWorkshopAppearance";
 import useHomeScreenApp from "@/hooks/useHomeScreenApp";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/admin/kit";
-import { busRecordWarnings, guideTitle, yearsLabel } from "@/lib/busLibrary";
-import { findVehicle, torqueCounts, workshopVehicles } from "@/lib/workshop";
-import { Notice, ScreenBar, Tile, WorkshopContext, pluralize, useWorkshop } from "@/components/workshop/kit";
-import TorqueScreen from "@/components/workshop/TorqueScreen";
-import { BoltMap, BoltMaps } from "@/components/workshop/BoltMaps";
+import { busRecordWarnings } from "@/lib/busLibrary";
+import { modelCodeFor, torqueCounts, workshopVehicles } from "@/lib/workshop";
+import { Notice, Tile, WorkshopContext, pluralize, useWorkshop } from "@/components/workshop/kit";
+import VehiclePage from "@/components/workshop/VehiclePage";
+import DiagramPage from "@/components/workshop/DiagramPage";
 import Models, { CarSheet } from "@/components/workshop/Models";
-import { BookOpen, Bus, Car, LogOut, MapPin, Pencil, Plus, RefreshCw, Wrench } from "lucide-react";
+import { BookOpen, Bus, Car, LogOut, Plus, RefreshCw } from "lucide-react";
 
 // The Workshop: app.mcsweenstransport.com/workshop, for the shared tablet in
-// the workshop (and phones). Every vehicle the workshop looks after, as big
-// tiles; tap one, then Torque or Bolt maps. One thing on the screen at a time,
-// Back to return, and all editing in one sheet with Cancel and Save.
+// the workshop (and phones), laid out like a parts catalogue. Every vehicle
+// the workshop looks after; tap one for its details and its sections down
+// the side (torque values, photos, and the maker's own categories of
+// diagrams); tap a diagram for its picture beside its table of parts. A trail
+// at the top leads back, and all editing is in one sheet with Cancel and Save.
 // Administrators and mechanics only (the server checks every read and save);
 // on the tablet, sign in once and it stays signed in until Sign out.
 // The workshop's own cars are kept apart from the buses (WorkshopVehicle), so
@@ -28,21 +30,22 @@ const LIST = 2000;
 
 function useWorkshopData() {
   const [state, setState] = useState("loading");
-  const [data, setData] = useState({ buses: [], cars: [], guides: [], specs: [], diagrams: [], parts: [] });
+  const [data, setData] = useState({ buses: [], cars: [], guides: [], specs: [], diagrams: [], groups: [], parts: [] });
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setState("loading");
     try {
-      const [buses, cars, guides, specs, diagrams, parts] = await Promise.all([
+      const [buses, cars, guides, specs, diagrams, groups, parts] = await Promise.all([
         base44.entities.Vehicle.list(),
         base44.entities.WorkshopVehicle.list("name", 200),
         base44.entities.VehicleGuide.list("make", 200),
         base44.entities.TorqueSpec.list("sort_order", LIST),
         base44.entities.PartDiagram.list("sort_order", 500),
+        base44.entities.CatalogueGroup.list("sort_order", LIST),
         // Parts only name what a pin points at: the Workshop works without them.
         base44.entities.Part.list().catch(() => []),
       ]);
-      setData({ buses: buses || [], cars: cars || [], guides: guides || [], specs: specs || [], diagrams: diagrams || [], parts: parts || [] });
+      setData({ buses: buses || [], cars: cars || [], guides: guides || [], specs: specs || [], diagrams: diagrams || [], groups: groups || [], parts: parts || [] });
       setState("ready");
     } catch {
       setState((s) => (quiet && s === "ready" ? s : "failed"));
@@ -61,7 +64,7 @@ function useWorkshopData() {
 }
 
 function Home() {
-  const { vehicles, specs, diagrams, isAdmin, state } = useWorkshop();
+  const { vehicles, specs, diagrams, groups, isAdmin, state } = useWorkshop();
   const [adding, setAdding] = useState(false);
   const buses = vehicles.filter((v) => v.kind === "bus");
   const cars = vehicles.filter((v) => v.kind === "car");
@@ -70,12 +73,14 @@ function Home() {
     const torque = v.guide ? specs.filter((s) => s.guide_id === v.guide.id) : [];
     const counts = torqueCounts(torque);
     const pictures = v.guide ? diagrams.filter((d) => d.guide_id === v.guide.id).length : 0;
+    const catalogue = v.guide ? groups.filter((g) => g.guide_id === v.guide.id) : [];
+    const code = modelCodeFor(v, catalogue);
     const warnings = v.kind === "bus" ? busRecordWarnings(v.record) : [];
     return (
       <li key={`${v.kind}-${v.id}`}>
         <Tile
           to={`/workshop/${v.kind}/${v.id}`} icon={v.kind === "bus" ? Bus : Car} title={v.name}
-          lines={[v.model !== v.name ? v.model : "", v.engine, v.guide ? [pluralize(counts.total, "torque value"), pictures ? pluralize(pictures, "bolt map") : ""].filter(Boolean).join(" · ") : ""]}
+          lines={[[v.model !== v.name ? v.model : "", code].filter(Boolean).join(" · "), v.engine, v.guide ? [pluralize(counts.total, "torque value"), catalogue.length ? pluralize(catalogue.length, "diagram") : "", pictures ? pluralize(pictures, "photo") : ""].filter(Boolean).join(" · ") : ""]}
           badge={(!v.guide || counts.unchecked > 0 || warnings.length > 0) && (
             <span className="flex flex-wrap gap-1.5">
               {!v.guide && <StatusChip tone="warning">No model page</StatusChip>}
@@ -117,58 +122,8 @@ function Home() {
   );
 }
 
-function VehicleScreen() {
-  const { kind, id } = useParams();
-  const { vehicles, specs, diagrams, isAdmin } = useWorkshop();
-  const [editing, setEditing] = useState(false);
-  const vehicle = findVehicle(vehicles, kind, id);
-  if (!vehicle) return <Navigate to="/workshop" replace />;
-  const { guide } = vehicle;
-  const base = `/workshop/${kind}/${id}`;
-  const counts = torqueCounts(guide ? specs.filter((s) => s.guide_id === guide.id) : []);
-  const maps = guide ? diagrams.filter((d) => d.guide_id === guide.id) : [];
-  const pins = maps.reduce((n, d) => n + (d.pins || []).length, 0);
-  const warnings = kind === "bus" ? busRecordWarnings(vehicle.record) : [];
-  const plate = vehicle.record.plate_number;
-
-  return (
-    <>
-      <ScreenBar back="/workshop" backLabel="Home" title={vehicle.name} subtitle={[vehicle.model !== vehicle.name ? vehicle.model : "", vehicle.engine, vehicle.transmission, plate].filter(Boolean).join(" · ")}>
-        {kind === "car" && isAdmin && <Button variant="secondary" className="h-12 rounded-xl text-body" onClick={() => setEditing(true)}><Pencil className="mr-1.5 h-4 w-4" aria-hidden="true" />Edit car</Button>}
-      </ScreenBar>
-
-      {warnings.length > 0 && (
-        <Notice tone="warning"><ul className="list-disc space-y-0.5 pl-5">{warnings.map((w) => <li key={w}>{w}</li>)}</ul></Notice>
-      )}
-
-      {!guide ? (
-        <Notice tone="warning" action={isAdmin ? <Button asChild variant="secondary" className="h-12 rounded-xl"><Link to="/workshop/models">Models</Link></Button> : null}>
-          <p className="font-semibold">No model page covers this {kind} yet.</p>
-          <p className="text-muted-foreground">
-            Torque values and bolt maps belong to a model page for its make, model and year ({vehicle.model || "not recorded"}).
-            {isAdmin ? " Add one in Models." : " Ask an administrator to add one."}
-          </p>
-        </Notice>
-      ) : (
-        <>
-          <p className="mb-3 text-body-sm text-muted-foreground">From the {guideTitle(guide)}{guide.generation ? ` ${guide.generation}` : ""} page ({yearsLabel(guide)}): shared by every vehicle of this model.</p>
-          <ul className="grid gap-3 sm:grid-cols-2">
-            <li>
-              <Tile to={`${base}/torque`} icon={Wrench} title="Torque" lines={[`${pluralize(counts.total, "value")}${counts.unchecked ? ` · ${counts.unchecked} not checked` : ""}`]} className="min-h-[9rem]" />
-            </li>
-            <li>
-              <Tile to={`${base}/maps`} icon={MapPin} title="Bolt maps" lines={[`${pluralize(maps.length, "picture")} · ${pluralize(pins, "pin")}`]} className="min-h-[9rem]" />
-            </li>
-          </ul>
-        </>
-      )}
-      {editing && <CarSheet editing={vehicle.record} onClose={() => setEditing(false)} />}
-    </>
-  );
-}
-
 export default function Workshop() {
-  useFutureAppearance();
+  useWorkshopAppearance();
   useHomeScreenApp({ manifest: "/workshop.webmanifest?v=workshop1", title: "Workshop" });
   const { user, logout } = useAuth();
   const data = useWorkshopData();
@@ -178,34 +133,39 @@ export default function Workshop() {
 
   return (
     <WorkshopContext.Provider value={value}>
-      <div className="tt-phone-future min-h-[100dvh] touch-manipulation bg-background text-foreground">
-        <header className="safe-area-top border-b border-border">
-          <div className="mx-auto flex h-16 max-w-5xl items-center gap-3 px-4">
-            <Link to="/workshop" className="flex items-center gap-2.5 rounded-xl" aria-label="Workshop home">
+      <div className="min-h-[100dvh] touch-manipulation bg-background text-foreground">
+        <header className="safe-area-top border-b border-border bg-card shadow-sm">
+          <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
+            <Link to="/workshop" className="flex items-center gap-2.5 rounded-lg" aria-label="Workshop home">
               <Logo className="h-9 w-9" />
-              <h1 className="text-title font-semibold">Workshop</h1>
+              <span>
+                <h1 className="text-title-sm font-bold leading-tight">Workshop</h1>
+                <span className="block text-caption text-muted-foreground">Parts catalogue · torque · photos</span>
+              </span>
             </Link>
-            <Button variant="ghost" className="ml-auto h-12 rounded-xl text-body" onClick={() => logout()}><LogOut className="mr-1.5 h-4 w-4" aria-hidden="true" />Sign out</Button>
+            <Button variant="ghost" className="ml-auto h-12 rounded-lg text-body" onClick={() => logout()}><LogOut className="mr-1.5 h-4 w-4" aria-hidden="true" />Sign out</Button>
           </div>
         </header>
-        <main className="mx-auto max-w-5xl px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-4">
+        <main className="mx-auto max-w-6xl px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-4">
           {data.state === "failed" && (
-            <Notice tone="danger" action={<Button variant="secondary" className="h-12 rounded-xl" onClick={() => data.load()}><RefreshCw className="mr-1.5 h-4 w-4" aria-hidden="true" />Try again</Button>}>
+            <Notice tone="danger" action={<Button variant="outline" className="h-12 rounded-lg bg-card" onClick={() => data.load()}><RefreshCw className="mr-1.5 h-4 w-4" aria-hidden="true" />Try again</Button>}>
               Couldn't load the workshop. Check the connection.
             </Notice>
           )}
           {data.state === "loading" ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading">
-              {[0, 1, 2, 3].map((i) => <div key={i} className="h-[7.5rem] animate-pulse rounded-2xl bg-card" />)}
+              {[0, 1, 2, 3].map((i) => <div key={i} className="h-[7rem] animate-pulse rounded-xl border border-border bg-card" />)}
             </div>
           ) : data.state === "ready" && (
             <Routes>
               <Route index element={<Home />} />
               <Route path="models" element={<Models />} />
-              <Route path=":kind/:id" element={<VehicleScreen />} />
-              <Route path=":kind/:id/torque" element={<TorqueScreen />} />
-              <Route path=":kind/:id/maps" element={<BoltMaps />} />
-              <Route path=":kind/:id/maps/:diagramId" element={<BoltMap />} />
+              <Route path=":kind/:id" element={<VehiclePage />} />
+              <Route path=":kind/:id/torque" element={<VehiclePage section="torque" />} />
+              <Route path=":kind/:id/maps" element={<VehiclePage section="maps" />} />
+              <Route path=":kind/:id/c/:category" element={<VehiclePage section="category" />} />
+              <Route path=":kind/:id/maps/:diagramId" element={<DiagramPage mode="picture" />} />
+              <Route path=":kind/:id/group/:groupId" element={<DiagramPage mode="group" />} />
               <Route path="*" element={<Navigate to="/workshop" replace />} />
             </Routes>
           )}

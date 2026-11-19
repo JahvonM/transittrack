@@ -41,6 +41,10 @@
       "type": "string",
       "description": "Web address (https) of the maker's own diagram for this area, e.g. on Partsouq, for reference."
     },
+    "catalogue_group_id": {
+      "type": "string",
+      "description": "The maker's catalogue diagram (CatalogueGroup, on the same model page) this is a photo of, so the photo shows beside its parts list in the Workshop; empty for none."
+    },
     "notes": {
       "type": "string"
     },
@@ -71,6 +75,10 @@
           "torque_id": {
             "type": "string",
             "description": "The TorqueSpec (on the same model page) for the bolt it points at; empty for none."
+          },
+          "ref": {
+            "type": "string",
+            "description": "The number on the maker's diagram (a row of its parts list), e.g. 90430A; empty for none."
           }
         }
       },

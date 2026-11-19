@@ -1,47 +1,73 @@
 import React, { createContext, useContext, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import { findVehicle } from "@/lib/workshop";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Loader2, Trash2 } from "lucide-react";
+import { ChevronRight, Loader2, Trash2 } from "lucide-react";
 
-// The Workshop's building blocks, the same on every screen: a bar with Back,
-// the title and one main button; big tiles to tap; and one full-height sheet
-// for all editing, with Cancel and Save at the top.
+// The Workshop's building blocks, the same on every screen, in the look of a
+// parts catalogue: a trail of where you are (Workshop › St.George › Brakes),
+// the title and one main button; cards and tables to tap; and one
+// full-height sheet for all editing, with Cancel and Save at the top.
 
 export const WorkshopContext = createContext(null);
 export const useWorkshop = () => useContext(WorkshopContext);
 
-export const FIELD = "h-12 w-full rounded-xl border border-input bg-background px-3 text-body";
+// The vehicle in the address (/workshop/bus/<id>/…) and its model page.
+export function useVehicleRoute() {
+  const { kind, id } = useParams();
+  const data = useWorkshop();
+  const vehicle = findVehicle(data.vehicles, kind, id);
+  return { ...data, kind, id, vehicle, guide: vehicle?.guide || null, base: `/workshop/${kind}/${id}` };
+}
+
+export const FIELD = "h-12 w-full rounded-lg border border-input bg-background px-3 text-body";
 export const pluralize = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 export const hostOf = (link) => {
   try { return new URL(link).hostname.replace(/^www\./, ""); } catch { return ""; }
 };
 
-export function ScreenBar({ back, backLabel = "Back", title, subtitle, children }) {
+// Where you are, each step a link back: Workshop › St.George › Engine / Fuel / Tool.
+export function Crumbs({ items = [] }) {
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-      {back && (
-        <Button asChild variant="ghost" className="-ml-2 h-12 rounded-xl px-2 text-body">
-          <Link to={back}><ChevronLeft className="mr-0.5 h-5 w-5" aria-hidden="true" />{backLabel}</Link>
-        </Button>
-      )}
-      <div className="min-w-0 flex-1 basis-56">
-        <h2 className="truncate text-title font-semibold">{title}</h2>
-        {subtitle && <p className="truncate text-body-sm text-muted-foreground">{subtitle}</p>}
+    <nav aria-label="Where you are" className="mb-2 overflow-x-auto">
+      <ol className="flex min-w-max items-center gap-1 text-body-sm text-muted-foreground">
+        {items.map((item, i) => (
+          <li key={`${item.label}-${i}`} className="flex items-center gap-1">
+            {i > 0 && <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />}
+            {item.to && i < items.length - 1
+              ? <Link to={item.to} className="inline-flex min-h-[40px] items-center rounded px-1 font-medium text-primary hover:underline">{item.label}</Link>
+              : <span aria-current="page" className="px-1 text-foreground">{item.label}</span>}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
+export function ScreenBar({ crumbs, title, subtitle, children }) {
+  return (
+    <div className="mb-4">
+      {crumbs && <Crumbs items={crumbs} />}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1 basis-56">
+          <h2 className="truncate text-title font-semibold">{title}</h2>
+          {subtitle && <p className="truncate text-body-sm text-muted-foreground">{subtitle}</p>}
+        </div>
+        {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
       </div>
-      {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </div>
   );
 }
 
-const TILE = "group flex min-h-[7.5rem] w-full items-start gap-4 rounded-2xl border border-border bg-card p-5 text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]";
+const TILE = "group flex min-h-[7rem] w-full items-start gap-4 rounded-xl border border-border bg-card p-5 text-left shadow-sm transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]";
 
 // A big tile: a link (to) or a button (onClick).
 export function Tile({ to, onClick, icon: Icon, title, lines = [], badge, className }) {
   const body = (
     <>
-      {Icon && <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary"><Icon className="h-6 w-6" aria-hidden="true" /></span>}
+      {Icon && <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Icon className="h-6 w-6" aria-hidden="true" /></span>}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-title-sm font-semibold">{title}</span>
         {lines.filter(Boolean).map((line, i) => <span key={i} className="block break-words text-body-sm text-muted-foreground">{line}</span>)}
@@ -57,7 +83,7 @@ export function Tile({ to, onClick, icon: Icon, title, lines = [], badge, classN
 
 export function Notice({ children, action, tone = "neutral" }) {
   return (
-    <div role={tone === "danger" ? "alert" : undefined} className={cn("mb-4 flex flex-wrap items-center gap-3 rounded-2xl border p-4", tone === "warning" ? "border-warning/40 bg-warning/10" : tone === "danger" ? "border-danger/40 bg-danger/10" : "border-border bg-card")}>
+    <div role={tone === "danger" ? "alert" : undefined} className={cn("mb-4 flex flex-wrap items-center gap-3 rounded-xl border p-4", tone === "warning" ? "border-warning/40 bg-warning/10" : tone === "danger" ? "border-danger/40 bg-danger/10" : "border-border bg-card")}>
       <div className="min-w-[200px] flex-1 text-body-sm">{children}</div>
       {action}
     </div>

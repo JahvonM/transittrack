@@ -267,6 +267,8 @@ Maker's catalogue: one diagram of a bus model's parts catalogue as the maker lis
 
 **Links to:** [Vehicle](#vehicle) (`vehicle_id`).
 
+**Linked from:** [PartDiagram](#partdiagram).catalogue_group_id.
+
 | Field | Type | Notes |
 |---|---|---|
 | `guide_id` | text | The VehicleGuide (bus model) page it belongs to. Required. |
@@ -1054,6 +1056,8 @@ Table `part_diagram` · read and changed through entityAccess.
 
 Parts catalogue: a picture of one area of a bus model (front brakes, filters) with numbered pins on the parts, each pin linked to a Part in stock. Shown on the model's Bus library page. Fleet-wide: administrators and mechanics only.
 
+**Links to:** [CatalogueGroup](#cataloguegroup) (`catalogue_group_id`).
+
 | Field | Type | Notes |
 |---|---|---|
 | `guide_id` | text | The VehicleGuide (bus model) this picture is of. Required. |
@@ -1062,6 +1066,7 @@ Parts catalogue: a picture of one area of a bus model (front brakes, filters) wi
 | `image_url` | text | The team's own photo or drawing of the area (a public file uploaded in the app). |
 | `drawing_key` | text | A guide drawing built into the app (src/assets/diagrams), shown while there is no photo. Generic, not drawn from Toyota or Nissan diagrams. One of: `oil-filter`, `fuel-filter`, `air-filter`, `front-brakes`, `rear-brakes`, `front-suspension`, `cooling`, `drive-belt`. |
 | `catalogue_link` | text | Web address (https) of the maker's own diagram for this area, e.g. on Partsouq, for reference. |
+| `catalogue_group_id` | text | → CatalogueGroup. The maker's catalogue diagram (CatalogueGroup, on the same model page) this is a photo of, so the photo shows beside its parts list in the Workshop; empty for none. |
 | `notes` | text |  |
 | `pins` | jsonb (list) | Numbered pins on the picture, each on a part and/or a bolt with its torque. |
 | `sort_order` | double precision |  |
