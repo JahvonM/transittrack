@@ -109,7 +109,7 @@ export function pinPlace(clientX, clientY, rect) {
 // only as the line's first word. The rest of its line is the name, or the
 // next line when a catalogue puts each column on its own line. Prices and
 // counts at the end are dropped, and an all-capitals name is written normally.
-const NUMBER_WORD = /^(?=[A-Z0-9-]*\d)[A-Z0-9]+(?:-[A-Z0-9]+)*$/i;
+export const NUMBER_WORD = /^(?=[A-Z0-9-]*\d)[A-Z0-9]+(?:-[A-Z0-9]+)*$/i;
 const END_JUNK = /^(?:[A-Z]{0,3}\$?\d+(?:[.,]\d+)*|x\d+|\d+x|qty:?\d*)$/i;
 const EDGES = /^[\s,;:|·•\-–—]+|[\s,;:|·•\-–—]+$/g;
 
@@ -128,7 +128,7 @@ function numberIn(tokens) {
   return -1;
 }
 
-function cleanName(tokens, { keepEnd = false } = {}) {
+export function cleanName(tokens, { keepEnd = false } = {}) {
   const out = [...tokens];
   while (!keepEnd && out.length && END_JUNK.test(bare(out[out.length - 1]))) out.pop();
   while (out.length && /^\d{1,3}\.?$/.test(bare(out[0]))) out.shift(); // a row or pin number

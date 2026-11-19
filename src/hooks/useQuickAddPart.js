@@ -17,9 +17,10 @@ import {
 // - a restock reads that one part's count fresh, as the list on a kiosk
 //   tablet may be hours old.
 // onAdded hears of each part added or restocked: { name, quantity, total, restocked, part }.
-export default function useQuickAddPart({ parts = [], guides = [], onSaved, onAdded } = {}) {
+// initial fills the form to start with (e.g. a part from the maker's catalogue).
+export default function useQuickAddPart({ parts = [], guides = [], onSaved, onAdded, initial } = {}) {
   const { toast } = useToast();
-  const [form, setForm] = useState(() => blankQuickPart());
+  const [form, setForm] = useState(() => ({ ...blankQuickPart(), ...initial }));
   const [more, setMore] = useState(false);
   const [saving, setSaving] = useState(false);
   const [added, setAdded] = useState("");

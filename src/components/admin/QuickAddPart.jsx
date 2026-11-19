@@ -15,7 +15,7 @@ import { CheckCircle2, ChevronDown, ChevronUp, ClipboardPaste, ImagePlus, Loader
 // the sheet on the Parts screen; the parts kiosk (/parts) has its own compact
 // layout on the same useQuickAddPart.
 
-export default function QuickAddPart({ open, onOpenChange, parts = [], guides = [], onSaved }) {
+export default function QuickAddPart({ open, onOpenChange, parts = [], guides = [], onSaved, initial }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92dvh] overflow-y-auto">
@@ -23,7 +23,7 @@ export default function QuickAddPart({ open, onOpenChange, parts = [], guides = 
           <DialogTitle>Add a part</DialogTitle>
           <DialogDescription>Take a photo, paste or type its number, and say how many.</DialogDescription>
         </DialogHeader>
-        <QuickAddPartForm parts={parts} guides={guides} onSaved={onSaved} onDone={() => onOpenChange(false)} />
+        <QuickAddPartForm parts={parts} guides={guides} onSaved={onSaved} initial={initial} onDone={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>
   );
@@ -78,8 +78,8 @@ export function QuickMoreFields({ q, idPrefix = "quick", columns = 2, inputClass
   );
 }
 
-export function QuickAddPartForm({ parts = [], guides = [], onSaved, onDone, onAdded }) {
-  const q = useQuickAddPart({ parts, guides, onSaved, onAdded });
+export function QuickAddPartForm({ parts = [], guides = [], onSaved, onDone, onAdded, initial }) {
+  const q = useQuickAddPart({ parts, guides, onSaved, onAdded, initial });
   const { form, set, qty, matches, more, setMore, saving, added } = q;
 
   return (

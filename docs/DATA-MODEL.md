@@ -50,7 +50,7 @@ Changing records through entityAccess:
 
 - **admin**: any record (except invoices, made only in billing, and app errors, which can only be marked fixed).
 - **company**: records of the kinds it can read, for its own company; it can't make a new `Company`.
-- **mechanic**: maintenance records (`Vehicle`, `Fault`, `Inspection`, `InspectionResult`, `InspectionTemplate`, `Part`, `MaintenanceSchedule`, `MaintenanceSettings`, `VehicleGuide`, `GuideFact`, `GuideDocument`, `PartDiagram`, `PartInterchange`) and the mechanic chat;
+- **mechanic**: maintenance records (`Vehicle`, `Fault`, `Inspection`, `InspectionResult`, `InspectionTemplate`, `Part`, `MaintenanceSchedule`, `MaintenanceSettings`, `VehicleGuide`, `GuideFact`, `GuideDocument`, `PartDiagram`, `PartInterchange`, `CatalogueGroup`) and the mechanic chat;
   on `Vehicle` only odometer, hours, status and inspection fields. Deleting maintenance records is admin-only.
 - **staff / passenger**: their own profile fields, their own staff-chat messages and lost-item reports.
 
@@ -63,6 +63,7 @@ Changing records through entityAccess:
 | [BookingRequest](#bookingrequest) | `booking_request` | entityAccess | — | — | — | — | all |
 | [Broadcast](#broadcast) | `broadcast` | entityAccess | — | own company + notices to every company (pickup changes: own bus only) | own company + notices to every company | notices to every company | all |
 | [CardHolder](#cardholder) | `card_holder` | entityAccess | — | — | own company | — | all |
+| [CatalogueGroup](#cataloguegroup) | `catalogue_group` | entityAccess | — | — | — | all companies | all |
 | [Client](#client) | `client` | entityAccess | — | — | — | — | all |
 | [ClientError](#clienterror) | `client_error` | entityAccess | — | — | — | — | all |
 | [Company](#company) | `company` | entityAccess | — | own company, fewer fields | own company | all companies, fewer fields | all |
@@ -255,6 +256,28 @@ Table `card_holder` · belongs to a company through `company_id` · read and cha
 | `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `notes` | text |  |
+
+### CatalogueGroup
+
+Table `catalogue_group` · read and changed through entityAccess.
+
+Maker's catalogue: one diagram of a bus model's parts catalogue as the maker lists it (e.g. Toyota 1502 OIL FILTER), with its parts' numbers, names and quantities, pasted in by the team from Partsouq. A reference list, not stock: a part is added to stock from it on purpose. The maker's drawing itself is not kept; link opens it on Partsouq. Fleet-wide: administrators and mechanics only.
+
+**Links to:** [Vehicle](#vehicle) (`vehicle_id`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `guide_id` | text | The VehicleGuide (bus model) page it belongs to. Required. |
+| `vehicle_id` | text | → Vehicle. The bus it was looked up for, by chassis number (catalogues differ by engine and options). |
+| `model_code` | text | The maker's model code of that bus, e.g. KDH212R-JEMDY. |
+| `category` | text | The catalogue's own grouping, e.g. Engine / Fuel / Tool or A ENGINE MECHANICAL. |
+| `code` | text | The diagram's number in the catalogue, e.g. 1502 or 150A-001. Required. |
+| `title` | text | e.g. OIL FILTER. Required. |
+| `detail` | text | What the catalogue adds after the title, e.g. YD25DDTI (1206 - 2006). |
+| `link` | text | Web address (https) of this diagram on Partsouq, to open the maker's drawing. |
+| `parts` | jsonb (list) | The diagram's parts, as pasted. |
+| `notes` | text |  |
+| `sort_order` | double precision |  |
 
 ### Client
 
@@ -1515,7 +1538,7 @@ Table `vehicle` · belongs to a company through `driver_id`, then `company_id` �
 
 **Links to:** [Driver](#driver) (`driver_id`), [Company](#company) (`company_id`), [Route](#route) (`route_id`).
 
-**Linked from:** [Broadcast](#broadcast).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PassengerCase](#passengercase).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [RideException](#rideexception).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id.
+**Linked from:** [Broadcast](#broadcast).vehicle_id, [CatalogueGroup](#cataloguegroup).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PassengerCase](#passengercase).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [RideException](#rideexception).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id.
 
 **Everyone except admins, company managers and mechanics gets only:** `name`, `type`, `company_id`, `company_name`, `capacity`, `route_id`, `current_lat`, `current_lng`, `speed`, `heading`, `status`, `driver_name`, `image_url`, `model_3d`, `tracking_active`, `last_location_update`, `trail`, `trip_direction`, `return_pickup_state`, `road_next_stop`.
 

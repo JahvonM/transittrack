@@ -18,7 +18,7 @@ async function uniqueAccessCode(db,entity,field) {
 ENTITY_FIELDS.KioskDevice.push('display_layout');
 // A driver's own phone (store app): belongs to a driver; the phone picks the bus.
 ENTITY_FIELDS.KioskDevice.push('personal', 'driver_id', 'driver_name');
-const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings", "VehicleGuide", "GuideFact", "GuideDocument", "PartDiagram", "PartInterchange"]);
+const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings", "VehicleGuide", "GuideFact", "GuideDocument", "PartDiagram", "PartInterchange", "CatalogueGroup"]);
 
 for(const name of ['InspectionResult','Fault']) ENTITY_FIELDS[name].push('client_request_id');
 ENTITY_FIELDS.GroupMessage.push('sender_id','sender_email');
@@ -73,6 +73,9 @@ ENTITY_FIELDS.GuideDocument=['guide_id','title','kind','file_uri','file_name','n
 ENTITY_FIELDS.PartDiagram=['guide_id','title','system','image_url','drawing_key','catalogue_link','notes','pins','sort_order'];
 ENTITY_FIELDS.PartInterchange=['part_number','alt_number','alt_brand','kind','applies_to','notes','source_name','source_link','status','checked_by','checked_at'];
 ENTITY_FIELDS.Part.push('guide_ids','min_stock','bin_location');
+// The maker's catalogue: a diagram's parts as listed by Toyota or Nissan,
+// pasted in from Partsouq (the drawing itself is not kept; link opens it).
+ENTITY_FIELDS.CatalogueGroup=['guide_id','vehicle_id','model_code','category','code','title','detail','link','parts','notes','sort_order'];
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Vehicle:new Set(['driver_id']),Trip:new Set(['client_id','client_name','price','currency','shared_with_company'])};
 const SERVER_ONLY_FIELDS={StaffCheckIn:new Set(['person_key','run_key','shift_id','review_reason','saved_offline']),Driver:new Set(['username','auth_user_id','must_change_password']),Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
@@ -229,6 +232,16 @@ async function cleanGuideRecord(db,ctx,name,data,existing) {
   if(Object.hasOwn(data,'pins')) data.pins=await cleanPins(db,data.pins);
   return;
  }
+ if(name==='CatalogueGroup') {
+  for(const field of ['code','title']) {
+   if((!existing||Object.hasOwn(data,field))&&(typeof data[field]!=='string'||!data[field].trim())) fail(400,'A catalogue diagram needs its number and title');
+  }
+  for(const [field,max] of [['vehicle_id',64],['model_code',60],['category',120],['code',40],['title',200],['detail',300],['notes',2000]]) text(data,field,max);
+  httpsLink(data,'link');
+  if(Object.hasOwn(data,'sort_order')&&data.sort_order!==null&&!Number.isFinite(Number(data.sort_order))) fail(400,'Invalid order');
+  if(Object.hasOwn(data,'parts')) data.parts=cleanCatalogueParts(data.parts);
+  return;
+ }
  if(name==='GuideDocument') {
   if((!existing||Object.hasOwn(data,'title'))&&(typeof data.title!=='string'||!data.title.trim())) fail(400,'A document needs a title');
   for(const [field,max] of [['title',200],['file_name',200],['notes',4000]]) text(data,field,max);
@@ -258,6 +271,24 @@ async function cleanPins(db,pins) {
  }
  return out;
 }
+// A catalogue diagram's parts: text only, each field trimmed and capped,
+// anything else on a row dropped.
+const CATALOGUE_PART_FIELDS=[['ref',20],['number',60],['name',200],['qty',20],['info',300]];
+function cleanCatalogueParts(parts) {
+ if(parts===null) return [];
+ if(!Array.isArray(parts)||parts.length>400) fail(400,'A catalogue diagram can have up to 400 parts');
+ return parts.map(row=>{
+  if(!row||typeof row!=='object'||Array.isArray(row)) fail(400,'Invalid catalogue part');
+  const out={};
+  for(const [field,max] of CATALOGUE_PART_FIELDS) {
+   const value=row[field]??'';
+   if(typeof value!=='string'&&typeof value!=='number') fail(400,'Invalid catalogue part');
+   out[field]=String(value).trim().slice(0,max);
+  }
+  if(!partKey(out.number)&&!out.name) fail(400,'A catalogue part needs a number or a name');
+  return out;
+ });
+}
 // A part's models, low-stock level and shelf. Only administrators and
 // mechanics see the library, so only they say which models a part fits.
 async function cleanPartFields(db,ctx,data) {
@@ -271,7 +302,7 @@ async function cleanPartFields(db,ctx,data) {
  guideAmount(data,'min_stock',100_000);
  text(data,'bin_location',60);
 }
-const GUIDE_ENTITIES=new Set(['VehicleGuide','GuideFact','GuideDocument','PartDiagram','PartInterchange']);
+const GUIDE_ENTITIES=new Set(['VehicleGuide','GuideFact','GuideDocument','PartDiagram','PartInterchange','CatalogueGroup']);
 const SECURITY_FIELDS={Company:new Set(['access_code','access_code_expires_at']),KioskDevice:new Set(['pairing_code','pairing_expires_at','paired','status'])};
 const META = ['id','created_date','updated_date','created_by','created_by_id'];
 const CREDENTIALS = new Set(['driver_pin','entry_code','access_code','one_time_code','one_time_code_expires_at','nfc_tag_id','nfc_card_tag','nfc_card_uid','card_uid','card_tag','pairing_code','token','token_hash','salt','pin_hash','password','device_token','driver_grant','verification_grant']);
