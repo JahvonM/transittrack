@@ -1,11 +1,54 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, MessageCircle } from "lucide-react";
+import { ArrowRight, Bus, MapPin, MessageCircle, Pause, Play } from "lucide-react";
 import { SITE_SERVICES } from "@/lib/bookingSite";
 import DestinationSign from "@/site/DestinationSign";
 import { routeNumber, showPhone, sitePath, usePageTitle, useSiteBase, useWhatsApp, whatsappTo } from "@/site/siteKit";
 
 const DESCRIPTION = "McSween Transport: airport pickups and drop-offs, transfers, island tours and staff transport in Grenada. Request a ride online and track your bus.";
+
+// A video of the van driving can replace the photo: put the file in
+// public/video and set its path here (for example "/video/mcsween-van.mp4").
+// The photo shows while it loads, and is all that shows for people who ask
+// their phone for less motion.
+export const HERO_VIDEO = null;
+
+const prefersStill = () => {
+  try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
+};
+
+// The van, slowly drifting closer (or the video), with a small card of a bus
+// moving along its route. Both can be paused.
+function HeroMedia() {
+  const [still, setStill] = useState(prefersStill);
+  const [video] = useState(() => HERO_VIDEO && !prefersStill() ? HERO_VIDEO : null);
+  const player = useRef(null);
+  useEffect(() => {
+    const v = player.current;
+    if (!v) return;
+    if (still) v.pause(); else v.play?.()?.catch?.(() => {});
+  }, [still]);
+  return (
+    <div className={`mcs-hero-media${still ? " mcs-still" : ""}`}>
+      {video
+        ? <video ref={player} src={video} poster="/images/mcsween-van.webp" autoPlay muted loop playsInline preload="metadata" aria-hidden="true" />
+        : <img src="/images/mcsween-van.webp" alt="" width="1600" height="900" fetchpriority="high" decoding="async" />}
+      <div className="mcs-live-card" aria-hidden="true">
+        <span className="mcs-live-label"><span className="mcs-live-dot" />Live tracking</span>
+        <strong>Watch your bus on its way</strong>
+        <span className="mcs-live-route">
+          <span className="mcs-live-end"><MapPin /> Pickup</span>
+          <span className="mcs-live-line"><span className="mcs-live-bus"><Bus /></span></span>
+          <span className="mcs-live-end">You</span>
+        </span>
+      </div>
+      <button type="button" className="mcs-motion" aria-pressed={still} onClick={() => setStill((s) => !s)}
+        aria-label={still ? "Play the moving picture" : "Pause the moving picture"} title={still ? "Play" : "Pause"}>
+        {still ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
+      </button>
+    </div>
+  );
+}
 
 export default function HomePage() {
   const base = useSiteBase();
@@ -16,10 +59,8 @@ export default function HomePage() {
   return (
     <>
       <section className="mcs-hero mcs-dark" aria-labelledby="hero-title">
-        <div className="mcs-hero-media">
-          <img src="/images/mcsween-van.webp" alt="" width="1600" height="900" fetchpriority="high" decoding="async" />
-        </div>
-        <div className="mcs-wrap">
+        <div className="mcs-wrap mcs-hero-grid">
+          <HeroMedia />
           <div className="mcs-hero-body">
             <DestinationSign label="Where to?" />
             <h1 id="hero-title">Airport pickups, transfers and island tours in Grenada.</h1>

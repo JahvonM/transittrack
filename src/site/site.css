@@ -126,17 +126,29 @@
   .mcs-brand span { font-size: 1.02rem; }
 }
 
-/* Hero: the McSween van at a coastal lookout. On a phone the photo sits on
-   top and the words below it; on a wide screen the photo fills the right
-   side, the van's front facing the words on the left. */
-.mcs-hero { position: relative; isolation: isolate; overflow: hidden; }
-.mcs-hero-media { position: relative; }
-.mcs-hero-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: 50% 60%; }
-.mcs-hero-media::after { content: ""; position: absolute; inset: auto 0 0 0; height: 45%; background: linear-gradient(to top, var(--ink), rgba(11, 46, 53, 0)); }
+/* Hero: the McSween van (or a video of it driving) slowly drifting closer,
+   with a small glass card of a bus moving along its route. On a phone the
+   picture runs edge to edge on top and the words sit below it; on a wide
+   screen the words are on the left and the picture is a large rounded
+   panel on the right, so nothing covers the van. */
+.mcs-hero {
+  position: relative; isolation: isolate; overflow: hidden;
+  background: radial-gradient(ellipse at 12% 18%, rgba(79, 216, 222, 0.10), transparent 55%), var(--ink);
+}
+.mcs-hero-grid { display: flex; flex-direction: column; }
+.mcs-hero-media { position: relative; overflow: hidden; margin: 0 calc(-1 * var(--gutter)); background: var(--night); }
+.mcs-hero-media :is(img, video) {
+  display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: 50% 60%;
+  transform-origin: 30% 55%; animation: mcs-drift 26s ease-in-out infinite alternate; will-change: transform;
+}
+@keyframes mcs-drift { from { transform: scale(1.02); } to { transform: scale(1.12) translate3d(-1.5%, -1%, 0); } }
+.mcs-hero-media video { animation: none; }
+.mcs-hero-media::after { content: ""; position: absolute; inset: auto 0 0 0; height: 45%; background: linear-gradient(to top, var(--ink), rgba(11, 46, 53, 0)); pointer-events: none; }
 .mcs-hero-body { position: relative; padding: 0 0 clamp(2.5rem, 7vw, 3.5rem); margin-top: -2.5rem; }
 .mcs-hero h1 {
-  font: 800 clamp(2.7rem, 9.5vw, 5rem)/0.98 var(--display);
-  letter-spacing: 0.004em;
+  font: 800 clamp(2.6rem, 9vw, 4.75rem)/0.94 var(--display);
+  text-transform: uppercase;
+  letter-spacing: 0.005em;
   color: #fff;
   max-width: 14ch;
   margin-top: 1.4rem;
@@ -144,17 +156,64 @@
 .mcs-hero-lede { margin-top: 1.35rem; max-width: 42ch; color: var(--on-ink-muted); font-size: 1.15rem; }
 .mcs-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.75rem; }
 .mcs-facts { margin: 1.75rem 0 0; max-width: 34rem; color: var(--on-ink-muted); font-size: 0.95rem; }
+
+/* The glass card: a bus driving from the pickup to you. */
+.mcs-live-card {
+  position: absolute; left: 1.25rem; bottom: 1.25rem; z-index: 1; display: none; width: min(19rem, calc(100% - 2.5rem));
+  padding: 1rem 1.1rem 1.1rem; border-radius: 18px; color: var(--on-ink);
+  background: rgba(7, 31, 36, 0.58); border: 1px solid rgba(238, 246, 245, 0.18);
+  -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+.mcs-live-label { display: flex; align-items: center; gap: 0.45rem; font: 600 0.78rem/1 var(--body); color: var(--on-ink-muted); }
+.mcs-live-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--glow); box-shadow: 0 0 0 0 rgba(79, 216, 222, 0.6); animation: mcs-pulse 2s ease-out infinite; }
+@keyframes mcs-pulse { to { box-shadow: 0 0 0 0.6rem rgba(79, 216, 222, 0); } }
+.mcs-live-card strong { display: block; margin-top: 0.45rem; font: 700 1.05rem/1.25 var(--body); color: #fff; }
+.mcs-live-route { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.9rem; font: 600 0.8rem/1 var(--body); color: var(--on-ink-muted); }
+.mcs-live-end { display: inline-flex; align-items: center; gap: 0.3rem; flex: none; }
+.mcs-live-end svg { width: 0.9rem; height: 0.9rem; color: var(--sun); }
+.mcs-live-line {
+  position: relative; flex: 1; height: 2px; border-radius: 2px;
+  background: repeating-linear-gradient(90deg, rgba(238, 246, 245, 0.45) 0 6px, transparent 6px 11px);
+}
+.mcs-live-bus {
+  position: absolute; top: 50%; left: 0; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; margin: -0.875rem 0 0 -0.875rem;
+  border-radius: 50%; background: var(--sun); color: var(--ink); box-shadow: 0 0 0 4px rgba(247, 201, 72, 0.22);
+  animation: mcs-drive 7s cubic-bezier(.45, 0, .55, 1) infinite;
+}
+.mcs-live-bus svg { width: 0.95rem; height: 0.95rem; }
+@keyframes mcs-drive { 0% { left: 0; } 80%, 100% { left: 100%; } }
+
+/* Pause and play for the moving picture. */
+.mcs-motion {
+  position: absolute; right: calc(var(--gutter) + 0.5rem); top: 0.75rem; z-index: 1; display: grid; place-items: center;
+  width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 1px solid rgba(238, 246, 245, 0.3); cursor: pointer;
+  background: rgba(7, 31, 36, 0.5); color: var(--on-ink); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.mcs-motion svg { width: 1.05rem; height: 1.05rem; }
+.mcs-motion:hover { background: rgba(7, 31, 36, 0.75); }
+.mcs-still :is(img, .mcs-live-bus, .mcs-live-dot) { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .mcs-hero-media img, .mcs-live-dot { animation: none; }
+  .mcs-live-bus { animation: none; left: 55%; }
+}
+
 @media (min-width: 56rem) {
-  .mcs-hero { min-height: min(86vh, 50rem); display: grid; align-items: center; }
-  .mcs-hero-media { position: absolute; inset: 0 0 0 44%; z-index: -1; }
-  .mcs-hero-media img { height: 100%; aspect-ratio: auto; object-position: 18% 60%; }
-  .mcs-hero-media::after {
-    inset: 0; height: auto;
-    background:
-      linear-gradient(90deg, rgba(11, 46, 53, 1) 0%, rgba(11, 46, 53, 0.55) 12%, rgba(11, 46, 53, 0) 30%),
-      linear-gradient(0deg, rgba(11, 46, 53, 0.75) 0%, rgba(11, 46, 53, 0) 28%);
+  .mcs-hero { min-height: min(88vh, 52rem); display: grid; align-items: center; }
+  .mcs-hero-grid {
+    display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr); align-items: center;
+    gap: clamp(2rem, 4vw, 4rem); padding-top: 3rem; padding-bottom: 3.5rem;
   }
-  .mcs-hero-body { margin-top: 0; padding: 4.5rem 0 5rem; max-width: 37rem; }
+  .mcs-hero-media {
+    order: 2; margin: 0; height: min(70vh, 38rem); min-height: 26rem; border-radius: 28px;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(238, 246, 245, 0.08);
+  }
+  .mcs-hero-media :is(img, video) { height: 100%; aspect-ratio: auto; object-position: 25% 55%; }
+  .mcs-hero-media::after { height: 55%; background: linear-gradient(to top, rgba(7, 31, 36, 0.6), rgba(7, 31, 36, 0)); }
+  .mcs-hero-body { margin-top: 0; padding: 0; }
+  .mcs-hero h1 { font-size: clamp(3rem, 4.9vw, 4.9rem); }
+  .mcs-live-card { display: block; }
+  .mcs-motion { right: 1rem; top: 1rem; }
 }
 
 /* The destination sign: the front of a bus, saying where it is going. */
