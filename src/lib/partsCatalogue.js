@@ -184,6 +184,71 @@ export function quickPartRecord(form = {}, guides = []) {
   };
 }
 
+// The quick add form, empty, keeping the kind of number and the models
+// ticked for the next part.
+export const blankQuickPart = (keep = {}) => ({
+  name: "", number: "", other_number: "", kind: keep.kind || "genuine", quantity: 1, photo_url: "",
+  guide_ids: keep.guide_ids || [], bin_location: "", min_stock: "", supplier: "", category: "", unit_price: "",
+  vehicle_compatibility: "",
+});
+
+export const quickCount = (v) => Math.max(0, Math.floor(Number(v) || 0));
+
+// What a restock writes: the count on the shelf plus what arrived, and the
+// photo taken if the part has none yet.
+export function restockPatch(part, qty, photoUrl = "") {
+  const patch = { quantity_in_stock: (Number(part?.quantity_in_stock) || 0) + quickCount(qty) };
+  if (photoUrl && !part?.photo_url) patch.photo_url = photoUrl;
+  return patch;
+}
+
+// The parts list with those saved on this screen since it loaded, so a part
+// added a moment ago is found by its number without loading the list again.
+// The saved copy wins unless the list's copy is newer.
+const updatedAt = (p) => Date.parse(p?.updated_date || "") || 0;
+export function withSavedParts(parts = [], saved = []) {
+  if (!saved.length) return parts;
+  const byId = new Map(saved.filter((p) => p?.id).map((p) => [p.id, p]));
+  const out = parts.map((p) => {
+    const mine = byId.get(p.id);
+    if (!mine) return p;
+    byId.delete(p.id);
+    return updatedAt(p) > updatedAt(mine) ? p : mine;
+  });
+  return [...byId.values(), ...out];
+}
+
+// Parts by each of their numbers, so finding the number being typed is one
+// lookup rather than a pass over every part.
+export function partsByNumber(parts = []) {
+  const index = new Map();
+  for (const p of parts) {
+    for (const key of new Set(numbersOf(p))) {
+      const list = index.get(key);
+      if (list) list.push(p);
+      else index.set(key, [p]);
+    }
+  }
+  return index;
+}
+
+// The quick add form's main button: a number already on the shelf (once) is
+// a restock; otherwise a new part, which needs a name.
+export function quickPrimary({ matches = [], qty = 0, name = "" } = {}) {
+  if (matches.length === 1) return { kind: "restock", part: matches[0], label: `Add ${qty} to its stock`, enabled: qty >= 1 };
+  return { kind: "new", label: matches.length ? "Add as a new part" : "Add part", enabled: !!String(name).trim() };
+}
+
+// How many of the "More details" fields have something in them.
+const EXTRA_FIELDS = ["other_number", "bin_location", "min_stock", "supplier", "unit_price", "category", "vehicle_compatibility"];
+export const quickExtrasFilled = (form = {}) => EXTRA_FIELDS.filter((k) => String(form[k] ?? "").trim() !== "").length;
+
+// A bus model's name as the parts screens show it: "Toyota Hiace (H200)".
+export function guideLabel(g) {
+  const name = [g?.make, g?.model].filter(Boolean).join(" ");
+  return g?.generation ? `${name} (${String(g.generation).split(" ")[0]})` : name;
+}
+
 // Starter replacement numbers (src/data/partsCatalogue) as records, all
 // unchecked; ones already saved (same pair of numbers) are left out.
 export function starterInterchanges(rows = [], existing = []) {

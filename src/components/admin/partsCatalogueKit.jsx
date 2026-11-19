@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { StatusChip } from "@/components/admin/kit";
 import { Check, ExternalLink, Loader2, Plus, Trash2, Undo2, X } from "lucide-react";
 import { FACT_STATUS } from "@/lib/busLibrary";
-import { KIND_LABEL, partsNumbered, replacementsFor, stockLabel } from "@/lib/partsCatalogue";
+import { KIND_LABEL, guideLabel, partsNumbered, replacementsFor, stockLabel } from "@/lib/partsCatalogue";
 
 // Pieces of the parts catalogue shared by Admin → Parts and the part
 // pictures on a Bus library page.
@@ -151,7 +151,7 @@ export function ModelChecklist({ guides, value = [], onChange, idPrefix }) {
       {guides.map((g) => (
         <label key={g.id} htmlFor={`${idPrefix}-${g.id}`} className="flex min-h-[32px] items-center gap-2 text-body-sm">
           <input id={`${idPrefix}-${g.id}`} type="checkbox" className="h-4 w-4" checked={value.includes(g.id)} onChange={() => toggle(g.id)} />
-          {[g.make, g.model].filter(Boolean).join(" ")}{g.generation ? ` (${g.generation.split(" ")[0]})` : ""}
+          {guideLabel(g)}
         </label>
       ))}
     </div>

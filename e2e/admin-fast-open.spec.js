@@ -76,7 +76,8 @@ test('signing out wipes the saved overview',async({page})=>{
  await expect.poll(()=>page.evaluate(()=>!!localStorage.getItem('tt_screen_v1:admin'))).toBe(true);
  await page.getByRole('button',{name:'Account menu'}).click();
  await page.getByRole('menuitem',{name:'Sign out'}).click();
- await expect.poll(()=>page.evaluate(()=>localStorage.getItem('tt_screen_v1:admin'))).toBeNull();
+ // Signing out reloads the page; a read during the reload is retried, not failed.
+ await expect.poll(()=>page.evaluate(()=>localStorage.getItem('tt_screen_v1:admin')).catch(()=>'reloading')).toBeNull();
 });
 
 // The admin console in each look, section by section (Apple look). Light only
