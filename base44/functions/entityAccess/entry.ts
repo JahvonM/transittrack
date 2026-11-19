@@ -18,7 +18,7 @@ async function uniqueAccessCode(db,entity,field) {
 ENTITY_FIELDS.KioskDevice.push('display_layout');
 // A driver's own phone (store app): belongs to a driver; the phone picks the bus.
 ENTITY_FIELDS.KioskDevice.push('personal', 'driver_id', 'driver_name');
-const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings", "VehicleGuide", "GuideFact", "GuideDocument", "PartDiagram", "PartInterchange", "CatalogueGroup"]);
+const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings", "VehicleGuide", "GuideFact", "GuideDocument", "PartDiagram", "PartInterchange", "CatalogueGroup", "TorqueSpec", "WorkshopVehicle"]);
 
 for(const name of ['InspectionResult','Fault']) ENTITY_FIELDS[name].push('client_request_id');
 ENTITY_FIELDS.GroupMessage.push('sender_id','sender_email');
@@ -76,6 +76,11 @@ ENTITY_FIELDS.Part.push('guide_ids','min_stock','bin_location');
 // The maker's catalogue: a diagram's parts as listed by Toyota or Nissan,
 // pasted in from Partsouq (the drawing itself is not kept; link opens it).
 ENTITY_FIELDS.CatalogueGroup=['guide_id','vehicle_id','model_code','category','code','title','detail','link','parts','notes','sort_order'];
+// The Workshop app: how tight each bolt goes on a model, and the vehicles
+// the workshop looks after that aren't fleet buses (the owner's cars), kept
+// apart from Vehicle so they never reach the fleet, kiosk or company screens.
+ENTITY_FIELDS.TorqueSpec=['guide_id','system','item','size','nm','stages','sequence','new_bolt','thread_lock','applies_to','source_name','source_link','status','checked_by','checked_at','sort_order'];
+ENTITY_FIELDS.WorkshopVehicle=['name','make','model','year','engine','transmission','vin','plate_number','notes'];
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Vehicle:new Set(['driver_id']),Trip:new Set(['client_id','client_name','price','currency','shared_with_company'])};
 const SERVER_ONLY_FIELDS={StaffCheckIn:new Set(['person_key','run_key','shift_id','review_reason','saved_offline']),Driver:new Set(['username','auth_user_id','must_change_password']),Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
@@ -133,6 +138,8 @@ const GUIDE_SECTIONS=new Set(['specs','fluids','service','tyres','electrical','f
 const FACT_STATUSES=new Set(['unchecked','checked','wrong']);
 const DOCUMENT_KINDS=new Set(['owners_manual','workshop_manual','parts_list','bulletin','other']);
 const FACT_ANSWER=['label','value','detail','applies_to','interval_km','interval_months'];
+const TORQUE_SYSTEMS=new Set(['wheels_brakes','suspension_steering','engine','cooling','fuel','gearbox_axle','body_electrical']);
+const TORQUE_ANSWER=['item','size','nm','stages','sequence','new_bolt','thread_lock','applies_to'];
 const UPLOAD_PATH='uploads/\\d{4}-\\d{2}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.[a-z0-9]{1,8}';
 const UPLOADED_REF=new RegExp('^storage://private/'+UPLOAD_PATH+'$');
 const UPLOADED_LINK=new RegExp('^https://[a-z0-9-]+\\.supabase\\.co/storage/v1/object/sign/private/'+UPLOAD_PATH+'\\?[^\\s]+$');
@@ -204,6 +211,14 @@ async function cleanGuideRecord(db,ctx,name,data,existing) {
   stampChecked(data,existing,user,['part_number','alt_number','alt_brand','kind','applies_to']);
   return;
  }
+ if(name==='WorkshopVehicle') {
+  for(const field of ['name','make','model']) {
+   if((!existing||Object.hasOwn(data,field))&&(typeof data[field]!=='string'||!data[field].trim())) fail(400,'A workshop vehicle needs a name, make and model');
+  }
+  for(const [field,max] of [['name',80],['make',60],['model',60],['engine',120],['transmission',60],['vin',40],['plate_number',20],['notes',2000]]) text(data,field,max);
+  guideYear(data,'year');
+  return;
+ }
  // Facts, manuals and part pictures sit on a library page that exists.
  if(!existing||Object.hasOwn(data,'guide_id')) {
   // One look-up per page for a batch of facts (the starter import).
@@ -229,7 +244,18 @@ async function cleanGuideRecord(db,ctx,name,data,existing) {
    if(data.drawing_key===null||data.drawing_key==='') data.drawing_key=null;
    else if(!GUIDE_DRAWINGS.has(data.drawing_key)) fail(400,'Unknown guide drawing');
   }
-  if(Object.hasOwn(data,'pins')) data.pins=await cleanPins(db,data.pins);
+  if(Object.hasOwn(data,'pins')) data.pins=await cleanPins(db,data.pins,Object.hasOwn(data,'guide_id')?data.guide_id:existing?.guide_id);
+  return;
+ }
+ if(name==='TorqueSpec') {
+  if((!existing||Object.hasOwn(data,'item'))&&(typeof data.item!=='string'||!data.item.trim())) fail(400,'Say which bolt it is');
+  if((!existing||Object.hasOwn(data,'system'))&&!TORQUE_SYSTEMS.has(data.system)) fail(400,'Invalid part of the vehicle');
+  for(const [field,max] of [['item',120],['size',40],['stages',300],['sequence',300],['thread_lock',120],['applies_to',200],['source_name',200]]) text(data,field,max);
+  httpsLink(data,'source_link');
+  guideAmount(data,'nm',2000);
+  if(Object.hasOwn(data,'new_bolt')&&data.new_bolt!==null&&typeof data.new_bolt!=='boolean') fail(400,'Invalid new bolt');
+  if(Object.hasOwn(data,'sort_order')&&data.sort_order!==null&&!Number.isFinite(Number(data.sort_order))) fail(400,'Invalid order');
+  stampChecked(data,existing,user,TORQUE_ANSWER);
   return;
  }
  if(name==='CatalogueGroup') {
@@ -251,9 +277,10 @@ async function cleanGuideRecord(db,ctx,name,data,existing) {
  }
 }
 // Pins on a part picture: a number, a place on the picture (0 to 1 across
-// and down) and the part it points at. A pin whose part has since been
-// deleted keeps its place and label, pointing at nothing.
-async function cleanPins(db,pins) {
+// and down), the part it points at and/or the bolt's torque (one on the same
+// model page). A pin whose part or torque has since been deleted keeps its
+// place and label, pointing at nothing.
+async function cleanPins(db,pins,guideId) {
  if(pins===null) return [];
  if(!Array.isArray(pins)||pins.length>80) fail(400,'A picture can have up to 80 pins');
  const out=pins.map(pin=>{
@@ -262,12 +289,18 @@ async function cleanPins(db,pins) {
   if(!Number.isInteger(n)||n<1||n>999||!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>1||y<0||y>1) fail(400,'Invalid pin');
   if(pin.part_id!=null&&(typeof pin.part_id!=='string'||pin.part_id.length>64)) fail(400,'Invalid pin');
   if(pin.label!=null&&(typeof pin.label!=='string'||pin.label.length>80)) fail(400,'Invalid pin label');
-  return {n,x:Math.round(x*10000)/10000,y:Math.round(y*10000)/10000,part_id:pin.part_id||'',label:(pin.label||'').trim()};
+  if(pin.torque_id!=null&&(typeof pin.torque_id!=='string'||pin.torque_id.length>64)) fail(400,'Invalid pin');
+  return {n,x:Math.round(x*10000)/10000,y:Math.round(y*10000)/10000,part_id:pin.part_id||'',torque_id:pin.torque_id||'',label:(pin.label||'').trim()};
  });
  const ids=[...new Set(out.map(p=>p.part_id).filter(Boolean))];
  if(ids.length) {
   const found=new Set((await db.Part.filter({id:{$in:ids}},'-created_date',ids.length)).map(p=>p.id));
   for(const pin of out) if(pin.part_id&&!found.has(pin.part_id)) pin.part_id='';
+ }
+ const torques=[...new Set(out.map(p=>p.torque_id).filter(Boolean))];
+ if(torques.length) {
+  const found=new Set((await db.TorqueSpec.filter({id:{$in:torques}},'-created_date',torques.length)).filter(t=>t.guide_id===guideId).map(t=>t.id));
+  for(const pin of out) if(pin.torque_id&&!found.has(pin.torque_id)) pin.torque_id='';
  }
  return out;
 }
@@ -302,7 +335,7 @@ async function cleanPartFields(db,ctx,data) {
  guideAmount(data,'min_stock',100_000);
  text(data,'bin_location',60);
 }
-const GUIDE_ENTITIES=new Set(['VehicleGuide','GuideFact','GuideDocument','PartDiagram','PartInterchange','CatalogueGroup']);
+const GUIDE_ENTITIES=new Set(['VehicleGuide','GuideFact','GuideDocument','PartDiagram','PartInterchange','CatalogueGroup','TorqueSpec','WorkshopVehicle']);
 const SECURITY_FIELDS={Company:new Set(['access_code','access_code_expires_at']),KioskDevice:new Set(['pairing_code','pairing_expires_at','paired','status'])};
 const META = ['id','created_date','updated_date','created_by','created_by_id'];
 const CREDENTIALS = new Set(['driver_pin','entry_code','access_code','one_time_code','one_time_code_expires_at','nfc_tag_id','nfc_card_tag','nfc_card_uid','card_uid','card_tag','pairing_code','token','token_hash','salt','pin_hash','password','device_token','driver_grant','verification_grant']);

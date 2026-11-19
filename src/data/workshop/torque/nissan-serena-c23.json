@@ -1,0 +1,25 @@
+{
+  "key": "nissan-serena-c23",
+  "guide_key": "nissan-serena-c23",
+  "label": "Nissan Serena C23",
+  "page": {
+    "make": "Nissan",
+    "model": "Serena",
+    "generation": "C23 (1st generation)",
+    "year_from": 1991,
+    "year_to": 2002,
+    "engines": "Not recorded yet.",
+    "summary": "The workshop's own Nissan Serena (C23). Chassis torque values only until the engine is known. Values are from public sources and stay Not checked until a mechanic confirms them."
+  },
+  "torque": [
+    {
+      "system": "wheels_brakes",
+      "item": "Wheel nuts",
+      "size": "M12 × 1.25",
+      "nm": 108,
+      "applies_to": "The source gives 108–118 N·m and doesn't say which Serena. Thread size from cararac.com's C23 listing.",
+      "source_name": "AutoSTW: Nissan Serena tyre and wheel guide",
+      "source_link": "https://autostw.com.au/blogs/news/nissan-serena-tyre-size-wheel-specs-guide"
+    }
+  ]
+}

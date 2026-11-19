@@ -1,0 +1,14 @@
+{
+  "key": "toyota-hiace-h200",
+  "guide_key": "toyota-hiace-h200",
+  "label": "Toyota Hiace H200",
+  "torque": [
+    {
+      "system": "wheels_brakes",
+      "item": "Wheel nuts",
+      "nm": 100,
+      "source_name": "Toyota Hiace owner's manual, tyres page (ManualsLib)",
+      "source_link": "https://www.manualslib.com/manual/2515002/Toyota-Hiace.html?page=195"
+    }
+  ]
+}

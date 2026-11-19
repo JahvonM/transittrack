@@ -8,7 +8,7 @@ export async function memoryTables(page, tables, { who = 'Admin Person' } = {}) 
   const reads = [];
   let n = 0;
   const stamp = (entity, data, before) => {
-    if (!['GuideFact', 'PartInterchange'].includes(entity)) return data;
+    if (!['GuideFact', 'PartInterchange', 'TorqueSpec'].includes(entity)) return data;
     if (!before && !Object.hasOwn(data, 'status')) return { ...data, status: 'unchecked', checked_by: '' };
     if (!Object.hasOwn(data, 'status') || data.status === before?.status) return data;
     const off = data.status === 'unchecked';

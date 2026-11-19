@@ -67,10 +67,14 @@
           },
           "label": {
             "type": "string"
+          },
+          "torque_id": {
+            "type": "string",
+            "description": "The TorqueSpec (on the same model page) for the bolt it points at; empty for none."
           }
         }
       },
-      "description": "Numbered pins on the picture."
+      "description": "Numbered pins on the picture, each on a part and/or a bolt with its torque."
     },
     "sort_order": {
       "type": "number"
