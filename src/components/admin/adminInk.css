@@ -200,7 +200,9 @@ html.tt-admin-ink .tt-admin-shell :is(section.rounded-2xl, div.rounded-2xl.borde
 .tt-admin-segments button:hover { color: hsl(var(--foreground)); }
 .tt-admin-segments button[aria-pressed="true"] { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .tt-admin-segments button[aria-pressed="true"] > span { opacity: .8; }
-.tt-admin-home .tt-admin-status-table { min-width: 760px; }
+.tt-admin-home .tt-admin-status-table { min-width: 680px; }
+.tt-admin-home .tt-admin-status-table :is(th, td) { padding-left: 12px; padding-right: 12px; }
+.tt-admin-home .tt-admin-status-table td:last-child { white-space: nowrap; }
 .tt-admin-home .tt-admin-status-table small { display: block; }
 .tt-admin-bus-icon {
   display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px;
