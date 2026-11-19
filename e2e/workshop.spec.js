@@ -15,7 +15,7 @@ function tables() {
       source_name: "Toyota Hiace owner's manual", source_link: 'https://www.manualslib.com/manual/2515002/Toyota-Hiace.html?page=195',
     }],
     WorkshopVehicle: [{ id: 'car-1', name: 'BMW X3', make: 'BMW', model: 'X3', year: 2013, engine: '2.0 diesel (N47)' }],
-    PartDiagram: [{ id: 'd1', guide_id: 'g1', title: 'Front brakes', system: 'Brakes', drawing_key: 'front-brakes', pins: [], sort_order: 10 }],
+    PartDiagram: [{ id: 'd1', guide_id: 'g1', title: 'Front brakes', system: 'Brakes', drawing_key: 'front-brakes', catalogue_link: 'https://partsouq.com/', pins: [], sort_order: 10 }],
     Part: [{ id: 'p1', part_name: 'Wheel nut', oem_number: '90942-01058', quantity_in_stock: 12, bin_location: 'Shelf C1', guide_ids: ['g1'] }],
   };
 }
@@ -33,6 +33,9 @@ async function open(page, path, { role = 'mechanic', width = 1024, height = 768 
   await page.goto(path);
   return { errors, server };
 }
+
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQAY3Y2wAAAAAElFTkSuQmCC', 'base64');
+const PHOTO = 'https://ghqtest.supabase.co/storage/v1/object/public/public/uploads/2026-11/brakes.png';
 
 const noSideScroll = async (page) => expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 
@@ -113,8 +116,12 @@ test('on the tablet: open a bus, check a torque value, and add one in the sheet'
 test('a bolt map: pin a torque value and a part on the picture, then tap the pin for its card', async ({ page }) => {
   const { errors, server } = await open(page, '/workshop/bus/bus-a/maps');
   await expect(page.getByRole('heading', { name: 'Bolt maps' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Front brakes/ })).toContainText('needs a photo');
   await page.getByRole('button', { name: /Front brakes/ }).click();
   await expect(page).toHaveURL(/\/maps\/d1$/);
+  // The maker's own diagram opens from here; the drawing is ours and says so.
+  await expect(page.getByRole('link', { name: "Maker's diagram" })).toHaveAttribute('href', 'https://partsouq.com/');
+  await expect(page.getByText('This is a generic guide drawing, not your vehicle.')).toBeVisible();
   await page.getByRole('button', { name: 'Edit pins' }).click();
   await page.getByRole('img', { name: /Front brakes/ }).click({ position: { x: 200, y: 150 } });
 
@@ -136,6 +143,16 @@ test('a bolt map: pin a torque value and a part on the picture, then tap the pin
   await expect(card.getByRole('region', { name: 'Part' })).toContainText('Wheel nut');
   await expect(card.getByRole('region', { name: 'Part' })).toContainText('Shelf C1');
   await page.screenshot({ path: '/tmp/tt-workshop-pin.png' });
+  await page.keyboard.press('Escape');
+  await expect(card).toHaveCount(0);
+
+  // One tap for a photo of the real thing: it replaces the drawing.
+  await page.route('**/api/functions/v1/integrations', (r) => r.fulfill({ json: { file_url: PHOTO } }));
+  await page.getByLabel('Take a photo of Front brakes on St.George').setInputFiles({ name: 'brakes.png', mimeType: 'image/png', buffer: PNG });
+  await expect(page.getByRole('img', { name: 'Front brakes', exact: true })).toHaveAttribute('src', PHOTO);
+  await expect(page.getByText('This is a generic guide drawing, not your vehicle.')).toHaveCount(0);
+  await expect(page.getByText('The pins were placed on the drawing: check them with Edit pins.').first()).toBeVisible();
+  expect(server.writes.filter((w) => w.entity === 'PartDiagram' && w.op === 'update').at(-1).data).toEqual({ image_url: PHOTO });
   expect(errors).toEqual([]);
 });
 

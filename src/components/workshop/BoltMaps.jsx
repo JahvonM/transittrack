@@ -15,7 +15,7 @@ import { optimizeBus360Photo } from "@/lib/vehicle360Optimize";
 import { TORQUE_SYSTEMS, findVehicle, nmText, torqueBySystem } from "@/lib/workshop";
 import { EditSheet, FIELD, Field, Notice, ScreenBar, pluralize, useWorkshop } from "@/components/workshop/kit";
 import { TorqueBadges, TorqueFigure } from "@/components/workshop/TorqueScreen";
-import { Check, ImagePlus, Loader2, MapPin, Pencil, Plus } from "lucide-react";
+import { Camera, Check, ExternalLink, ImagePlus, Loader2, MapPin, Pencil, Plus } from "lucide-react";
 
 // A model's bolt maps: its part pictures (the team's photos, or a guide
 // drawing until there is one) with numbered pins. A pin points at a torque
@@ -41,6 +41,7 @@ function PictureSheet({ editing, guide, onClose, onDeleted }) {
   const { isAdmin, put, drop, diagrams } = useWorkshop();
   const [form, setForm] = useState(() => ({
     title: editing?.title || "", system: editing?.system || "", drawing_key: editing?.drawing_key || "", image_url: editing?.image_url || "", notes: editing?.notes || "",
+    catalogue_link: editing?.catalogue_link || "",
   }));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -63,7 +64,7 @@ function PictureSheet({ editing, guide, onClose, onDeleted }) {
   const save = async () => {
     setSaving(true);
     try {
-      const data = { title: form.title.trim(), system: form.system.trim(), drawing_key: form.drawing_key || null, image_url: form.image_url, notes: form.notes.trim() };
+      const data = { title: form.title.trim(), system: form.system.trim(), drawing_key: form.drawing_key || null, image_url: form.image_url, notes: form.notes.trim(), catalogue_link: form.catalogue_link.trim() };
       const order = diagrams.filter((d) => d.guide_id === guide.id).reduce((max, d) => Math.max(max, Number(d.sort_order) || 0), 0) + 10;
       const saved = editing?.id
         ? await base44.entities.PartDiagram.update(editing.id, data)
@@ -91,7 +92,7 @@ function PictureSheet({ editing, guide, onClose, onDeleted }) {
   return (
     <EditSheet
       open onClose={() => onClose(null)} saving={saving || uploading} onSave={save}
-      problem={form.title.trim() ? "" : "Say what the picture shows."}
+      problem={!form.title.trim() ? "Say what the picture shows." : form.catalogue_link.trim() && !/^https:\/\/\S+$/i.test(form.catalogue_link.trim()) ? "The maker's diagram link must start with https://" : ""}
       title={editing?.id ? "Edit picture" : "Add a picture"} description={guideTitle(guide)}
       onDelete={editing?.id && isAdmin ? remove : undefined} deleteLabel="Delete picture"
     >
@@ -122,6 +123,9 @@ function PictureSheet({ editing, guide, onClose, onDeleted }) {
           <option value="">None</option>
           {GUIDE_DRAWINGS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
         </select>
+      </Field>
+      <Field id="pic-link" label="Maker's diagram link (optional)" hint="The address of this area's diagram on Partsouq, to open it from here.">
+        <Input id="pic-link" type="url" className="h-12 text-body md:text-body" value={form.catalogue_link} onChange={set("catalogue_link")} placeholder="https://partsouq.com/…" />
       </Field>
       <Field id="pic-notes" label="Notes (optional)">
         <Textarea id="pic-notes" rows={3} className="text-body md:text-body" value={form.notes} onChange={set("notes")} maxLength={2000} placeholder="What to check here" />
@@ -159,7 +163,7 @@ export function BoltMaps() {
                   : <span className="grid h-44 place-items-center bg-secondary text-body text-muted-foreground">No photo yet</span>}
                 <span className="block p-4">
                   <span className="block truncate text-title-sm font-semibold">{d.title}</span>
-                  <span className="block text-body-sm text-muted-foreground">{[d.system, pinSummary(d.pins), source?.isDrawing && "guide drawing"].filter(Boolean).join(" · ")}</span>
+                  <span className="block text-body-sm text-muted-foreground">{[d.system, pinSummary(d.pins), (!source || source.isDrawing) && "needs a photo"].filter(Boolean).join(" · ")}</span>
                 </span>
               </button>
             );
@@ -258,6 +262,7 @@ export function BoltMap() {
   const [open, setOpen] = useState(null); // { pin, isNew }
   const [details, setDetails] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const diagram = diagrams.find((d) => d.id === diagramId);
   const specById = useMemo(() => new Map(specs.map((s) => [s.id, s])), [specs]);
   const partById = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
@@ -283,6 +288,23 @@ export function BoltMap() {
     const at = pinPlace(e.clientX, e.clientY, imageRef.current.getBoundingClientRect());
     setOpen({ pin: { n: nextPinNumber(pins), ...at, part_id: "", torque_id: "", label: "" }, isNew: true });
   };
+  // A photo of this area on the vehicle itself, straight from the camera:
+  // it replaces the guide drawing, and the pins go on the real thing.
+  const takePhoto = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadPublicFile({ file: await optimizeBus360Photo(file) });
+      put("diagrams", await base44.entities.PartDiagram.update(diagram.id, { image_url: file_url }));
+      toast({ title: "Photo added", description: pins.length ? "The pins were placed on the drawing: check them with Edit pins." : "Now put pins on its bolts and parts with Edit pins." });
+    } catch (err) {
+      toast({ title: "Couldn't add the photo", description: err?.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
   const savePin = (pin) => savePins(open.isNew ? [...pins, pin] : pins.map((p) => (p.n === pin.n ? pin : p)));
 
   const pinTone = (pin) => {
@@ -299,6 +321,11 @@ export function BoltMap() {
           <Button className="h-12 rounded-xl text-body" onClick={() => setEditing(false)}><Check className="mr-1.5 h-5 w-5" aria-hidden="true" />Done</Button>
         ) : (
           <>
+            {diagram.catalogue_link && (
+              <Button asChild variant="secondary" className="h-12 rounded-xl text-body">
+                <a href={diagram.catalogue_link} target="_blank" rel="noopener noreferrer">Maker's diagram<ExternalLink className="ml-1.5 h-4 w-4" aria-hidden="true" /></a>
+              </Button>
+            )}
             <Button variant="secondary" className="h-12 rounded-xl text-body" onClick={() => setDetails(true)}><Pencil className="mr-1.5 h-4 w-4" aria-hidden="true" />Picture</Button>
             <Button className="h-12 rounded-xl text-body" onClick={() => setEditing(true)} disabled={!source}><MapPin className="mr-1.5 h-5 w-5" aria-hidden="true" />Edit pins</Button>
           </>
@@ -306,8 +333,22 @@ export function BoltMap() {
       </ScreenBar>
 
       {editing && <Notice tone="warning"><p className="font-semibold">Tap the picture where a bolt or part is to add a pin. Tap a pin to change it.</p></Notice>}
+      {!editing && (!source || source.isDrawing) && (
+        <Notice
+          tone="warning"
+          action={
+            <label className={`inline-flex h-12 cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 text-body font-semibold text-primary-foreground ${uploading ? "pointer-events-none opacity-60" : ""}`}>
+              {uploading ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Camera className="h-5 w-5" aria-hidden="true" />}
+              {uploading ? "Adding the photo…" : "Take a photo"}
+              <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={takePhoto} disabled={uploading} aria-label={`Take a photo of ${diagram.title} on ${vehicle.name}`} />
+            </label>
+          }
+        >
+          <p className="font-semibold">{source ? "This is a generic guide drawing, not your vehicle." : "No picture yet."}</p>
+          <p className="text-muted-foreground">Photograph this area on {vehicle.name} and the pins go on the real thing.</p>
+        </Notice>
+      )}
       {diagram.notes && !editing && <p className="mb-3 whitespace-pre-line rounded-2xl bg-secondary p-4 text-body-sm">{diagram.notes}</p>}
-      {source?.isDrawing && <p className="mb-2 text-caption text-muted-foreground">Guide drawing: generic, not your exact vehicle. Add a photo with Picture.</p>}
 
       {source ? (
         <div className={`relative mx-auto max-w-4xl select-none overflow-hidden rounded-2xl border border-border ${source.isDrawing ? "bg-white" : ""}`}>
@@ -325,9 +366,7 @@ export function BoltMap() {
             </button>
           ))}
         </div>
-      ) : (
-        <Notice action={<Button variant="secondary" className="h-12 rounded-xl" onClick={() => setDetails(true)}>Add a photo</Button>}>No photo or guide drawing yet.</Notice>
-      )}
+      ) : null}
 
       {pins.length > 0 && (
         <ol className="mx-auto mt-4 max-w-4xl divide-y divide-border rounded-2xl border border-border bg-card">
