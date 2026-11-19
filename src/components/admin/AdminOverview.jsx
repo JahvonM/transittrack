@@ -92,7 +92,7 @@ function TickBar({ value, total }) {
   return <span className="tt-admin-ticks" aria-hidden="true"><span style={{ width: pct + "%" }} /></span>;
 }
 
-export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults=[], schedules=[], companies=[], parts=[], kiosks=[], kiosksReady=false, checkIns=[], checkInsReady=false, onNavigate, tools }) {
+export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults=[], schedules=[], companies=[], kiosks=[], kiosksReady=false, checkIns=[], checkInsReady=false, onNavigate, tools }) {
  const occupancy=useMemo(()=>computeOccupancyByVehicle(checkIns),[checkIns]);
  const occupancyReady=checkInsReady;
  const [scope,setScope]=useState("all");
@@ -107,13 +107,11 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
  const statuses=useMemo(()=>Object.fromEntries(vehicles.map(v=>[v.id,fleetStatus(v,now)])),[vehicles,now]);
  const tabletStates=useMemo(()=>Object.fromEntries(kiosks.map(d=>[d.id,adminTabletHealth(d,now)])),[kiosks,now]);
  const keyOf=v=>statuses[v.id].key;
- const live=fleet.filter(v=>["live","stale","speed"].includes(keyOf(v)));
  const signal=fleet.filter(v=>["lost","stale"].includes(keyOf(v)));
  const sos=fleet.filter(v=>v.status==="emergency");
  const onTrip=fleet.filter(v=>v.status==="on_trip");
  const inService=fleet.filter(v=>keyOf(v)!=="out");
  const openFaults=faults.filter(belongs).filter(f=>f.status!=="resolved");
- const major=openFaults.filter(f=>["high","critical"].includes(f.severity));
  const due=schedules.filter(belongs).filter(s=>["due","overdue"].includes(s.status));
  const needsTablets=devices.filter(d=>tabletStates[d.id]?.attention);
  const onBoard=fleet.reduce((n,v)=>n+(occupancy[v.id]||0),0);
@@ -139,7 +137,7 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
   ...signal.filter(v=>keyOf(v)==="lost").map(v=>({id:"lost-"+v.id,vehicle:v,icon:SatelliteDish,title:v.name+": signal lost",detail:"Last fix "+age(v.last_location_update),go:"fleet",action:"View fleet",tone:"warning"})),
  ];
  const tabletRows=[...devices].sort((a,b)=>Number(tabletStates[b.id]?.attention)-Number(tabletStates[a.id]?.attention)).slice(0,6);
- const totals=[["Passengers on board",occupancyReady?onBoard:"—","checkins"],["Active trips",trips.filter(belongs).length,"trips"],["Signal issues",signal.length,"fleet"],["Major issues",sos.length+major.length,"faults"],["Maintenance due",due.length,"schedule"],["Companies",scope==="all"?companies.length:1,"companies"],["Parts",parts.filter(belongs).length,"parts"]];
+ const totals=[["on board",occupancyReady?onBoard:"—","checkins"],["active trips",trips.filter(belongs).length,"trips"],["signal issues",signal.length,"fleet"],["maintenance due",due.length,"schedule"]];
  return <div className="tt-admin-overview space-y-4">
   <PageActions>
    <label className="sr-only" htmlFor="tt-overview-company">Overview company</label>
@@ -159,10 +157,10 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
       <div className="mt-2 flex justify-between text-caption text-muted-foreground" aria-hidden="true"><span>0%</span><span>100%</span></div>
       <p className="mt-1 text-center text-body-sm"><strong className="tabular-nums">{onRoad} / {inService.length}</strong> <span className="text-muted-foreground">buses on the road</span></p>
       <section aria-label="Fleet overview" className="tt-admin-stats mt-4 grid grid-cols-2 gap-2">
-       <Stat icon={Bus} tone={QUIET} value={fleet.length} label="Vehicles" detail={scope==="all"?"All companies":"This company"} onClick={()=>onNavigate("vehicles")} />
-       <Stat icon={Bus} tone={QUIET} value={onTrip.length} label="On trip" detail={live.length+" sharing location"} onClick={()=>onNavigate("fleet")} />
-       <Stat icon={OctagonAlert} tone={openFaults.length?"bg-danger/15 text-danger":QUIET} value={openFaults.length>=500?"500+":openFaults.length} label="Open faults" detail="Not yet resolved" onClick={()=>onNavigate("faults")} />
-       <Stat icon={Smartphone} tone={kiosksReady&&needsTablets.length?"bg-warning/15 text-warning":QUIET} value={kiosksReady?needsTablets.length:"—"} label="Tablets needing attention" detail={kiosksReady?"From tablet reports":"Tablet data unavailable"} onClick={()=>onNavigate("kiosks")} />
+       <Stat icon={Bus} tone={QUIET} value={fleet.length} label="Vehicles" onClick={()=>onNavigate("vehicles")} />
+       <Stat icon={Bus} tone={QUIET} value={onTrip.length} label="On trip" onClick={()=>onNavigate("fleet")} />
+       <Stat icon={OctagonAlert} tone={openFaults.length?"bg-danger/15 text-danger":QUIET} value={openFaults.length>=500?"500+":openFaults.length} label="Open faults" onClick={()=>onNavigate("faults")} />
+       <Stat icon={Smartphone} tone={kiosksReady&&needsTablets.length?"bg-warning/15 text-warning":QUIET} value={kiosksReady?needsTablets.length:"—"} label="Tablets needing attention" detail={kiosksReady?null:"Tablet data unavailable"} onClick={()=>onNavigate("kiosks")} />
       </section>
       <ul aria-label="Fleet totals" className="tt-admin-totals mt-4 flex flex-wrap gap-2">
        {totals.map(([label,value,go])=><li key={label}><button type="button" onClick={()=>onNavigate(go)} className="tt-admin-chip"><strong className="tabular-nums">{value}</strong> {label}</button></li>)}
@@ -196,14 +194,14 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
     </Panel>
    </div>
    <div className="tt-admin-home-main">
-    <Panel title="Live fleet" go={()=>onNavigate("fleet")} goLabel="Open live fleet" className="tt-admin-map-panel overflow-hidden tt-order-2">
-     <div className="relative p-2 pt-0">
-      <Suspense fallback={<div className="tt-admin-map h-[440px] animate-pulse rounded-xl bg-muted" />}><LiveTransitMap variant="page" className="tt-admin-map h-[440px] rounded-xl" vehicles={shown.filter(v=>v.current_lat!=null&&v.current_lng!=null)} routes={routes} label="Fleet map" /></Suspense>
-      <label className="tt-admin-map-search">
+    <Panel title="Live fleet" go={()=>onNavigate("fleet")} goLabel="Open live fleet" className="tt-admin-map-panel overflow-hidden tt-order-2"
+     extra={<label className="tt-admin-map-search">
        <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
        <span className="sr-only">Find a bus</span>
        <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a bus, plate or driver" className="min-w-0 flex-1 bg-transparent text-body-sm outline-none placeholder:text-muted-foreground" />
-      </label>
+      </label>}>
+     <div className="p-2 pt-0">
+      <Suspense fallback={<div className="tt-admin-map h-[440px] animate-pulse rounded-xl bg-muted" />}><LiveTransitMap variant="page" className="tt-admin-map h-[440px] rounded-xl" vehicles={shown.filter(v=>v.current_lat!=null&&v.current_lng!=null)} routes={routes} label="Fleet map" /></Suspense>
      </div>
      <p className="px-5 pb-3 pt-1 text-xs text-muted-foreground">Latest recorded positions. Delayed or missing reports show in the list below.</p>
     </Panel>
