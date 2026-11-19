@@ -23,6 +23,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test --config playwright.shots.config.js
         continue-on-error: true
+      - run: mkdir -p shots/tour && TT_SHOT_DIR=shots/tour npx playwright test e2e/admin-fast-open.spec.js -g "admin console tour"
+        continue-on-error: true
       - name: Publish the screenshots
         run: |
           [ -d shots ] || exit 0

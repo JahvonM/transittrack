@@ -12,6 +12,7 @@ export const ACCENTS = [
   { id: "violet", label: "Violet", swatch: "#A78BFA" },
   { id: "mint", label: "Mint", swatch: "#34D399" },
   { id: "gold", label: "Gold", swatch: "#FACC15" },
+  { id: "cream", label: "Cream", swatch: "#D7D1B0" },
 ];
 
 export const ACCENT_KEY = "tt-accent";
