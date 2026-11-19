@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
-  inStockReplacements, nextPinNumber, numbersOf, parsePartText, partKey, partMatches, partsForGuide, partsNumbered, pinPlace,
-  quickPartRecord, replacementsFor, starterInterchanges, stockLabel, stockLevel,
+  blankQuickPart, guideLabel, inStockReplacements, nextPinNumber, numbersOf, parsePartText, partKey, partMatches, partsByNumber,
+  partsForGuide, partsNumbered, pinPlace, quickCount, quickExtrasFilled, quickPartRecord, quickPrimary, replacementsFor,
+  restockPatch, starterInterchanges, stockLabel, stockLevel, withSavedParts,
 } from "../partsCatalogue.js";
 import REPLACEMENTS from "../../data/partsCatalogue/replacements.json";
 
@@ -137,5 +138,51 @@ describe("quick add", () => {
 
   it("leaves the models alone where the library can't be read", () => {
     expect(quickPartRecord({ name: "Wiper", quantity: 1, guide_ids: ["g1"] }, [])).not.toHaveProperty("guide_ids");
+  });
+});
+
+describe("quick add on a phone", () => {
+  it("restocks onto the count read fresh, and adds the photo only to a part without one", () => {
+    expect(restockPatch({ quantity_in_stock: "6" }, 2)).toEqual({ quantity_in_stock: 8 });
+    expect(restockPatch({ quantity_in_stock: null }, "3", "https://x.test/p.jpg")).toEqual({ quantity_in_stock: 3, photo_url: "https://x.test/p.jpg" });
+    expect(restockPatch({ quantity_in_stock: 1, photo_url: "https://x.test/old.jpg" }, 1, "https://x.test/p.jpg")).toEqual({ quantity_in_stock: 2 });
+    expect(quickCount("-2")).toBe(0);
+    expect(quickCount("2.9")).toBe(2);
+  });
+
+  it("knows parts saved on this screen without loading the list again", () => {
+    const listed = [{ id: "p1", quantity_in_stock: 0, updated_date: "2026-11-18T10:00:00Z" }, { id: "p2", quantity_in_stock: 6 }];
+    const saved = [{ id: "p2", quantity_in_stock: 7, updated_date: "2026-11-18T11:00:00Z" }, { id: "p9", quantity_in_stock: 1 }];
+    const known = withSavedParts(listed, saved);
+    expect(known.map((p) => [p.id, p.quantity_in_stock])).toEqual([["p9", 1], ["p1", 0], ["p2", 7]]);
+    // A newer copy in the list (someone else changed it since) wins.
+    const newer = withSavedParts([{ id: "p2", quantity_in_stock: 9, updated_date: "2026-11-18T12:00:00Z" }], saved.slice(0, 1));
+    expect(newer).toEqual([{ id: "p2", quantity_in_stock: 9, updated_date: "2026-11-18T12:00:00Z" }]);
+    expect(withSavedParts(listed, [])).toBe(listed);
+  });
+
+  it("finds a number as it's typed the same way as a search does", () => {
+    const index = partsByNumber([oil, ryco, wesfil]);
+    for (const typed of ["90915 yzzd2", "z-418", "WZ418", "nope"]) {
+      expect((index.get(partKey(typed)) || []).map((p) => p.id), typed).toEqual(partsNumbered(typed, [oil, ryco, wesfil]).map((p) => p.id));
+    }
+    // A part with the same number in both boxes is listed once.
+    expect(partsByNumber([{ id: "d", oem_number: "Z418", aftermarket_number: "z 418" }]).get("Z418")).toHaveLength(1);
+  });
+
+  it("picks the main button: restock one match, else a new part with a name", () => {
+    expect(quickPrimary({ matches: [], qty: 1, name: "" })).toEqual({ kind: "new", label: "Add part", enabled: false });
+    expect(quickPrimary({ matches: [], qty: 1, name: " Pads " })).toEqual({ kind: "new", label: "Add part", enabled: true });
+    expect(quickPrimary({ matches: [ryco], qty: 2, name: "" })).toEqual({ kind: "restock", part: ryco, label: "Add 2 to its stock", enabled: true });
+    expect(quickPrimary({ matches: [ryco], qty: 0, name: "" }).enabled).toBe(false);
+    expect(quickPrimary({ matches: [ryco, wesfil], qty: 1, name: "Filter" })).toEqual({ kind: "new", label: "Add as a new part", enabled: true });
+  });
+
+  it("counts the More details filled in, and starts the next part with the same kind and models", () => {
+    expect(quickExtrasFilled(blankQuickPart())).toBe(0);
+    expect(quickExtrasFilled({ ...blankQuickPart(), bin_location: "Shelf C3", min_stock: 0, supplier: "  " })).toBe(2);
+    expect(blankQuickPart({ kind: "other", guide_ids: ["g1"], name: "x" })).toMatchObject({ kind: "other", guide_ids: ["g1"], name: "", quantity: 1 });
+    expect(guideLabel({ make: "Toyota", model: "Hiace", generation: "H200 (2004-2019)" })).toBe("Toyota Hiace (H200)");
+    expect(guideLabel({ make: "Nissan", model: "NV350" })).toBe("Nissan NV350");
   });
 });

@@ -87,7 +87,8 @@ const Kiosk = lazy(() => import('@/pages/Kiosk'));
 const RouteExplorer = lazy(() => import('@/pages/RouteExplorer'));
 const StaffDirectory = lazy(() => import('@/pages/StaffDirectory'));
 const ServiceHistory = lazy(() => import('@/pages/ServiceHistory'));
-const PartsKiosk = lazy(() => import('@/pages/PartsKiosk'));
+const loadPartsKiosk = () => import('@/pages/PartsKiosk');
+const PartsKiosk = lazy(loadPartsKiosk);
 const SafetyStandards = lazy(() => import('@/pages/SafetyStandards'));
 const Buses = lazy(() => import('@/pages/Buses'));
 // Passenger More shares StaffPortal data with Home, Journey and My card.
@@ -108,10 +109,12 @@ const DriverPassword = lazy(() => import('@/pages/DriverPassword'));
 const HOME_CODE = {
   '/staff': loadStaffPortal, '/journey': loadStaffPortal, '/my-card': loadStaffPortal, '/more': loadStaffPortal,
   '/admin': loadAdmin, '/mechanic': loadMechanicPortal, '/company': loadCompanyDashboard,
-  '/driver-phone': loadDriverPhone, '/workspace': loadRoleWorkspace,
+  '/driver-phone': loadDriverPhone, '/workspace': loadRoleWorkspace, '/parts': loadPartsKiosk,
 };
 const fetchHomeCode = (path) => { HOME_CODE['/' + String(path || '').split('/')[1]]?.().catch(() => { /* the page loads it again */ }); };
 if (typeof window !== 'undefined') fetchHomeCode(window.location.pathname);
+// Screens opened on their own, which shouldn't fetch the home screen's code.
+const OWN_SCREEN = /^\/parts(\/|$)/;
 // Add page imports here
 
 // Pages that moved inside the admin area. Their old addresses still work for
@@ -135,7 +138,10 @@ const AuthenticatedApp = () => {
   const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
   const location = useLocation();
   const home = user ? homeFor(user) : null;
-  useEffect(() => { if (home) fetchHomeCode(home); }, [home]);
+  // The parts kiosk is a screen of its own: don't download the account's
+  // home screen (all of Admin, for an administrator) along with it.
+  const ownScreen = OWN_SCREEN.test(location.pathname);
+  useEffect(() => { if (home && !ownScreen) fetchHomeCode(home); }, [home, ownScreen]);
   const authPage = ['/login', '/register', '/forgot-password', '/reset-password'].includes(location.pathname);
   const tabletPage = /^\/(driver|kiosk|tablet)(\/|$)/.test(location.pathname);
   // The legal pages are linked from the app stores, so they must open for

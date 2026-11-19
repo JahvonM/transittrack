@@ -87,11 +87,11 @@ describe("firstOpenWanted", () => {
     expect(firstOpenWanted({ win: fakeWindow({ webdriver: true }), native: false })).toBe(false);
     expect(firstOpenWanted({ win: fakeWindow({ framed: true }), native: false })).toBe(false);
   });
-  it("leaves the bus tablets, ride links, the public front page and sign-in screens alone", () => {
-    for (const path of ["/kiosk", "/tablet", "/driver", "/driver/stops", "/track", "/desktop-signin", "/phone-signin", "/oauth/consent", "/privacy", "/terms", "/site/book", "/reviewer-sandbox", "/join", "/", "/login", "/register", "/forgot-password", "/reset-password", "/mfa"]) {
+  it("leaves the bus tablets, the parts kiosk, ride links, the public front page and sign-in screens alone", () => {
+    for (const path of ["/kiosk", "/parts", "/tablet", "/driver", "/driver/stops", "/track", "/desktop-signin", "/phone-signin", "/oauth/consent", "/privacy", "/terms", "/site/book", "/reviewer-sandbox", "/join", "/", "/login", "/register", "/forgot-password", "/reset-password", "/mfa"]) {
       expect(firstOpenWanted({ win: fakeWindow({ path }), native: false }), path).toBe(false);
     }
-    for (const path of ["/staff", "/driver-phone", "/admin"]) {
+    for (const path of ["/staff", "/driver-phone", "/admin", "/admin/parts", "/partsx"]) {
       expect(firstOpenWanted({ win: fakeWindow({ path }), native: false }), path).toBe(true);
     }
   });
