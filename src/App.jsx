@@ -89,6 +89,8 @@ const StaffDirectory = lazy(() => import('@/pages/StaffDirectory'));
 const ServiceHistory = lazy(() => import('@/pages/ServiceHistory'));
 const loadPartsKiosk = () => import('@/pages/PartsKiosk');
 const PartsKiosk = lazy(loadPartsKiosk);
+const loadWorkshop = () => import('@/pages/Workshop');
+const Workshop = lazy(loadWorkshop);
 const SafetyStandards = lazy(() => import('@/pages/SafetyStandards'));
 const Buses = lazy(() => import('@/pages/Buses'));
 // Passenger More shares StaffPortal data with Home, Journey and My card.
@@ -109,12 +111,12 @@ const DriverPassword = lazy(() => import('@/pages/DriverPassword'));
 const HOME_CODE = {
   '/staff': loadStaffPortal, '/journey': loadStaffPortal, '/my-card': loadStaffPortal, '/more': loadStaffPortal,
   '/admin': loadAdmin, '/mechanic': loadMechanicPortal, '/company': loadCompanyDashboard,
-  '/driver-phone': loadDriverPhone, '/workspace': loadRoleWorkspace, '/parts': loadPartsKiosk,
+  '/driver-phone': loadDriverPhone, '/workspace': loadRoleWorkspace, '/parts': loadPartsKiosk, '/workshop': loadWorkshop,
 };
 const fetchHomeCode = (path) => { HOME_CODE['/' + String(path || '').split('/')[1]]?.().catch(() => { /* the page loads it again */ }); };
 if (typeof window !== 'undefined') fetchHomeCode(window.location.pathname);
 // Screens opened on their own, which shouldn't fetch the home screen's code.
-const OWN_SCREEN = /^\/parts(\/|$)/;
+const OWN_SCREEN = /^\/(parts|workshop)(\/|$)/;
 // Add page imports here
 
 // Pages that moved inside the admin area. Their old addresses still work for
@@ -138,8 +140,8 @@ const AuthenticatedApp = () => {
   const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
   const location = useLocation();
   const home = user ? homeFor(user) : null;
-  // The parts kiosk is a screen of its own: don't download the account's
-  // home screen (all of Admin, for an administrator) along with it.
+  // The parts kiosk and the Workshop are screens of their own: don't download
+  // the account's home screen (all of Admin, for an administrator) with them.
   const ownScreen = OWN_SCREEN.test(location.pathname);
   useEffect(() => { if (home && !ownScreen) fetchHomeCode(home); }, [home, ownScreen]);
   const authPage = ['/login', '/register', '/forgot-password', '/reset-password'].includes(location.pathname);
@@ -154,7 +156,8 @@ const AuthenticatedApp = () => {
   // are all one page, so they share a key — switching tabs must not restart
   // it (that would stop GPS tracking and navigation).
   const pageKey = ["/staff","/journey","/my-card","/more","/rides","/help"].includes(location.pathname) ? "/passenger-experience" : /^\/driver(\/|$)/.test(location.pathname) ? "/driver"
-    : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : /^\/admin(\/|$)/.test(location.pathname) ? "/admin" : location.pathname;
+    : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : /^\/admin(\/|$)/.test(location.pathname) ? "/admin"
+    : /^\/workshop(\/|$)/.test(location.pathname) ? "/workshop" : location.pathname;
   // The first screen shown after opening the app, or false once the person
   // has moved on (from then on every new screen slides in).
   const firstScreen = useRef(null);
@@ -213,6 +216,10 @@ const AuthenticatedApp = () => {
       {/* The parts kiosk: signing in comes back here. */}
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login?returnTo=%2Fparts" replace />} />}>
         <Route path="/parts" element={<RoleGate allow={["admin", "mechanic"]}><PartsKiosk /></RoleGate>} />
+      </Route>
+      {/* The Workshop (torque values and bolt maps): signing in comes back here. */}
+      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login?returnTo=%2Fworkshop" replace />} />}>
+        <Route path="/workshop/*" element={<RoleGate allow={["admin", "mechanic"]}><Workshop /></RoleGate>} />
       </Route>
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/passenger" element={<Navigate to="/staff" replace />} />

@@ -50,7 +50,7 @@ Changing records through entityAccess:
 
 - **admin**: any record (except invoices, made only in billing, and app errors, which can only be marked fixed).
 - **company**: records of the kinds it can read, for its own company; it can't make a new `Company`.
-- **mechanic**: maintenance records (`Vehicle`, `Fault`, `Inspection`, `InspectionResult`, `InspectionTemplate`, `Part`, `MaintenanceSchedule`, `MaintenanceSettings`, `VehicleGuide`, `GuideFact`, `GuideDocument`, `PartDiagram`, `PartInterchange`, `CatalogueGroup`) and the mechanic chat;
+- **mechanic**: maintenance records (`Vehicle`, `Fault`, `Inspection`, `InspectionResult`, `InspectionTemplate`, `Part`, `MaintenanceSchedule`, `MaintenanceSettings`, `VehicleGuide`, `GuideFact`, `GuideDocument`, `PartDiagram`, `PartInterchange`, `CatalogueGroup`, `TorqueSpec`, `WorkshopVehicle`) and the mechanic chat;
   on `Vehicle` only odometer, hours, status and inspection fields. Deleting maintenance records is admin-only.
 - **staff / passenger**: their own profile fields, their own staff-chat messages and lost-item reports.
 
@@ -117,6 +117,7 @@ Changing records through entityAccess:
 | [StaffCheckIn](#staffcheckin) | `staff_check_in` | entityAccess | — | — | own company | — | all |
 | [TabletRecordingSession](#tabletrecordingsession) | `tablet_recording_session` | server only | — | — | — | — | through other functions |
 | [TabletSupportSession](#tabletsupportsession) | `tablet_support_session` | server only | — | — | — | — | through other functions |
+| [TorqueSpec](#torquespec) | `torque_spec` | entityAccess | — | — | — | all companies | all |
 | [Trip](#trip) | `trip` | entityAccess | — | own company, fewer fields | own company | — | all |
 | [User](#user) | `app_user` | entityAccess | — | own profile | own profile | own profile | all |
 | [Vehicle](#vehicle) | `vehicle` | entityAccess | — | own company, fewer fields | own company | all companies | all |
@@ -124,6 +125,7 @@ Changing records through entityAccess:
 | [VerificationAttempt](#verificationattempt) | `verification_attempt` | server only | — | — | — | — | through other functions |
 | [VerificationGrant](#verificationgrant) | `verification_grant` | server only | — | — | — | — | through other functions |
 | [Workplace](#workplace) | `workplace` | entityAccess | — | own company | own company | — | all |
+| [WorkshopVehicle](#workshopvehicle) | `workshop_vehicle` | entityAccess | — | — | — | all companies | all |
 
 "Server only": no screen reads these through entityAccess; only server functions use them
 (sign-in codes, device keys, memberships, verification and support records).
@@ -264,6 +266,8 @@ Table `catalogue_group` · read and changed through entityAccess.
 Maker's catalogue: one diagram of a bus model's parts catalogue as the maker lists it (e.g. Toyota 1502 OIL FILTER), with its parts' numbers, names and quantities, pasted in by the team from Partsouq. A reference list, not stock: a part is added to stock from it on purpose. The maker's drawing itself is not kept; link opens it on Partsouq. Fleet-wide: administrators and mechanics only.
 
 **Links to:** [Vehicle](#vehicle) (`vehicle_id`).
+
+**Linked from:** [PartDiagram](#partdiagram).catalogue_group_id.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -1052,6 +1056,8 @@ Table `part_diagram` · read and changed through entityAccess.
 
 Parts catalogue: a picture of one area of a bus model (front brakes, filters) with numbered pins on the parts, each pin linked to a Part in stock. Shown on the model's Bus library page. Fleet-wide: administrators and mechanics only.
 
+**Links to:** [CatalogueGroup](#cataloguegroup) (`catalogue_group_id`).
+
 | Field | Type | Notes |
 |---|---|---|
 | `guide_id` | text | The VehicleGuide (bus model) this picture is of. Required. |
@@ -1060,8 +1066,9 @@ Parts catalogue: a picture of one area of a bus model (front brakes, filters) wi
 | `image_url` | text | The team's own photo or drawing of the area (a public file uploaded in the app). |
 | `drawing_key` | text | A guide drawing built into the app (src/assets/diagrams), shown while there is no photo. Generic, not drawn from Toyota or Nissan diagrams. One of: `oil-filter`, `fuel-filter`, `air-filter`, `front-brakes`, `rear-brakes`, `front-suspension`, `cooling`, `drive-belt`. |
 | `catalogue_link` | text | Web address (https) of the maker's own diagram for this area, e.g. on Partsouq, for reference. |
+| `catalogue_group_id` | text | → CatalogueGroup. The maker's catalogue diagram (CatalogueGroup, on the same model page) this is a photo of, so the photo shows beside its parts list in the Workshop; empty for none. |
 | `notes` | text |  |
-| `pins` | jsonb (list) | Numbered pins on the picture. |
+| `pins` | jsonb (list) | Numbered pins on the picture, each on a part and/or a bolt with its torque. |
 | `sort_order` | double precision |  |
 
 ### PartInterchange
@@ -1408,6 +1415,31 @@ Table `tablet_support_session` · server functions only.
 | `failure_code` | text |  |
 | `display_id` | text | An office display an administrator started this camera view for; that display may watch it (officeDisplay). |
 
+### TorqueSpec
+
+Table `torque_spec` · read and changed through entityAccess.
+
+Workshop: how tight one bolt or nut goes on a vehicle model (e.g. wheel nuts 103 N·m), shown in the Workshop app and pinned on its bolt maps. Researched values start unchecked until a mechanic confirms them. Fleet-wide: administrators and mechanics only.
+
+| Field | Type | Notes |
+|---|---|---|
+| `guide_id` | text | The VehicleGuide (model page) it belongs to. Required. |
+| `system` | text | Which part of the vehicle. One of: `wheels_brakes`, `suspension_steering`, `engine`, `cooling`, `fuel`, `gearbox_axle`, `body_electrical`. Required. |
+| `item` | text | The bolt or nut, e.g. Wheel nuts, Caliper bracket bolts. Required. |
+| `size` | text | Thread size, e.g. M12×1.5, if known. |
+| `nm` | double precision | Torque in newton-metres (the first or only stage). |
+| `stages` | text | Further stages or angles, e.g. 35 N·m, then +90°, then +90°. |
+| `sequence` | text | The order to tighten in, e.g. criss-cross, centre outwards. |
+| `new_bolt` | boolean | Use a new bolt each time (stretch bolt). |
+| `thread_lock` | text | Thread locker or sealant to use, if any. |
+| `applies_to` | text | Which engines, years or versions it is for. |
+| `source_name` | text |  |
+| `source_link` | text | Web address (https) of where the value came from. |
+| `status` | text | unchecked until a mechanic confirms it; wrong keeps it visible as a warning. One of: `unchecked`, `checked`, `wrong`. Default `"unchecked"`. |
+| `checked_by` | text | Who marked it checked or wrong (set by the server). |
+| `checked_at` | timestamptz | When it was marked checked or wrong (set by the server). |
+| `sort_order` | double precision | Order within its system. |
+
 ### Trip
 
 Table `trip` · belongs to a company through `vehicle_id`, then `company_id` · read and changed through entityAccess.
@@ -1653,6 +1685,24 @@ Table `workplace` · belongs to a company through `company_id` · read and chang
 | `company_name` | text |  |
 | `lat` | double precision |  |
 | `lng` | double precision |  |
+
+### WorkshopVehicle
+
+Table `workshop_vehicle` · read and changed through entityAccess.
+
+Workshop: a vehicle the workshop looks after that is not a fleet bus (e.g. the owner's own cars). Kept apart from Vehicle so it never appears on the fleet map, kiosks, driver apps or company screens. Matched to its model page by make, model and year. Administrators and mechanics only.
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | text | What the team calls it, e.g. BMW X3. Required. |
+| `make` | text | Required. |
+| `model` | text | Required. |
+| `year` | bigint |  |
+| `engine` | text |  |
+| `transmission` | text |  |
+| `vin` | text | Chassis number (VIN). |
+| `plate_number` | text |  |
+| `notes` | text |  |
 
 ## Other storage (Supabase only)
 

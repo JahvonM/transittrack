@@ -62,6 +62,7 @@ export const SUPABASE_TABLES: Record<string, string> = {
   StaffCheckIn: "staff_check_in",
   TabletRecordingSession: "tablet_recording_session",
   TabletSupportSession: "tablet_support_session",
+  TorqueSpec: "torque_spec",
   Trip: "trip",
   User: "app_user",
   Vehicle: "vehicle",
@@ -69,4 +70,5 @@ export const SUPABASE_TABLES: Record<string, string> = {
   VerificationAttempt: "verification_attempt",
   VerificationGrant: "verification_grant",
   Workplace: "workplace",
+  WorkshopVehicle: "workshop_vehicle",
 };

@@ -48,12 +48,12 @@ describe("the parts kiosk as its own Home Screen app", () => {
     expect(doc.querySelector('meta[name="apple-mobile-web-app-title"]')).toBeNull();
   });
 
-  it("has a manifest that opens /parts, with the main app's icons and colours", () => {
+  it.each([["parts", "Parts"], ["workshop", "Workshop"]])("has a manifest that opens /%s, with the main app's icons and colours", (name, shortName) => {
     const main = JSON.parse(fs.readFileSync(path.join(root, "public/manifest.webmanifest"), "utf8"));
-    const parts = JSON.parse(fs.readFileSync(path.join(root, "public/parts.webmanifest"), "utf8"));
-    expect(parts).toMatchObject({ id: "/parts", start_url: "/parts", scope: "/", short_name: "Parts", display: "standalone" });
-    expect(parts.icons).toEqual(main.icons);
-    expect([parts.background_color, parts.theme_color]).toEqual([main.background_color, main.theme_color]);
+    const app = JSON.parse(fs.readFileSync(path.join(root, `public/${name}.webmanifest`), "utf8"));
+    expect(app).toMatchObject({ id: `/${name}`, start_url: `/${name}`, scope: "/", short_name: shortName, display: "standalone" });
+    expect(app.icons).toEqual(main.icons);
+    expect([app.background_color, app.theme_color]).toEqual([main.background_color, main.theme_color]);
     // The rest of the app keeps the main manifest.
     expect(fs.readFileSync(path.join(root, "index.html"), "utf8")).toContain('<link rel="manifest" href="/manifest.webmanifest');
   });

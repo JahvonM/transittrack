@@ -13,7 +13,7 @@ export const FIRST_OPEN_KEY = "tt_first_open_v1";
 // legal pages, the public website, the app-store reviewers' sandbox, and a
 // hotel's join link (see joining below), and the parts kiosk, which is
 // added to the Home Screen as an app of its own (parts.webmanifest).
-const SKIP_PATH = /^\/(kiosk|parts|tablet|driver|track|desktop-signin|phone-signin|oauth|privacy|terms|site|reviewer-sandbox|join|display|login|register|forgot-password|reset-password|mfa)(\/|$)/;
+const SKIP_PATH = /^\/(kiosk|parts|workshop|tablet|driver|track|desktop-signin|phone-signin|oauth|privacy|terms|site|reviewer-sandbox|join|display|login|register|forgot-password|reset-password|mfa)(\/|$)/;
 
 // Someone who scanned a hotel's join QR joins first and gets the app after:
 // on an iPhone the Home Screen app has storage of its own, so leaving Safari

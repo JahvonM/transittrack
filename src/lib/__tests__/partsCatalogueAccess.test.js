@@ -82,8 +82,8 @@ describe('part pictures', () => {
     ] } }));
     expect(saved.status).toBe(200);
     expect(saved.body.result.pins).toEqual([
-      { n: 1, x: 0.1235, y: 0.5, part_id: 'p2', label: 'Pads' },
-      { n: 2, x: 0.2, y: 0.3, part_id: '', label: '' },
+      { n: 1, x: 0.1235, y: 0.5, part_id: 'p2', torque_id: '', ref: '', label: 'Pads' },
+      { n: 2, x: 0.2, y: 0.3, part_id: '', torque_id: '', ref: '', label: '' },
     ]);
   });
 });

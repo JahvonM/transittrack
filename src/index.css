@@ -1080,3 +1080,33 @@ span.tt-battery > svg.tt-battery-bolt { width:12px; height:12px; flex-shrink:0; 
 .tt-loading-status { display:flex; align-items:center; gap:12px; color:#99b5ce; }
 .tt-battery[data-state="warn"] { color:hsl(var(--warning)); }
 .tt-battery[data-state="low"] { color:hsl(var(--destructive)); }
+
+/* The Workshop (/workshop): a light parts-catalogue look, only while it is
+   open. Doubled class: it wins over the Light/Dark and colour themes. */
+html.tt-workshop.tt-workshop {
+ color-scheme: light;
+ --background: 210 20% 96%;
+ --foreground: 216 33% 16%;
+ --card: 0 0% 100%;
+ --card-foreground: 216 33% 16%;
+ --popover: 0 0% 100%;
+ --popover-foreground: 216 33% 16%;
+ --primary: 213 80% 42%;
+ --primary-foreground: 0 0% 100%;
+ --secondary: 213 30% 93%;
+ --secondary-foreground: 216 33% 16%;
+ --muted: 210 20% 94%;
+ --muted-foreground: 215 14% 38%;
+ --accent: 213 75% 95%;
+ --accent-foreground: 216 33% 16%;
+ --destructive: 0 72% 44%;
+ --destructive-foreground: 0 0% 100%;
+ --border: 214 20% 85%;
+ --input: 214 16% 68%;
+ --ring: 213 80% 42%;
+ --success: 142 64% 28%;
+ --warning: 28 92% 34%;
+ --danger: 0 72% 42%;
+ --info: 213 80% 42%;
+}
+html.tt-workshop body { background: hsl(var(--background)); }

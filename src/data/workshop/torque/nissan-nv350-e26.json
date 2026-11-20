@@ -1,0 +1,14 @@
+{
+  "key": "nissan-nv350-e26",
+  "guide_key": "nissan-nv350-e26",
+  "label": "Nissan NV350 E26",
+  "torque": [
+    {
+      "system": "wheels_brakes",
+      "item": "Wheel nuts",
+      "nm": 108,
+      "source_name": "Nissan NV350 owner's manual (South Africa)",
+      "source_link": "https://www-europe.nissan-cdn.net/content/dam/Nissan/za/OWNERS/OwnerManuals/Nissan%20NV350%20Manual.pdf"
+    }
+  ]
+}
