@@ -15,6 +15,8 @@ export default function DriverBackgroundPanel({ vehicle, phone = false }) {
   return () => { stopped = true; clearInterval(timer); };
  }, []);
  if (!state?.available) return null;
+ // Bus tablets: always on, can't be switched off (DriverBackgroundPolicy on the tablet).
+ const locked = state.locked === true;
  const toggle = async enabled => {
   setBusy(true); setError("");
   try { await setBackgroundGpsEnabled(enabled); setState(await backgroundGpsState()); }
@@ -33,8 +35,8 @@ export default function DriverBackgroundPanel({ vehicle, phone = false }) {
  return <Card>
   <CardHeader><CardTitle className="text-base flex items-center gap-2"><Satellite className="w-5 h-5" /> GPS with screen off</CardTitle></CardHeader>
   <CardContent className="space-y-3">
-   <div className="flex items-center gap-3"><div className="flex-1"><p className="font-medium text-sm">Keep sharing in the background</p><p className="text-xs text-muted-foreground">{phone ? `Uses this ${ownDeviceNoun()}'s GPS while you share the bus.` : "Uses the selected USB receiver or tablet GPS."}</p></div><Switch aria-label="Keep driver GPS in background" checked={state.enabled === true} disabled={busy} onCheckedChange={toggle} /></div>
-   <p className="text-sm">{state.active ? state.status : state.enabled ? "Ready. Starts when this bus is sharing and the driver PIN is verified." : "Background GPS is off. Foreground tracking is unchanged."}</p>
+   <div className="flex items-center gap-3"><div className="flex-1"><p className="font-medium text-sm">Keep sharing in the background</p><p className="text-xs text-muted-foreground">{locked ? "Always on for bus tablets: the GPS keeps working with the screen off or another screen open, like the rear camera." : phone ? `Uses this ${ownDeviceNoun()}'s GPS while you share the bus.` : "Uses the selected USB receiver or tablet GPS."}</p></div><Switch aria-label="Keep driver GPS in background" checked={locked || state.enabled === true} disabled={busy || locked} onCheckedChange={toggle} /></div>
+   <p className="text-sm">{state.active ? state.status : state.enabled || locked ? "Ready. Starts when this bus is sharing and the driver PIN is verified." : "Background GPS is off. Foreground tracking is unchanged."}</p>
    <p className="text-xs text-muted-foreground">{phone
     ? `While it's on, your ${ownDeviceNoun()} shows that its location is in use (a notification on Android, the location arrow on iPhone and iPad). Points are saved on the ${ownDeviceNoun()} first and keep their bus. It stops when you stop sharing, end the shift or change bus.`
     : "A tracking notification stays visible while active. GPS points are saved on this tablet before upload and keep their original bus/company. Android can still stop the app; reopening restores a valid session. On Android 10, restart recovery also attempts to resume an unexpired session."}</p>

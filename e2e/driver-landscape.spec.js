@@ -138,6 +138,32 @@ test('background GPS is opt-in, bound to this bus and can export saved points',a
  await toggle.click();await expect.poll(()=>page.evaluate(()=>window.__backgroundStops)).toBeGreaterThan(0);
 });
 
+test('on a bus tablet background GPS is always on: it starts with sharing and cannot be switched off',async({page})=>{
+ await page.setViewportSize({width:1280,height:800});
+ await page.addInitScript(()=>{
+  localStorage.setItem('tt_device_token_driver-test','c'.repeat(64));
+  // The kiosk app reports the switch as locked on (DriverBackgroundPolicy).
+  const state={available:true,enabled:true,locked:true,active:false,pending:0,review:0,status:'Background tracking is off'};
+  window.__backgroundConfigs=[];window.__backgroundOff=0;
+  const background={getState:async()=>({...state}),setEnabled:async({enabled})=>{if(!enabled){window.__backgroundOff++;throw new Error('On bus tablets the GPS always stays on.');}return {...state}},
+   configure:async data=>{window.__backgroundConfigs.push(data);state.active=true;state.status='Fix (USB GPS)';return {managed:true}},
+   pulse:async()=>({}),stop:async()=>{state.active=false;},savedPoints:async()=>({points:[],done:true})};
+  const gps={getState:async()=>({available:true,enabled:true,backgroundManaged:state.active,status:state.active?'Fix (USB GPS)':'Off'}),addListener:async()=>({remove:async()=>{}})};
+  const other=new Proxy({},{get:(_,key)=>key==='addListener'?async()=>({remove:async()=>{}}):async()=>({})});
+  window.CapacitorPlatforms={platforms:new Map(),currentPlatform:{name:'android',getPlatform:()=> 'android',isNativePlatform:()=>true,isPluginAvailable:name=>['UsbGps','DriverBackground'].includes(name),registerPlugin:name=>name==='DriverBackground'?background:name==='UsbGps'?gps:other}};
+ });
+ await openDriver(page,{vehicle:{...vehicle,tracking_active:true}});
+ // Sharing the bus starts the tablet's own GPS session without anyone turning it on.
+ await expect.poll(()=>page.evaluate(()=>window.__backgroundConfigs.length)).toBeGreaterThan(0);
+ expect(await page.evaluate(()=>window.__backgroundConfigs[0])).toMatchObject({device_id:'driver-test',expected_company_id:'company-a',expected_vehicle_id:'bus-a'});
+ await sections(page).getByRole('button',{name:'More',exact:true}).click();
+ await page.getByRole('button',{name:/Test Driver.*Tablet settings/}).click();
+ const toggle=page.getByRole('switch',{name:'Keep driver GPS in background'});
+ await expect(toggle).toBeChecked();await expect(toggle).toBeDisabled();
+ await expect(page.getByText(/Always on for bus tablets/)).toBeVisible();
+ expect(await page.evaluate(()=>window.__backgroundOff)).toBe(0);
+});
+
 // Every driver tablet screen, landscape and portrait: nothing spills sideways
 // and the main controls stay on screen. With TT_SHOT_DIR set it also saves a
 // picture of each one.

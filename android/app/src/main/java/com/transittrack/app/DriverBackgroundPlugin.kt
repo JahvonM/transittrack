@@ -19,7 +19,7 @@ class DriverBackgroundPlugin:Plugin() {
  @Volatile private var exportKey=""
  @Volatile private var exportAt=0L
  private val revision=java.util.concurrent.atomic.AtomicLong(0)
- private fun enabled()=context.getSharedPreferences("tt_driver_background",Context.MODE_PRIVATE).getBoolean("enabled",false)
+ private fun enabled()=DriverBackgroundPolicy.enabled(context)
  @PluginMethod fun beginUpload(call:PluginCall){
   val id=UUID.randomUUID().toString()
   call.resolve(JSObject().put("granted",DriverLocationService.pageBegin(id)).put("id",id))
@@ -28,12 +28,14 @@ class DriverBackgroundPlugin:Plugin() {
  @PluginMethod fun pulse(call:PluginCall){DriverLocationService.pulse();call.resolve()}
  @PluginMethod fun getState(call:PluginCall){worker.execute{try{
   val store=DriverTrackingStore(context)
-  try{call.resolve(JSObject().put("available",Build.VERSION.SDK_INT>=26).put("enabled",enabled()).put("active",DriverLocationService.active())
+  try{call.resolve(JSObject().put("available",Build.VERSION.SDK_INT>=26).put("enabled",enabled()).put("locked",!DriverBackgroundPolicy.canTurnOff(DriverBackgroundPolicy.busTablet())).put("active",DriverLocationService.active())
    .put("status",DriverLocationService.status()).put("pending",store.count("pending")).put("review",store.count("needs_review")))
   }finally{store.close()}
  }catch(_:Exception){call.reject("GPS storage could not be read. Do not clear tablet data.")}}}
  @PluginMethod fun setEnabled(call:PluginCall){
   if(call.getBoolean("enabled",false)!=true){
+   // Bus tablets: always on (DriverBackgroundPolicy).
+   if(!DriverBackgroundPolicy.canTurnOff(DriverBackgroundPolicy.busTablet())){call.reject("On bus tablets the GPS always stays on.");return}
    context.getSharedPreferences("tt_driver_background",Context.MODE_PRIVATE).edit().putBoolean("enabled",false).commit()
    stop(call);return
   }

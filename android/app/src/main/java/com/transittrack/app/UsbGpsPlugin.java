@@ -177,6 +177,10 @@ public class UsbGpsPlugin extends Plugin {
     }
 
     @Override protected void handleOnPause() {
+        // Bus tablets: the GPS module keeps reading whatever covers the driver
+        // screen (the rear camera screen, Android settings). Switching it off
+        // there left the bus without a location until the driver came back.
+        if (DriverBackgroundPolicy.keepReadingWhenCovered(DriverBackgroundPolicy.busTablet())) return;
         foreground = false;
         stopReader();
         if (enabled) report("Paused while app is in background");
