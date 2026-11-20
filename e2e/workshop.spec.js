@@ -376,3 +376,33 @@ test('the Workshop sends a signed-out visitor to sign in, then back to it; other
     await other.close();
   }
 });
+
+test('the Workshop opens from Admin › Maintenance and the search box, and leads back to Admin', async ({ page }) => {
+  const { errors } = await open(page, '/admin', { role: 'admin', width: 1440, height: 900 });
+  const nav = page.getByRole('navigation', { name: 'Admin', exact: true });
+  await nav.getByRole('button', { name: 'Maintenance', exact: true }).click();
+  await nav.getByRole('button', { name: 'Workshop', exact: true }).click();
+  await expect(page).toHaveURL(/\/workshop$/);
+  await expect(page.getByRole('link', { name: 'Workshop home' })).toBeVisible();
+  await page.getByRole('link', { name: 'Admin', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.getByRole('combobox', { name: 'Search admin' }).fill('works');
+  await page.getByRole('option', { name: 'Workshop', exact: true }).click();
+  await expect(page).toHaveURL(/\/workshop$/);
+  // An /admin/workshop address (typed or bookmarked) opens it too.
+  await page.goto('/admin/workshop');
+  await expect(page).toHaveURL(/\/workshop$/);
+  await expect(page.getByRole('link', { name: 'Workshop home' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('a mechanic opens the Workshop from their screen, and comes back', async ({ page }) => {
+  const { errors } = await open(page, '/mechanic', { role: 'mechanic', width: 390, height: 844 });
+  await page.getByRole('link', { name: 'Workshop', exact: true }).click();
+  await expect(page).toHaveURL(/\/workshop$/);
+  await expect(page.getByRole('link', { name: 'Workshop home' })).toBeVisible();
+  await noSideScroll(page);
+  await page.getByRole('link', { name: 'Mechanic', exact: true }).click();
+  await expect(page).toHaveURL(/\/mechanic$/);
+  expect(errors).toEqual([]);
+});

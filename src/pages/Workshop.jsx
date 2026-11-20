@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
+import { homeFor } from "@/lib/roleHome";
 import useWorkshopAppearance from "@/hooks/useWorkshopAppearance";
 import useHomeScreenApp from "@/hooks/useHomeScreenApp";
 import Logo from "@/components/Logo";
@@ -13,7 +14,7 @@ import { Notice, Tile, WorkshopContext, pluralize, useWorkshop } from "@/compone
 import VehiclePage from "@/components/workshop/VehiclePage";
 import DiagramPage from "@/components/workshop/DiagramPage";
 import Models, { CarSheet } from "@/components/workshop/Models";
-import { BookOpen, Bus, Car, LogOut, Plus, RefreshCw } from "lucide-react";
+import { ArrowLeft, BookOpen, Bus, Car, LogOut, Plus, RefreshCw } from "lucide-react";
 
 // The Workshop: app.mcsweenstransport.com/workshop, for the shared tablet in
 // the workshop (and phones), laid out like a parts catalogue. Every vehicle
@@ -128,6 +129,9 @@ export default function Workshop() {
   const { user, logout } = useAuth();
   const data = useWorkshopData();
   const isAdmin = user?.role === "admin";
+  // Back to Admin or the mechanic screen, inside the same home-screen app
+  // (the Workshop's manifest scope is the whole site).
+  const back = { to: homeFor(user), label: isAdmin ? "Admin" : user?.role === "mechanic" ? "Mechanic" : "Home" };
   const vehicles = useMemo(() => workshopVehicles(data.buses, data.cars, data.guides), [data.buses, data.cars, data.guides]);
   const value = useMemo(() => ({ ...data, vehicles, isAdmin, user }), [data, vehicles, isAdmin, user]);
 
@@ -143,7 +147,10 @@ export default function Workshop() {
                 <span className="block text-caption text-muted-foreground">Parts catalogue · torque · photos</span>
               </span>
             </Link>
-            <Button variant="ghost" className="ml-auto h-12 rounded-lg text-body" onClick={() => logout()}><LogOut className="mr-1.5 h-4 w-4" aria-hidden="true" />Sign out</Button>
+            <Button asChild variant="ghost" className="ml-auto h-12 rounded-lg px-3 text-body">
+              <Link to={back.to}><ArrowLeft className="h-4 w-4 sm:mr-1.5" aria-hidden="true" /><span className="sr-only sm:not-sr-only">{back.label}</span></Link>
+            </Button>
+            <Button variant="ghost" className="h-12 rounded-lg text-body" onClick={() => logout()}><LogOut className="mr-1.5 h-4 w-4" aria-hidden="true" />Sign out</Button>
           </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-4">

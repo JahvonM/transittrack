@@ -225,6 +225,7 @@ const AuthenticatedApp = () => {
         <Route path="/passenger" element={<Navigate to="/staff" replace />} />
         <Route path="/company" element={<CompanyDashboard />} />
         <Route path="/company/:tab" element={<CompanyDashboard />} />
+        <Route path="/admin/workshop" element={<Navigate to="/workshop" replace />} />
         <Route path="/admin/:section?" element={<Admin />} />
         <Route path="/workspace/:section?" element={<RoleWorkspace />} />
       <Route path="/account" element={<Account />} />
