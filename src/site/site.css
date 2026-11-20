@@ -205,10 +205,10 @@
     gap: clamp(2rem, 4vw, 4rem); padding-top: 3rem; padding-bottom: 3.5rem;
   }
   .mcs-hero-media {
-    order: 2; margin: 0; height: min(70vh, 38rem); min-height: 26rem; border-radius: 28px;
+    order: 2; margin: 0; height: min(64vh, 36rem); min-height: 24rem; border-radius: 28px;
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(238, 246, 245, 0.08);
   }
-  .mcs-hero-media :is(img, video) { height: 100%; aspect-ratio: auto; object-position: 25% 55%; }
+  .mcs-hero-media :is(img, video) { height: 100%; aspect-ratio: auto; object-position: 15% 55%; }
   .mcs-hero-media::after { height: 55%; background: linear-gradient(to top, rgba(7, 31, 36, 0.6), rgba(7, 31, 36, 0)); }
   .mcs-hero-body { margin-top: 0; padding: 0; }
   .mcs-hero h1 { font-size: clamp(3rem, 4.9vw, 4.9rem); }
