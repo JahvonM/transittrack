@@ -551,6 +551,8 @@ html:is(.tt-passenger-app,.tt-admin-app)[data-accent="mint"]{--primary:158 64% 5
 html:is(.tt-passenger-app.light,.tt-admin-app.light.tt-theme-chosen)[data-accent="mint"]{--primary:161 94% 24%;--ring:161 94% 24%}
 html:is(.tt-passenger-app,.tt-admin-app)[data-accent="gold"]{--primary:45 96% 58%;--ring:45 96% 58%;--px-tint-bright:hsl(45 96% 58%)}
 html:is(.tt-passenger-app.light,.tt-admin-app.light.tt-theme-chosen)[data-accent="gold"]{--primary:32 95% 34%;--ring:32 95% 34%}
+html:is(.tt-passenger-app,.tt-admin-app)[data-accent="cream"]{--primary:51 32% 77%;--ring:51 32% 77%;--primary-foreground:30 6% 6%;--px-tint-bright:hsl(51 32% 77%)}
+html:is(.tt-passenger-app.light,.tt-admin-app.light.tt-theme-chosen)[data-accent="cream"]{--primary:45 30% 28%;--ring:45 30% 28%;--primary-foreground:0 0% 100%}
 /* Admin console: the sidebar's highlight follows the colour theme; light mode
    (once chosen) gets a light sidebar. Dark values are the approved look. */
 html.tt-admin-app { --sidebar-primary:var(--primary); --sidebar-ring:var(--ring);
