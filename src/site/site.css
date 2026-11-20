@@ -268,7 +268,7 @@
 .mcs-story-kicker { display: inline-flex; align-items: center; gap: 0.6rem; font: 650 0.85rem/1 var(--body); letter-spacing: 0.01em; color: var(--sun); }
 .mcs-story-kicker::before { content: ""; width: 1.75rem; height: 2px; background: var(--sun); }
 .mcs-story h2 { margin-top: 0.85rem; font: 800 clamp(2.5rem, 11vw, 6rem)/0.92 var(--display); text-transform: uppercase; color: #fff; max-width: 11ch; text-shadow: 0 4px 30px rgba(0, 0, 0, 0.45); }
-.mcs-story-copy p { margin-top: 1rem; max-width: 40ch; color: var(--on-ink-muted); font-size: 1.08rem; }
+.mcs-story-copy p { margin-top: 1rem; max-width: 40ch; color: var(--on-ink-muted); font-size: 1.08rem; text-shadow: 0 1px 14px rgba(0, 0, 0, 0.7); }
 .mcs-copy-book .mcs-sign { margin-bottom: 1.25rem; }
 .mcs-copy-book h2 { max-width: none; }
 
@@ -295,12 +295,15 @@
   .mcs-copy-intro { top: calc(38% + 0.5rem); }
 }
 @media (min-width: 56rem) {
-  .mcs-story-photo { --t: 12%; --r: 8%; --b: 12%; --l: 52%; --rad: 28px; }
+  /* The panel stops short of the shot numbers on the right. */
+  .mcs-story-photo { --t: 12%; --r: max(8%, 7.5rem); --b: 12%; --l: 52%; --rad: 28px; }
   .mcs-story-photo img { --op: 45%; --zoom: 30% 54%; }
   /* The road and its grid run to the van, right of the words. */
   .mcs-night-road { left: 32%; right: -32%; width: auto; }
   .mcs-night-floor { left: -28%; right: -92%; }
-  .mcs-story-photo::after { background: linear-gradient(90deg, rgba(4, 22, 26, 0.9), rgba(4, 22, 26, 0.4) 42%, rgba(4, 22, 26, 0) 68%); }
+  /* Shade behind the words, deep enough to read them over the white van. */
+  .mcs-story-photo::after { background: linear-gradient(90deg, rgba(4, 22, 26, 0.94), rgba(4, 22, 26, 0.78) 36%, rgba(4, 22, 26, 0.3) 58%, rgba(4, 22, 26, 0) 74%); }
+  .mcs-story-book::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 22, 26, 0.85), rgba(4, 22, 26, 0.45) 45%, rgba(4, 22, 26, 0) 72%); }
   .mcs-story-copy { left: max(var(--gutter), calc((100% - var(--wide)) / 2 + var(--gutter))); right: auto; width: min(42%, 36rem); }
   .mcs-copy-intro { top: 50%; transform: translateY(calc(-50% - var(--s1) * 60px)); }
   .mcs-copy-shot[data-n] { top: 50%; bottom: auto; }
