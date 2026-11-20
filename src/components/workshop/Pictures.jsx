@@ -122,7 +122,7 @@ export function PictureSheet({ editing, guide, group = null, onClose, onDeleted 
           {GUIDE_DRAWINGS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
         </select>
       </Field>
-      <Field id="pic-link" label="Maker's diagram link (optional)" hint="The address of this area's diagram on Partsouq, to open it from here.">
+      <Field id="pic-link" label="Maker's diagram link (optional)" hint="The address of this area's diagram (Partsouq, JP-CarParts…). A JP-CarParts address shows inside the Workshop; others open in a new tab.">
         <Input id="pic-link" type="url" className="h-12 text-body md:text-body" value={form.catalogue_link} onChange={set("catalogue_link")} placeholder="https://partsouq.com/…" />
       </Field>
       <Field id="pic-notes" label="Notes (optional)">

@@ -11,6 +11,7 @@ import { memoryTables } from './helpers/memoryTables.js';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQAY3Y2wAAAAAElFTkSuQmCC', 'base64');
 const PHOTO = 'https://ghqtest.supabase.co/storage/v1/object/public/public/uploads/2026-11/brakes.png';
 const OIL_LINK = 'https://partsouq.com/en/catalog/genuine/unit?c=Toyota&number=1502';
+const JP_LIST = 'https://jp-carparts.com/toyota/figlist.php?maker=toyota&type=711160&model=KDH201K-ERMDY&profile=143d1f38d2d60c9eba8bbdbe7a0d75360a0f985e528ebb1c964d63495fbee54f';
 
 function tables() {
   return {
@@ -27,6 +28,8 @@ function tables() {
         { ref: '15601', number: '90915-YZZD2', name: 'Element kit, oil filter', qty: '1', info: '2KD-FTV' },
         { ref: '90430A', number: '90430-12031', name: 'Gasket', qty: '1', info: '' },
       ],
+    }, {
+      id: 'c2', guide_id: 'g1', vehicle_id: 'bus-a', model_code: 'KDH212R-JEMDY', category: 'Engine / Fuel / Tool', code: '1503', title: 'OIL COOLER & TUBE', detail: '', link: '', sort_order: 20, parts: [],
     }],
     Part: [
       { id: 'p1', part_name: 'Wheel nut', oem_number: '90942-01058', quantity_in_stock: 12, bin_location: 'Shelf C1', guide_ids: ['g1'] },
@@ -67,7 +70,7 @@ test('on the tablet: a vehicle page like a parts catalogue, and checking and add
   await expect(buses.getByRole('link')).toHaveCount(2);
   const george = buses.getByRole('link', { name: /St\.George/ });
   await expect(george).toContainText('KDH212R-JEMDY');
-  await expect(george).toContainText('1 torque value · 1 diagram · 1 photo');
+  await expect(george).toContainText('1 torque value · 2 diagrams · 1 photo');
   await expect(george).toContainText('1 not checked');
   await expect(buses.getByRole('link', { name: /Bus 2/ })).toContainText('No model page');
   await expect(page.getByRole('region', { name: 'Cars' }).getByRole('link', { name: /BMW X3/ })).toContainText('No model page');
@@ -80,12 +83,12 @@ test('on the tablet: a vehicle page like a parts catalogue, and checking and add
   await expect(details).toContainText('KDH212R-JEMDY');
   await expect(details).toContainText('2KD-FTV 2.5 diesel turbo');
   const sections = page.getByRole('region', { name: 'Sections' });
-  await expect(sections.getByRole('link')).toHaveText([/Torque values \(1\)/, /Photos & bolt maps \(1\)/, /Engine \/ Fuel \/ Tool \(1\)/]);
+  await expect(sections.getByRole('link')).toHaveText([/Torque values \(1\)/, /Photos & bolt maps \(1\)/, /Engine \/ Fuel \/ Tool \(2\)/]);
   await page.screenshot({ path: '/tmp/tt-workshop-vehicle.png' });
 
   await sections.getByRole('link', { name: /Torque values/ }).click();
   const nav = page.getByRole('navigation', { name: 'Catalogue' });
-  await expect(nav.getByRole('link')).toHaveText([/Torque values\s*1/, /Photos & bolt maps\s*1/, /Engine \/ Fuel \/ Tool\s*1/]);
+  await expect(nav.getByRole('link')).toHaveText([/Torque values\s*1/, /Photos & bolt maps\s*1/, /Engine \/ Fuel \/ Tool\s*2/]);
   await expect(page).toHaveURL(/\/workshop\/bus\/bus-a\/torque$/);
   await expect(nav.getByRole('link', { name: /Torque values/ })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('navigation', { name: 'Where you are' })).toContainText('Workshop');
@@ -219,13 +222,54 @@ test("adding the maker's list of diagrams to a vehicle", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("the maker's diagram from JP-CarParts: a category linked in one paste, then the diagram beside its parts", async ({ page }) => {
+  const { errors, server } = await open(page, '/workshop/bus/bus-a/c/engine-fuel-tool');
+  // JP-CarParts' own page, played by a stand-in (the test has no outside network).
+  await page.route('https://jp-carparts.com/**', (r) => r.fulfill({ contentType: 'text/html', body: '<!doctype html><title>JP-CarParts</title><h1>1503 OIL COOLER &amp; TUBE (stand-in)</h1>' }));
+
+  await page.getByRole('button', { name: 'Link to JP-CarParts' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Link to JP-CarParts' });
+  await expect(sheet.getByRole('button', { name: /^Link/ })).toBeDisabled();
+  await sheet.getByLabel("JP-CarParts address of your model's list of diagrams").fill('https://partsouq.com/en/catalog/genuine');
+  await expect(sheet).toContainText("That isn't a Toyota model's list of diagrams on JP-CarParts");
+  await sheet.getByLabel("JP-CarParts address of your model's list of diagrams").fill(JP_LIST);
+  await expect(sheet.getByRole('status')).toContainText('Model KDH201K-ERMDY: links 1 diagram that has no link yet; 1 already linked stay as they are.');
+  await sheet.getByRole('button', { name: 'Link 1' }).click();
+  await expect(sheet).toHaveCount(0);
+  const linked = server.writes.filter((w) => w.entity === 'CatalogueGroup' && w.op === 'update');
+  expect(linked.map((w) => w.id)).toEqual(['c2']);
+  const jpLink = linked[0].data.link;
+  expect(Object.fromEntries(new URL(jpLink).searchParams)).toMatchObject({ maker: 'toyota', model: 'KDH201K-ERMDY', fig: '1503' });
+  expect(new URL(jpLink).pathname).toBe('/toyota/partlist.php');
+  await expect(page.getByRole('link', { name: /1503 OIL COOLER/ })).toContainText("Maker's diagram on JP-CarParts");
+  await expect(page.getByRole('link', { name: /1502 OIL FILTER/ })).not.toContainText("Maker's diagram");
+
+  // With no photo yet, the diagram opens on the maker's own page, beside its parts.
+  await page.getByRole('link', { name: /1503 OIL COOLER/ }).click();
+  const picture = page.getByRole('region', { name: 'Picture', exact: true });
+  await expect(picture.getByRole('button', { name: "Maker's diagram" })).toHaveAttribute('aria-pressed', 'true');
+  await expect(picture).toContainText("It's the Japanese-market version");
+  const frame = picture.locator('iframe[title="1503 OIL COOLER & TUBE on JP-CarParts"]');
+  await expect(frame).toHaveAttribute('src', jpLink);
+  await expect(frame).toHaveAttribute('referrerpolicy', 'no-referrer');
+  await expect(picture.frameLocator('iframe').getByRole('heading')).toContainText('(stand-in)');
+  await expect(page.getByRole('link', { name: 'Open on JP-CarParts' })).toHaveAttribute('href', jpLink);
+  await expect(page.getByRole('region', { name: 'Parts on this diagram' })).toBeVisible();
+  await page.screenshot({ path: '/tmp/tt-workshop-maker-diagram.png' });
+
+  await picture.getByRole('button', { name: 'Your photo' }).click();
+  await expect(picture).toContainText('No photo of this diagram yet');
+  await expect(picture.locator('iframe')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('a bolt map: pin a torque value and a part on the picture, then a real photo', async ({ page }) => {
   const { errors, server } = await open(page, '/workshop/bus/bus-a/maps');
   const card = page.getByRole('button', { name: /Front brakes/ });
   await expect(card).toContainText('needs a photo');
   await card.click();
   await expect(page).toHaveURL(/\/maps\/d1$/);
-  await expect(page.getByRole('link', { name: "Maker's diagram" })).toHaveAttribute('href', 'https://partsouq.com/');
+  await expect(page.getByRole('link', { name: 'Open on Partsouq' })).toHaveAttribute('href', 'https://partsouq.com/');
   const picture = page.getByRole('region', { name: 'Picture', exact: true });
   await expect(picture).toContainText('This is a generic guide drawing, not your vehicle.');
 

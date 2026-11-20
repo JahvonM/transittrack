@@ -246,3 +246,66 @@ export const groupRefs = (group) => {
 
 // A category's name in a page address: "Engine / Fuel / Tool" → engine-fuel-tool.
 export const categorySlug = (name) => String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "other";
+
+// ----- the maker's diagram, shown from the catalogue site itself -----
+// Toyota's and Nissan's drawings are never copied into the app. A catalogue
+// site that allows it can show its own diagram page inside the Workshop,
+// beside the parts table; others open in a new tab. Tested November 2026:
+// JP-CarParts allows it; Partsouq, Amayama, 7zap, SoloCatalog, OEMParts.jp,
+// OEM Parts Online and Mazda Parts Factor refuse it.
+
+// The hostname of an https link, else "".
+export function linkHost(link) {
+  try {
+    const url = new URL(String(link ?? "").trim());
+    return url.protocol === "https:" ? url.hostname.toLowerCase() : "";
+  } catch {
+    return "";
+  }
+}
+
+export const EMBEDDABLE_HOSTS = new Set(["jp-carparts.com"]);
+export const embeddable = (link) => EMBEDDABLE_HOSTS.has(linkHost(link));
+
+const CATALOGUE_NAMES = {
+  "jp-carparts.com": "JP-CarParts",
+  "partsouq.com": "Partsouq",
+  "www.partsouq.com": "Partsouq",
+  "megazip.net": "MegaZip",
+  "www.megazip.net": "MegaZip",
+  "amayama.com": "Amayama",
+  "www.amayama.com": "Amayama",
+  "7zap.com": "7zap",
+};
+export const catalogueName = (link) => CATALOGUE_NAMES[linkHost(link)] || "the maker's site";
+
+// A Toyota diagram number, as in the maker's list of diagrams: 1502, 0901.
+const TOYOTA_DIAGRAM = /^\d{4}[A-Z]?$/;
+export const isToyotaDiagram = (code) => TOYOTA_DIAGRAM.test(String(code ?? "").trim());
+
+// The model a JP-CarParts address is for: its list of diagrams
+// (figlist.php) or one diagram (partlist.php), for a Toyota.
+function jpCarPartsParams(listUrl) {
+  let url;
+  try { url = new URL(String(listUrl ?? "").trim()); } catch { return null; }
+  if (url.protocol !== "https:" || url.hostname.toLowerCase() !== "jp-carparts.com") return null;
+  if (!/^\/toyota\/(figlist|partlist)\.php$/.test(url.pathname)) return null;
+  const p = url.searchParams;
+  const out = { maker: p.get("maker") || "", type: p.get("type") || "", model: p.get("model") || "", profile: p.get("profile") || "" };
+  if (out.maker !== "toyota" || !/^\d{1,12}$/.test(out.type) || !/^[A-Z0-9-]{3,40}$/i.test(out.model) || !/^[0-9a-f]{16,128}$/i.test(out.profile)) return null;
+  return out;
+}
+
+export const jpCarPartsModel = (listUrl) => jpCarPartsParams(listUrl)?.model || "";
+
+// One of the model's diagrams on JP-CarParts, by its Toyota number:
+// …/toyota/partlist.php?maker=toyota&type=…&model=…&profile=…&fig=1502.
+export function jpCarPartsLink(listUrl, code) {
+  const params = jpCarPartsParams(listUrl);
+  const fig = String(code ?? "").trim();
+  if (!params || !TOYOTA_DIAGRAM.test(fig)) return "";
+  const url = new URL("https://jp-carparts.com/toyota/partlist.php");
+  for (const key of ["maker", "type", "model", "profile"]) url.searchParams.set(key, params[key]);
+  url.searchParams.set("fig", fig);
+  return url.toString();
+}

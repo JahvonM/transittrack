@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
-  TORQUE_SYSTEMS, TORQUE_TEXT_LIMITS, MAX_NM, carData, carProblem, catalogueCategories, categorySlug, diagramRows, ftLb,
-  groupMatches, groupRefs, guideFor, modelCodeFor, pageFromStarter, pictureForGroup, pinKey, pinLabel, readyTorque,
+  TORQUE_SYSTEMS, TORQUE_TEXT_LIMITS, MAX_NM, carData, carProblem, catalogueCategories, catalogueName, categorySlug, diagramRows,
+  embeddable, ftLb, groupMatches, groupRefs, guideFor, isToyotaDiagram, jpCarPartsLink, jpCarPartsModel, modelCodeFor,
+  pageFromStarter, pictureForGroup, pinKey, pinLabel, readyTorque,
   starterTorque, torqueBySystem, torqueData, torqueForm, torqueProblem, visibleTorque, workshopVehicles,
 } from "../workshop.js";
 import { TORQUE_STARTERS } from "../../data/workshop/torque/index.js";
@@ -194,5 +195,53 @@ describe("the catalogue", () => {
     const rows = diagramRows({ pins: [{ n: 3 }, { n: 1 }] });
     expect(rows.map((r) => [r.key, r.ref])).toEqual([["pin:1", "1"], ["pin:3", "3"]]);
     expect(pinKey({ n: 3, ref: "47750" }, false)).toBe("pin:3");
+  });
+});
+
+describe("the maker's diagram from the catalogue site", () => {
+  const LIST = "https://jp-carparts.com/toyota/figlist.php?maker=toyota&type=711160&model=KDH201K-ERMDY&profile=143d1f38d2d60c9eba8bbdbe7a0d75360a0f985e528ebb1c964d63495fbee54f";
+
+  it("shows only JP-CarParts inside the Workshop, and only over https", () => {
+    expect(embeddable("https://jp-carparts.com/toyota/partlist.php?fig=1502")).toBe(true);
+    expect(embeddable("http://jp-carparts.com/toyota/partlist.php")).toBe(false);
+    expect(embeddable("https://jp-carparts.com.evil.example/x")).toBe(false);
+    expect(embeddable("https://www.jp-carparts.com/x")).toBe(false);
+    expect(embeddable("https://partsouq.com/en/catalog/genuine")).toBe(false);
+    expect(embeddable("javascript:alert(1)")).toBe(false);
+    expect(embeddable("")).toBe(false);
+  });
+
+  it("names the site a link opens", () => {
+    expect(catalogueName("https://jp-carparts.com/toyota/partlist.php")).toBe("JP-CarParts");
+    expect(catalogueName("https://partsouq.com/en/catalog/genuine/unit?x=1")).toBe("Partsouq");
+    expect(catalogueName("https://www.megazip.net/parts/toyota")).toBe("MegaZip");
+    expect(catalogueName("https://example.com/")).toBe("the maker's site");
+    expect(catalogueName("not a link")).toBe("the maker's site");
+  });
+
+  it("turns a model's list of diagrams into each diagram's address, by Toyota's number", () => {
+    const link = jpCarPartsLink(LIST, "1502");
+    const url = new URL(link);
+    expect(url.origin + url.pathname).toBe("https://jp-carparts.com/toyota/partlist.php");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      maker: "toyota", type: "711160", model: "KDH201K-ERMDY", profile: "143d1f38d2d60c9eba8bbdbe7a0d75360a0f985e528ebb1c964d63495fbee54f", fig: "1502",
+    });
+    // A diagram's own address works as the starting point too.
+    expect(jpCarPartsLink(link, "0901")).toBe(link.replace("fig=1502", "fig=0901"));
+    expect(jpCarPartsModel(LIST)).toBe("KDH201K-ERMDY");
+    expect(isToyotaDiagram("1502")).toBe(true);
+    expect(isToyotaDiagram("150A-001")).toBe(false);
+  });
+
+  it("refuses anything that isn't a Toyota model page on JP-CarParts, or a code that isn't Toyota's", () => {
+    expect(jpCarPartsLink(LIST, "150A-001")).toBe("");
+    expect(jpCarPartsLink(LIST, "")).toBe("");
+    expect(jpCarPartsLink(LIST.replace("https:", "http:"), "1502")).toBe("");
+    expect(jpCarPartsLink(LIST.replace("jp-carparts.com", "jp-carparts.com.evil.example"), "1502")).toBe("");
+    expect(jpCarPartsLink(LIST.replace("/toyota/", "/nissan/").replace("maker=toyota", "maker=nissan"), "1502")).toBe("");
+    expect(jpCarPartsLink(LIST.replace(/&profile=[0-9a-f]+/, ""), "1502")).toBe("");
+    expect(jpCarPartsLink(LIST.replace("model=KDH201K-ERMDY", "model=<script>"), "1502")).toBe("");
+    expect(jpCarPartsLink("https://partsouq.com/en/catalog/genuine", "1502")).toBe("");
+    expect(jpCarPartsModel("https://example.com")).toBe("");
   });
 });

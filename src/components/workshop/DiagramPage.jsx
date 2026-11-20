@@ -10,7 +10,7 @@ import QuickAddPart from "@/components/admin/QuickAddPart";
 import { groupLabel, parsePartsList, stockFor, stockIndex } from "@/lib/makerCatalogue";
 import { pictureSource } from "@/lib/partDrawings";
 import { nextPinNumber, pinPlace } from "@/lib/partsCatalogue";
-import { categorySlug, diagramRows, ftLb, nmText, pictureForGroup, pinKey, pinLabel } from "@/lib/workshop";
+import { catalogueName, categorySlug, diagramRows, embeddable, ftLb, linkHost, nmText, pictureForGroup, pinKey, pinLabel } from "@/lib/workshop";
 import { EditSheet, Field, ScreenBar, pluralize, useVehicleRoute } from "@/components/workshop/kit";
 import { PictureSheet, PinSheet, pinSummary, uploadPhoto } from "@/components/workshop/Pictures";
 import { Camera, Check, ClipboardPaste, ExternalLink, Loader2, MapPin, Maximize2, Pencil, Plus, ZoomIn, ZoomOut } from "lucide-react";
@@ -20,7 +20,9 @@ import { Camera, Check, ClipboardPaste, ExternalLink, Loader2, MapPin, Maximize2
 // number and its row lights up; tap a row and its number does. A maker's
 // diagram (pasted from Partsouq) lists the maker's parts, with what's on the
 // shelf; the picture is the team's own photo of that area, as the maker's
-// drawing itself is not kept (it opens on Partsouq).
+// drawing itself is not kept. A catalogue site that allows it (JP-CarParts)
+// shows its own diagram page here, beside the table, under "Maker's
+// diagram"; others open in a new tab.
 
 const ZOOMS = [1, 1.5, 2, 3];
 const isHttps = (link) => /^https:\/\/\S+$/i.test(link);
@@ -51,7 +53,7 @@ function PasteParts({ group, onClose }) {
   };
   return (
     <EditSheet open onClose={onClose} saving={saving} problem={problem} onSave={save} title="Paste parts" description={groupLabel(group)}>
-      <p className="text-body-sm text-muted-foreground">On Partsouq, open this diagram, select its table of parts, copy it, and paste it here. {(group.parts || []).length ? "It replaces the parts listed now." : ""}</p>
+      <p className="text-body-sm text-muted-foreground">On Partsouq or JP-CarParts, open this diagram, select its table of parts, copy it, and paste it here. {(group.parts || []).length ? "It replaces the parts listed now." : ""}</p>
       <Field id="paste-text" label="Copied text">
         <Textarea id="paste-text" rows={8} className="font-mono text-body-sm md:text-body-sm" value={text} onChange={(e) => setText(e.target.value)} placeholder={"No.  Part number  Name  Qty\n15601  90915-YZZD2  ELEMENT KIT, OIL FILTER  1"} />
       </Field>
@@ -64,7 +66,7 @@ function PasteParts({ group, onClose }) {
           </ul>
         </div>
       )}
-      <Field id="paste-link" label="This diagram on Partsouq (optional)" hint="Copy the address of the diagram's page, to open it from here.">
+      <Field id="paste-link" label="This diagram's page (optional)" hint="Copy the address of the diagram's page. A JP-CarParts address shows inside the Workshop; others open in a new tab.">
         <Input id="paste-link" type="url" className="h-12 text-body md:text-body" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://partsouq.com/…" />
       </Field>
     </EditSheet>
@@ -95,6 +97,7 @@ export default function DiagramPage({ mode }) {
   const [adding, setAdding] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [view, setView] = useState(null); // "photo" or "maker"; at first, the photo if there is one
   const boxRef = useRef(null);
   const imageRef = useRef(null);
   const rowRefs = useRef(new Map());
@@ -122,6 +125,10 @@ export default function DiagramPage({ mode }) {
   const rows = diagramRows({ group, pins });
   const title = group ? groupLabel(group) : picture.title;
   const link = group?.link || picture?.catalogue_link || "";
+  const site = catalogueName(link);
+  // The maker's own diagram page, shown from its site, when the site allows it.
+  const inside = embeddable(link);
+  const showing = inside && !editing ? view || (source && !source.isDrawing ? "photo" : "maker") : "photo";
   const category = group ? String(group.category || "").trim() || "Other" : "";
   const crumbs = [
     { to: "/workshop", label: "Workshop" },
@@ -201,7 +208,7 @@ export default function DiagramPage({ mode }) {
           <>
             {link && (
               <Button asChild variant="outline" className="h-12 rounded-lg bg-card text-body">
-                <a href={link} target="_blank" rel="noopener noreferrer">{group ? "Open on Partsouq" : "Maker's diagram"}<ExternalLink className="ml-1.5 h-4 w-4" aria-hidden="true" /></a>
+                <a href={link} target="_blank" rel="noopener noreferrer">Open on {site}<ExternalLink className="ml-1.5 h-4 w-4" aria-hidden="true" /></a>
               </Button>
             )}
             {group && <Button variant="outline" className="h-12 rounded-lg bg-card text-body" onClick={() => setPasting(true)}><ClipboardPaste className="mr-1.5 h-4 w-4" aria-hidden="true" />Paste parts</Button>}
@@ -214,8 +221,21 @@ export default function DiagramPage({ mode }) {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
         <section aria-label="Picture" className="overflow-hidden rounded-lg border border-border bg-card shadow-sm lg:sticky lg:top-3">
           <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted px-3 py-1.5">
-            <span className="flex-1 text-body-sm font-semibold">{!source ? "No photo yet" : source.isDrawing ? "Guide drawing (generic)" : "Photo"}</span>
-            {source && (
+            {inside && !editing ? (
+              <div role="group" aria-label="Show" className="flex flex-1 flex-wrap gap-1">
+                {[["photo", "Your photo"], ["maker", "Maker's diagram"]].map(([id, label]) => (
+                  <button
+                    key={id} type="button" aria-pressed={showing === id} onClick={() => setView(id)}
+                    className={`h-10 rounded-md px-3 text-body-sm font-semibold ${showing === id ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-card"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span className="flex-1 text-body-sm font-semibold">{!source ? "No photo yet" : source.isDrawing ? "Guide drawing (generic)" : "Photo"}</span>
+            )}
+            {source && showing === "photo" && (
               <span className="flex items-center gap-1">
                 <Button size="icon" variant="ghost" className="h-10 w-10" aria-label="Zoom out" disabled={zoomIndex <= 0} onClick={() => setZoom(ZOOMS[zoomIndex - 1])}><ZoomOut className="h-5 w-5" /></Button>
                 <span className="w-12 text-center text-caption tabular-nums" aria-live="polite">{Math.round(zoom * 100)}%</span>
@@ -225,6 +245,25 @@ export default function DiagramPage({ mode }) {
             )}
           </div>
           {editing && <p className="border-b border-border bg-accent px-3 py-2 text-body-sm font-semibold">Tap the picture where a part is to add a number. Tap a number to change it.</p>}
+          {showing === "maker" ? (
+            <>
+              <div className="flex flex-wrap items-center gap-2 border-b border-border bg-accent px-3 py-2 text-body-sm">
+                <p className="min-w-[180px] flex-1">
+                  The maker's diagram, shown from {site}.{linkHost(link) === "jp-carparts.com" ? " It's the Japanese-market version: check the numbers against the list beside it." : ""}
+                </p>
+                <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[40px] items-center gap-1 font-semibold text-primary hover:underline">
+                  Open in a new tab<ExternalLink className="h-4 w-4" aria-hidden="true" />
+                </a>
+              </div>
+              {/* The site's own page, loaded from the site: nothing is copied into the app. */}
+              <iframe
+                title={`${title} on ${site}`} src={link} loading="lazy" referrerPolicy="no-referrer"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                className="block h-[72dvh] w-full border-0 bg-white"
+              />
+            </>
+          ) : (
+          <>
           {!editing && source?.isDrawing && (
             <div className="flex flex-wrap items-center gap-3 border-b border-border bg-warning/10 px-3 py-2">
               <p className="min-w-[180px] flex-1 text-body-sm">This is a generic guide drawing, not your vehicle. Photograph this area on {vehicle.name} to put the numbers on the real thing.</p>
@@ -258,13 +297,15 @@ export default function DiagramPage({ mode }) {
               <div className="max-w-sm space-y-3">
                 <Camera className="mx-auto h-10 w-10 text-muted-foreground" aria-hidden="true" />
                 <p className="text-body font-semibold">No photo of this diagram yet</p>
-                <p className="text-body-sm text-muted-foreground">The maker's own drawing opens on Partsouq. Photograph this area on {vehicle.name} and put the maker's numbers on your photo.</p>
+                <p className="text-body-sm text-muted-foreground">{link ? `The maker's own drawing opens on ${site}.` : "The maker's own drawing is on its catalogue site."} Photograph this area on {vehicle.name} and put the maker's numbers on your photo.</p>
                 <div className="flex flex-wrap justify-center gap-2">
                   <PhotoButton onFile={takePhoto} busy={uploading} label="Take a photo" vehicleName={vehicle.name} title={title} />
-                  {link && <Button asChild variant="outline" className="h-12 rounded-lg"><a href={link} target="_blank" rel="noopener noreferrer">Open on Partsouq<ExternalLink className="ml-1.5 h-4 w-4" aria-hidden="true" /></a></Button>}
+                  {link && <Button asChild variant="outline" className="h-12 rounded-lg"><a href={link} target="_blank" rel="noopener noreferrer">Open on {site}<ExternalLink className="ml-1.5 h-4 w-4" aria-hidden="true" /></a></Button>}
                 </div>
               </div>
             </div>
+          )}
+          </>
           )}
         </section>
 
@@ -276,7 +317,7 @@ export default function DiagramPage({ mode }) {
             <div className="space-y-3 p-4 text-body-sm text-muted-foreground">
               {group ? (
                 <>
-                  <p>No parts listed for this diagram yet. On Partsouq, open it, copy its table of parts and tap Paste parts.</p>
+                  <p>No parts listed for this diagram yet. On Partsouq or JP-CarParts, open it, copy its table of parts and tap Paste parts.</p>
                   <Button variant="outline" className="h-12 rounded-lg" onClick={() => setPasting(true)}><ClipboardPaste className="mr-1.5 h-4 w-4" aria-hidden="true" />Paste parts</Button>
                 </>
               ) : <p>No numbers on this picture yet. Tap Edit pins, then tap the picture where a bolt or part is.</p>}

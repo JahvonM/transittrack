@@ -5,15 +5,18 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { busRecordWarnings, chunks, guideTitle, yearsLabel } from "@/lib/busLibrary";
+import { busRecordWarnings, chunks, guideTitle, modelKey, yearsLabel } from "@/lib/busLibrary";
 import { newGroups, parseDiagramIndex, progress, stockFor, stockIndex } from "@/lib/makerCatalogue";
 import { pictureSource } from "@/lib/partDrawings";
-import { catalogueCategories, categorySlug, groupMatches, modelCodeFor, pictureForGroup, torqueCounts } from "@/lib/workshop";
+import {
+  catalogueCategories, catalogueName, categorySlug, embeddable, groupMatches, isToyotaDiagram, jpCarPartsLink, jpCarPartsModel,
+  modelCodeFor, pictureForGroup, torqueCounts,
+} from "@/lib/workshop";
 import { EditSheet, Field, Notice, ScreenBar, pluralize, useVehicleRoute } from "@/components/workshop/kit";
 import TorqueSection from "@/components/workshop/TorqueSection";
 import PhotosSection, { Thumb } from "@/components/workshop/Pictures";
 import { CarSheet } from "@/components/workshop/Models";
-import { BookOpen, ClipboardPaste, Copy, MapPin, Pencil, Search, Wrench } from "lucide-react";
+import { BookOpen, ClipboardPaste, Copy, Link2, MapPin, Pencil, Search, Wrench } from "lucide-react";
 
 // A vehicle's page, laid out like a parts catalogue: the vehicle's details
 // at the top; down the side its sections (torque values, photos, and the
@@ -131,9 +134,58 @@ function PasteDiagrams({ vehicle, guide, existing, modelCode, onClose }) {
   );
 }
 
+// Every Toyota diagram in a category linked to JP-CarParts in one paste: the
+// address of the model's list of diagrams there gives each diagram's own
+// address, by Toyota's diagram number. Diagrams that already have a link
+// keep it.
+function LinkJpCarParts({ groups, onClose }) {
+  const { toast } = useToast();
+  const { put } = useVehicleRoute();
+  const [address, setAddress] = useState("");
+  const [saving, setSaving] = useState(false);
+  const model = jpCarPartsModel(address);
+  const toyota = groups.filter((g) => isToyotaDiagram(g.code));
+  const fresh = toyota.filter((g) => !String(g.link || "").trim());
+  const kept = toyota.length - fresh.length;
+  const problem = !address.trim() ? "Paste the address of your model's list of diagrams on JP-CarParts."
+    : !model ? "That isn't a Toyota model's list of diagrams on JP-CarParts: its address has figlist.php and a model code."
+    : !fresh.length ? "Every diagram here already has a link." : "";
+  const save = async () => {
+    setSaving(true);
+    try {
+      for (const batch of chunks(fresh, 5)) {
+        const saved = await Promise.all(batch.map((g) => base44.entities.CatalogueGroup.update(g.id, { link: jpCarPartsLink(address, g.code) })));
+        saved.forEach((g) => put("groups", g));
+      }
+      toast({ title: `${pluralize(fresh.length, "diagram")} linked to JP-CarParts`, description: `Model ${model}. Open one to see the maker's diagram beside its parts.` });
+      onClose();
+    } catch (e) {
+      toast({ title: "Couldn't link them all", description: e?.message, variant: "destructive" });
+      setSaving(false);
+    }
+  };
+  return (
+    <EditSheet open onClose={onClose} saving={saving} problem={problem} onSave={save} saveLabel={fresh.length && model ? `Link ${fresh.length}` : "Link"} title="Link to JP-CarParts" description="The maker's diagrams, shown inside the Workshop">
+      <p className="text-body-sm text-muted-foreground">
+        On jp-carparts.com, open Toyota, then your model (the Hiace H200 is HIACE/REGIUSACE), then the model code closest to your bus. Copy that page's address and paste it here. JP-CarParts lists Japanese-market models, so check part numbers against your own list.
+      </p>
+      <Field id="jp-address" label="JP-CarParts address of your model's list of diagrams">
+        <Input id="jp-address" type="url" className="h-12 text-body md:text-body" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="https://jp-carparts.com/toyota/figlist.php?maker=toyota&…" />
+      </Field>
+      {model && (
+        <p role="status" className="rounded-lg border border-border bg-muted p-3 text-body-sm">
+          Model {model}: links {pluralize(fresh.length, "diagram")} that {fresh.length === 1 ? "has" : "have"} no link yet{kept ? `; ${kept} already linked stay as they are` : ""}.
+        </p>
+      )}
+    </EditSheet>
+  );
+}
+
 function CategorySection({ name, groups, base }) {
-  const { diagrams, parts } = useVehicleRoute();
+  const { diagrams, parts, guide } = useVehicleRoute();
   const [query, setQuery] = useState("");
+  const [linking, setLinking] = useState(false);
+  const canLink = modelKey(guide?.make) === "toyota" && groups.some((g) => isToyotaDiagram(g.code));
   const shelf = useMemo(() => stockIndex(parts), [parts]);
   const shown = groups.filter((g) => groupMatches(g, query));
   const done = progress(groups);
@@ -144,6 +196,9 @@ function CategorySection({ name, groups, base }) {
           <h3 id="cat-title" className="text-title-sm font-semibold">{name}</h3>
           <p className="text-body-sm text-muted-foreground">{pluralize(groups.length, "diagram")} · parts pasted for {done.done}</p>
         </div>
+        {canLink && (
+          <Button variant="outline" className="h-12 rounded-lg bg-card text-body" onClick={() => setLinking(true)}><Link2 className="mr-1.5 h-4 w-4" aria-hidden="true" />Link to JP-CarParts</Button>
+        )}
         <div className="relative w-full sm:w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter diagrams" aria-label="Filter diagrams" className="h-12 rounded-lg bg-card pl-10 text-body md:text-body" />
@@ -164,6 +219,7 @@ function CategorySection({ name, groups, base }) {
                   <span className="block p-3">
                     <span className="block text-body-sm font-semibold"><span className="font-mono text-primary">{g.code}</span> {g.title}</span>
                     <span className="block text-caption text-muted-foreground">{listed ? `${pluralize(listed, "part")}${inStock ? `, ${inStock} in stock` : ""}` : "No parts yet"}</span>
+                    {!picture && embeddable(g.link) && <span className="block text-caption font-semibold text-primary">Maker's diagram on {catalogueName(g.link)}</span>}
                   </span>
                 </Link>
               </li>
@@ -171,6 +227,7 @@ function CategorySection({ name, groups, base }) {
           })}
         </ul>
       )}
+      {linking && <LinkJpCarParts groups={groups} onClose={() => setLinking(false)} />}
     </section>
   );
 }
