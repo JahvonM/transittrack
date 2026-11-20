@@ -380,7 +380,7 @@ test('admin showcase keeps metrics, fleet list and working section navigation',a
   await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
   await page.goto('/admin');
   await expect(page.getByRole('region',{name:'Live Fleet'})).toBeVisible();
-  await expect(page.getByText('Active buses',{exact:true})).toBeVisible();
+  await expect(page.getByRole('region',{name:'Fleet overview'}).getByText('On trip',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-admin-desktop.png',fullPage:true});
   // Card design opens on the Passengers page; it is not a menu link of its own.

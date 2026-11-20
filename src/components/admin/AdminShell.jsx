@@ -189,10 +189,19 @@ function HubTabs({ hub, active }) {
   const { search } = useLocation();
   useEffect(() => {
     const el = row.current;
-    const on = el?.querySelector('[aria-current="page"]');
-    if (!el || !on) return;
-    const left = on.offsetLeft - el.offsetLeft;
-    if (left < el.scrollLeft || left + on.offsetWidth > el.scrollLeft + el.clientWidth) el.scrollLeft = Math.max(0, left - 16);
+    if (!el) return undefined;
+    const show = () => {
+      const on = el.querySelector('[aria-current="page"]');
+      if (!on) return;
+      const left = on.offsetLeft - el.offsetLeft;
+      if (left < el.scrollLeft || left + on.offsetWidth > el.scrollLeft + el.clientWidth) el.scrollLeft = Math.max(0, left - 16);
+    };
+    show();
+    // The tabs grow once the admin font and look arrive (after this runs),
+    // so check again whenever the row changes size.
+    const watch = typeof ResizeObserver === "function" && el.firstElementChild ? new ResizeObserver(show) : null;
+    watch?.observe(el.firstElementChild);
+    return () => watch?.disconnect();
   }, [active]);
   return (
     <nav ref={row} aria-label={hub.label + " tabs"} className="tt-admin-hub-tabs min-w-0 max-w-full overflow-x-auto">
