@@ -95,8 +95,11 @@ class DriverLocationService:Service() {
    manager.createNotificationChannel(NotificationChannel(CHANNEL,"Driver GPS tracking",NotificationManager.IMPORTANCE_LOW))
    val open=PendingIntent.getActivity(this,938,Intent(this,MainActivity::class.java),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
    val stop=PendingIntent.getService(this,939,Intent(this,DriverLocationService::class.java).setAction(STOP),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-   val notice=Notification.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.ic_menu_mylocation).setContentTitle("Bus location sharing is active")
-    .setContentText("GPS continues with the screen off. Tap to open the driver app.").setContentIntent(open).setOngoing(true).addAction(Notification.Action.Builder(null,"Stop background GPS",stop).build()).build()
+   val builder=Notification.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.ic_menu_mylocation).setContentTitle("Bus location sharing is active")
+    .setContentText("GPS continues with the screen off. Tap to open the driver app.").setContentIntent(open).setOngoing(true)
+   // Bus tablets have no Stop: their GPS always stays on (DriverBackgroundPolicy).
+   if(DriverBackgroundPolicy.canTurnOff(DriverBackgroundPolicy.busTablet()))builder.addAction(Notification.Action.Builder(null,"Stop background GPS",stop).build())
+   val notice=builder.build()
    if(Build.VERSION.SDK_INT>=29)startForeground(NOTICE,notice,ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)else startForeground(NOTICE,notice)
    val flags=if(Build.VERSION.SDK_INT>=33)Context.RECEIVER_NOT_EXPORTED else 0
    if(Build.VERSION.SDK_INT>=33){registerReceiver(battery,IntentFilter(Intent.ACTION_BATTERY_CHANGED),flags);registerReceiver(permission,IntentFilter(UsbGpsReader.ACTION_PERMISSION),flags)}
@@ -106,12 +109,12 @@ class DriverLocationService:Service() {
   }catch(e:Exception){report("Android could not start background GPS; reopen driver app");stopSelf()}
  }
  override fun onStartCommand(intent:Intent?,flags:Int,id:Int):Int {
-  if(intent?.action==STOP){try{if(::store.isInitialized)store.clearLease() else android.util.AtomicFile(java.io.File(noBackupFilesDir,"driver_tracking_lease")).delete()}catch(_:Exception){};getSharedPreferences("tt_driver_background",MODE_PRIVATE).edit().putBoolean("enabled",false).apply();stopSelf();return START_NOT_STICKY}
+  if(intent?.action==STOP && DriverBackgroundPolicy.canTurnOff(DriverBackgroundPolicy.busTablet())){try{if(::store.isInitialized)store.clearLease() else android.util.AtomicFile(java.io.File(noBackupFilesDir,"driver_tracking_lease")).delete()}catch(_:Exception){};getSharedPreferences("tt_driver_background",MODE_PRIVATE).edit().putBoolean("enabled",false).apply();stopSelf();return START_NOT_STICKY}
   return if(validLease())START_STICKY else {stopSelf();START_NOT_STICKY}
  }
  private fun validLease():Boolean {
   val l=lease?:return false
-  return DriverTrackingPolicy.leaseValid(System.currentTimeMillis(),l.optLong("verified_at"),l.optLong("expires_ms")) && getSharedPreferences("tt_driver_background",MODE_PRIVATE).getBoolean("enabled",false)
+  return DriverTrackingPolicy.leaseValid(System.currentTimeMillis(),l.optLong("verified_at"),l.optLong("expires_ms")) && DriverBackgroundPolicy.enabled(this)
  }
  private fun report(value:String){message=value;UsbGpsPlugin.nativeOwnershipChanged()}
  private fun stopSources(){reader?.stop();reader=null;backup=false;try{location?.removeUpdates(locationListener)}catch(_:Exception){};location=null;try{wake?.let{if(it.isHeld)it.release()}}catch(_:Exception){};wake=null}
