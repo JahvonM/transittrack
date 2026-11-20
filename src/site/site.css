@@ -176,9 +176,12 @@
   border-radius: calc(var(--rad) * (1 - var(--s1)));
   opacity: calc(1 - var(--s3) * 2.5);
 }
+/* --op: where the photo sits once it fills the screen; --zoom: the point the
+   close-up pushes onto (the badge and headlight). */
 .mcs-story-photo img {
-  display: block; width: 100%; height: 100%; object-fit: cover; object-position: calc(15% + 30% * var(--s1)) 55%;
-  transform-origin: 41% 57%; transform: scale(calc(1 + var(--s2) * 1.3)); will-change: transform;
+  --op: 15%; --zoom: 50% 54%;
+  display: block; width: 100%; height: 100%; object-fit: cover; object-position: calc(15% + (var(--op) - 15%) * var(--s1)) 55%;
+  transform-origin: var(--zoom); transform: scale(calc(1 + var(--s2) * 1.3)); will-change: transform;
 }
 .mcs-story-photo::after {
   content: ""; position: absolute; inset: 0; opacity: var(--s1);
@@ -192,10 +195,10 @@
   background: radial-gradient(ellipse at 50% 100%, rgba(79, 216, 222, 0.32), transparent 62%), radial-gradient(rgba(238, 246, 245, 0.35) 1px, transparent 1.4px) 0 0 / 46px 46px, linear-gradient(#01080b, #072a31);
 }
 .mcs-night-floor {
-  position: absolute; left: -60%; right: -60%; top: 58%; height: 70%;
+  position: absolute; left: -60%; right: -60%; top: 58%; height: 46%;
   background-image: linear-gradient(rgba(79, 216, 222, 0.5) 2px, transparent 2px), linear-gradient(90deg, rgba(79, 216, 222, 0.22) 2px, transparent 2px);
   background-size: 110px 110px; background-position: 0 calc(var(--p) * 5000px);
-  transform-origin: 50% 0; transform: perspective(380px) rotateX(62deg);
+  transform-origin: 50% 0; transform: perspective(700px) rotateX(68deg);
   -webkit-mask-image: linear-gradient(transparent, #000 30%); mask-image: linear-gradient(transparent, #000 30%);
 }
 .mcs-night-road { position: absolute; left: 0; right: 0; bottom: 0; top: 58%; width: 100%; height: 42%; }
@@ -292,7 +295,11 @@
   .mcs-copy-intro { top: calc(38% + 0.5rem); }
 }
 @media (min-width: 56rem) {
-  .mcs-story-photo { --t: 12%; --r: 6%; --b: 12%; --l: 52%; --rad: 28px; }
+  .mcs-story-photo { --t: 12%; --r: 8%; --b: 12%; --l: 52%; --rad: 28px; }
+  .mcs-story-photo img { --op: 45%; --zoom: 30% 54%; }
+  /* The road and its grid run to the van, right of the words. */
+  .mcs-night-road { left: 32%; right: -32%; width: auto; }
+  .mcs-night-floor { left: -28%; right: -92%; }
   .mcs-story-photo::after { background: linear-gradient(90deg, rgba(4, 22, 26, 0.9), rgba(4, 22, 26, 0.4) 42%, rgba(4, 22, 26, 0) 68%); }
   .mcs-story-copy { left: max(var(--gutter), calc((100% - var(--wide)) / 2 + var(--gutter))); right: auto; width: min(42%, 36rem); }
   .mcs-copy-intro { top: 50%; transform: translateY(calc(-50% - var(--s1) * 60px)); }
