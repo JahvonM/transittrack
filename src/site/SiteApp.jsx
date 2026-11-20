@@ -3,8 +3,6 @@ import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { LOGO_URL } from "@/components/Logo";
 import { APP_ORIGIN, isSiteHost, sitePage } from "@/lib/bookingSite";
 import { SiteBase, sitePath, useSiteBase } from "@/site/siteKit";
-import "@fontsource-variable/figtree";
-import "@fontsource-variable/big-shoulders-display";
 import "@/site/site.css";
 
 // The public website. On mcsweenstransport.com it is the whole site; inside
@@ -24,7 +22,7 @@ function Header() {
       <div className="mcs-wrap">
         <Link to={to("/")} className="mcs-brand" aria-label="McSween Transport, home">
           <img src={LOGO_URL} alt="" width="42" height="42" />
-          <span>McSween Transport</span>
+          <span><b>McSween</b> <b>Transport</b></span>
         </Link>
         <nav className="mcs-nav" aria-label="Main">
           <Link className="mcs-nav-more" to={`${to("/")}#services`}>Services</Link>
@@ -59,11 +57,31 @@ function Footer() {
   );
 }
 
+// The site's typeface, Archivo (wide for headings and labels, normal width
+// for reading), from Google Fonts. Added once, on the site's pages only.
+const FONT_HREF = "https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap";
+function useSiteFont() {
+  useEffect(() => {
+    if (document.querySelector(`link[href="${FONT_HREF}"]`)) return;
+    const head = document.head;
+    [["https://fonts.googleapis.com", false], ["https://fonts.gstatic.com", true]].forEach(([href, cross]) => {
+      const pre = document.createElement("link");
+      pre.rel = "preconnect"; pre.href = href;
+      if (cross) pre.crossOrigin = "";
+      head.appendChild(pre);
+    });
+    const font = document.createElement("link");
+    font.rel = "stylesheet"; font.href = FONT_HREF;
+    head.appendChild(font);
+  }, []);
+}
+
 // Marketing pages get the site's header and footer; tracking and the legal
 // pages keep their own look. The page behind them (seen when a phone pulls
 // past the top or bottom) and the browser bar match the dark header.
-const SITE_INK = "#0b2e35";
+const SITE_INK = "#0b1f2e";
 function Framed({ children }) {
+  useSiteFont();
   useEffect(() => {
     const root = document.documentElement;
     const before = root.style.backgroundColor;
