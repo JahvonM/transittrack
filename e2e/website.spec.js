@@ -19,7 +19,7 @@ test('the home page leads to a ride request for the ride chosen', async ({ page 
   await site(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/site');
-  await expect(page.getByRole('heading', { level: 1, name: /Airport pickups, transfers and island tours in Grenada/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Airport to anywhere' })).toBeVisible();
   // Five rides on the board, each with its own request link.
   await expect(page.locator('.mcs-board-row')).toHaveCount(5);
   await expect(page.getByRole('link', { name: 'Message us on WhatsApp' })).toHaveAttribute('href', /wa\.me\/14735550100/);
@@ -28,32 +28,52 @@ test('the home page leads to a ride request for the ride chosen', async ({ page 
   await expect(page.getByRole('radio', { name: /Island tours/ })).toBeChecked();
 });
 
-test('scrolling plays the opening story, and its numbers jump to each shot', async ({ page }) => {
+test('scrolling moves the opening through its shots, and its numbers jump to each one', async ({ page }) => {
   await site(page);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/site');
   const story = page.locator('.mcs-story');
   await expect(story).toHaveAttribute('data-scene', '0');
-  await expect(page.getByRole('heading', { level: 1, name: /Airport pickups/ })).toBeInViewport();
-  // Halfway down the story: the night drive.
+  await expect(page.getByRole('heading', { level: 1, name: 'Airport to anywhere' })).toBeInViewport();
+  // The header is see-through over the opening.
+  await expect(page.locator('.mcs')).toHaveAttribute('data-over-hero', '');
+  // Halfway down: the second shot.
   await page.evaluate(() => { const s = document.querySelector('.mcs-story'); window.scrollTo(0, s.offsetTop + (s.offsetHeight - innerHeight) * 0.5); });
-  await expect(story).toHaveAttribute('data-scene', '2');
+  await expect(story).toHaveAttribute('data-scene', '1');
   await expect(page.getByRole('heading', { name: 'Anywhere on the island' })).toBeInViewport();
   // The numbers on the side go straight to a shot.
-  await page.getByRole('navigation', { name: 'Story' }).getByRole('button', { name: 'Go to Book' }).click();
-  await expect(story).toHaveAttribute('data-scene', '4');
-  await expect(page.getByRole('heading', { name: 'Book your ride' })).toBeInViewport();
-  // Shots that are off screen can't be reached with Tab.
-  expect(await page.evaluate(() => document.querySelector('.mcs-copy-intro').inert)).toBe(true);
+  await page.getByRole('navigation', { name: 'Story' }).getByRole('button', { name: 'Go to Track' }).click();
+  await expect(story).toHaveAttribute('data-scene', '2');
+  await expect(page.getByRole('heading', { name: 'Watch your bus arrive' })).toBeInViewport();
+  await expect(page.getByRole('link', { name: 'Open ride tracking' })).toBeVisible();
+  // Words and links of shots that are off screen can't be reached with Tab.
+  expect(await page.evaluate(() => document.querySelector('.mcs-open-copy[data-i="0"]').inert)).toBe(true);
+  expect(await page.evaluate(() => document.querySelector('.mcs-open-card[data-i="0"]').inert)).toBe(true);
+  // Past the opening the header is solid again.
+  await page.evaluate(() => { const s = document.querySelector('.mcs-story'); window.scrollTo(0, s.offsetTop + s.offsetHeight + 200); });
+  await expect(page.locator('.mcs')).not.toHaveAttribute('data-over-hero', '');
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+});
+
+test('on a phone the opening fits, with both buttons in reach', async ({ page }) => {
+  await site(page);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 700 });
+    await page.goto('/site');
+    await expect(page.getByRole('heading', { level: 1, name: 'Airport to anywhere' })).toBeInViewport();
+    await expect(page.locator('.mcs-open-actions').getByRole('link', { name: 'Request a ride' })).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('.mcs-open-actions').getByRole('link', { name: /Track a ride/ })).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+  }
 });
 
 test('with less motion asked for, the opening stays still', async ({ page }) => {
   await site(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/site');
-  await expect(page.getByRole('heading', { level: 1, name: /Airport pickups/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Airport to anywhere' })).toBeVisible();
   await expect(page.locator('.mcs-story')).toHaveCount(0);
   await expect(page.locator('.mcs-board-row').first()).toHaveClass(/mcs-in/);
 });
