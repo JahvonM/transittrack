@@ -46,7 +46,9 @@ function useOverHero(ref) {
     const check = () => {
       frame = 0;
       const header = page.querySelector(".mcs-header");
-      page.toggleAttribute("data-over-hero", el.getBoundingClientRect().bottom > (header?.offsetHeight || 0) + 1);
+      // Solid again once the opening is mostly scrolled away, so its buttons
+      // never show through the header.
+      page.toggleAttribute("data-over-hero", el.getBoundingClientRect().bottom > Math.max((header?.offsetHeight || 0) + 1, window.innerHeight * 0.5));
     };
     const ask = () => { if (!frame) frame = requestAnimationFrame(check); };
     check();

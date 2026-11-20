@@ -121,7 +121,8 @@
   .mcs-nav .mcs-nav-more { display: none; }
   .mcs-nav { gap: 1.1rem; }
   .mcs-brand img { width: 2.1rem; height: 2.1rem; }
-  .mcs-brand span { font-size: 0.85rem; }
+  /* The name on two lines, so it fits whole. */
+  .mcs-brand span { display: grid; font-size: 0.8rem; line-height: 1.08; }
 }
 @media (max-width: 29.99rem) {
   .mcs-nav .mcs-nav-wide { display: none; }
@@ -132,12 +133,12 @@
   .mcs-header .mcs-wrap { gap: 0.5rem; padding: 0 0.75rem; }
   .mcs .mcs-brand { gap: 0.45rem; }
   .mcs-brand img { width: 1.85rem; height: 1.85rem; }
-  .mcs-brand span { font-size: 0.74rem; }
+  .mcs-brand span { font-size: 0.7rem; }
   .mcs-nav .mcs-btn { padding: 0.45rem 0.8rem; font-size: 0.66rem; }
 }
 @media (max-width: 20.49rem) {
   .mcs-header .mcs-wrap { padding: 0 0.6rem; }
-  .mcs-brand span { font-size: 0.68rem; }
+  .mcs-brand span { font-size: 0.66rem; }
 }
 
 /* ---------------------------------------------------------------------------
@@ -230,18 +231,16 @@
 .mcs-open-card-go svg { width: 1.2rem; height: 1.2rem; }
 
 /* The shot numbers down the right (wide screens). */
-.mcs-story-rail { z-index: 4; right: var(--edge); top: 40%; transform: translateY(-50%); display: none; flex-direction: column; align-items: flex-end; gap: 0.35rem; }
+.mcs-story-rail { z-index: 4; right: clamp(1rem, 2vw, 2rem); top: 50%; transform: translateY(-50%); display: none; flex-direction: column; align-items: flex-end; gap: 0.35rem; }
 .mcs .mcs-story-rail button {
   display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem; min-height: 2.75rem; padding: 0 0.25rem;
   background: none; border: 0; cursor: pointer; color: rgba(255, 255, 255, 0.42); text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
   transition: color 0.3s ease;
 }
 .mcs-story-rail span { font: 500 0.95rem/1 var(--font); font-stretch: 125%; font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
-.mcs-story-rail b { font: 550 0.7rem/1 var(--font); font-stretch: 125%; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0; transform: translateX(6px); transition: opacity 0.25s, transform 0.25s; }
-.mcs-story-rail button::after { content: ""; width: 0; height: 1px; background: currentColor; transition: width 0.4s var(--ease); }
+.mcs-story-rail b { display: none; }
 .mcs .mcs-story-rail button:is(:hover, :focus-visible, [aria-current]) { color: #fff; }
-.mcs-story-rail button:is(:hover, :focus-visible, [aria-current]) b { opacity: 1; transform: none; }
-.mcs-story-rail button[aria-current]::after { width: 1.75rem; }
+.mcs-story-rail button[aria-current] span { font-weight: 700; }
 
 /* The turning "scroll down" badge, bottom centre (wide screens). */
 .mcs .mcs-scroll {
@@ -274,7 +273,7 @@
   }
   /* The coach on the coast road sits right of the words. */
   .mcs-shot[data-i="0"] { --x: 100%; }
-  .mcs-shot[data-i="0"] img { transform-origin: 100% 50%; scale: calc(1.16 + var(--k, 0) * 0.05); }
+  .mcs-shot[data-i="0"] img { transform-origin: 100% 50%; scale: calc(1.06 + var(--k, 0) * 0.05); }
   /* The van: a large photo on the right that fades into the sea-blue, so the
      words don't cover its front. */
   .mcs-shot[data-i="1"] img { left: 32%; width: 68%; --x: 14%; --y: 62%; -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%); mask-image: linear-gradient(90deg, transparent, #000 14%); }
@@ -286,15 +285,15 @@
   .mcs-open-actions .mcs-btn-ring { padding-right: 0.4rem; }
   .mcs-open-actions .mcs-btn-ring > span { display: grid; }
   .mcs-open-title { font-size: clamp(2.6rem, min(5.4vw, 9.5vh), 5.6rem); }
-  .mcs-open-card { display: block; }
   .mcs-story-rail { display: flex; }
   .mcs .mcs-scroll { display: grid; }
 }
-/* Wide but short screens (a laptop with its browser bars): no card. */
-@media (min-width: 56rem) and (max-height: 640px) { .mcs-open-card, .mcs .mcs-scroll { display: none; } }
+/* The card needs room beside the bus: large screens only. */
+@media (min-width: 72rem) and (min-height: 700px) { .mcs-open-card { display: block; } }
+@media (min-width: 56rem) and (max-height: 640px) { .mcs .mcs-scroll { display: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .mcs-shot, .mcs-shot img, .mcs-line > span, .mcs-open-copy, .mcs-open-copy p, .mcs-open-card, .mcs-story-rail button::after { transition: none !important; }
+  .mcs-shot, .mcs-shot img, .mcs-line > span, .mcs-open-copy, .mcs-open-copy p, .mcs-open-card, .mcs-story-rail button { transition: none !important; }
   .mcs-shot img, .mcs-line > span, .mcs-scroll-ring, .mcs-scroll svg { animation: none !important; }
 }
 
