@@ -28,12 +28,34 @@ test('the home page leads to a ride request for the ride chosen', async ({ page 
   await expect(page.getByRole('radio', { name: /Island tours/ })).toBeChecked();
 });
 
-test('the moving sign can be stopped', async ({ page }) => {
+test('scrolling plays the opening story, and its numbers jump to each shot', async ({ page }) => {
   await site(page);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/site');
-  await page.getByRole('button', { name: 'Stop the sign' }).click();
-  await expect(page.getByRole('button', { name: 'Start the sign' })).toBeVisible();
+  const story = page.locator('.mcs-story');
+  await expect(story).toHaveAttribute('data-scene', '0');
+  await expect(page.getByRole('heading', { level: 1, name: /Airport pickups/ })).toBeInViewport();
+  // Halfway down the story: the night drive.
+  await page.evaluate(() => { const s = document.querySelector('.mcs-story'); window.scrollTo(0, s.offsetTop + (s.offsetHeight - innerHeight) * 0.5); });
+  await expect(story).toHaveAttribute('data-scene', '2');
+  await expect(page.getByRole('heading', { name: 'Anywhere on the island' })).toBeInViewport();
+  // The numbers on the side go straight to a shot.
+  await page.getByRole('navigation', { name: 'Story' }).getByRole('button', { name: 'Go to Book' }).click();
+  await expect(story).toHaveAttribute('data-scene', '4');
+  await expect(page.getByRole('heading', { name: 'Book your ride' })).toBeInViewport();
+  // Shots that are off screen can't be reached with Tab.
+  expect(await page.evaluate(() => document.querySelector('.mcs-copy-intro').inert)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+});
+
+test('with less motion asked for, the opening stays still', async ({ page }) => {
+  await site(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/site');
+  await expect(page.getByRole('heading', { level: 1, name: /Airport pickups/ })).toBeVisible();
+  await expect(page.locator('.mcs-story')).toHaveCount(0);
+  await expect(page.locator('.mcs-board-row').first()).toHaveClass(/mcs-in/);
 });
 
 test('a ride request fills in the ticket beside the form and sends what was typed', async ({ page }) => {

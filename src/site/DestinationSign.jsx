@@ -1,10 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Pause, Play } from "lucide-react";
 
 // The sign on the front of a bus, lit in dots, changing to the next place
 // every few seconds. It is decoration: the words beside it say the same
-// thing. It stays still for people who ask for less motion, and it can be
-// paused.
+// thing. It stays still for people who ask their phone for less motion.
 const STOPS = ["Airport", "Your hotel", "Island tour", "St. George's", "Grand Anse"];
 const EVERY_MS = 3200;
 
@@ -14,7 +12,7 @@ const prefersStill = () => {
 
 export default function DestinationSign({ label = "" }) {
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(prefersStill);
+  const [paused] = useState(prefersStill);
   const [moved, setMoved] = useState(false);
   const line = useRef(null);
   const text = useRef(null);
@@ -52,9 +50,6 @@ export default function DestinationSign({ label = "" }) {
         <span key={`g${index}`} className={`mcs-sign-glow${cls}`}>{stop}</span>
         <span key={`t${index}`} ref={text} className={`mcs-sign-text${cls}`}>{stop}</span>
       </div>
-      <button type="button" className="mcs-sign-pause" onClick={() => setPaused((p) => !p)} aria-label={paused ? "Start the sign" : "Stop the sign"}>
-        {paused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
-      </button>
     </div>
   );
 }

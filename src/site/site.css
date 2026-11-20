@@ -126,44 +126,116 @@
   .mcs-brand span { font-size: 1.02rem; }
 }
 
-/* Hero: the McSween van (or a video of it driving) slowly drifting closer,
-   with a small glass card of a bus moving along its route. On a phone the
-   picture runs edge to edge on top and the words sit below it; on a wide
-   screen the words are on the left and the picture is a large rounded
-   panel on the right, so nothing covers the van. */
+/* The still opening (people who ask for less motion): the van on top on a
+   phone; on a wide screen the words on the left and the van as a large
+   rounded panel on the right, so nothing covers it. */
 .mcs-hero {
   position: relative; isolation: isolate; overflow: hidden;
   background: radial-gradient(ellipse at 12% 18%, rgba(79, 216, 222, 0.10), transparent 55%), var(--ink);
 }
 .mcs-hero-grid { display: flex; flex-direction: column; }
 .mcs-hero-media { position: relative; overflow: hidden; margin: 0 calc(-1 * var(--gutter)); background: var(--night); }
-.mcs-hero-media :is(img, video) {
-  display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: 50% 60%;
-  transform-origin: 30% 55%; animation: mcs-drift 26s ease-in-out infinite alternate; will-change: transform;
-}
-@keyframes mcs-drift { from { transform: scale(1.02); } to { transform: scale(1.12) translate3d(-1.5%, -1%, 0); } }
-.mcs-hero-media video { animation: none; }
+.mcs-hero-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: 50% 60%; }
 .mcs-hero-media::after { content: ""; position: absolute; inset: auto 0 0 0; height: 45%; background: linear-gradient(to top, var(--ink), rgba(11, 46, 53, 0)); pointer-events: none; }
 .mcs-hero-body { position: relative; padding: 0 0 clamp(2.5rem, 7vw, 3.5rem); margin-top: -2.5rem; }
-.mcs-hero h1 {
-  font: 800 clamp(2.6rem, 9vw, 4.75rem)/0.94 var(--display);
-  text-transform: uppercase;
-  letter-spacing: 0.005em;
-  color: #fff;
-  max-width: 14ch;
-  margin-top: 1.4rem;
+:is(.mcs-hero, .mcs-story) h1 {
+  font: 800 clamp(2.4rem, 9vw, 4.75rem)/0.94 var(--display);
+  text-transform: uppercase; letter-spacing: 0.005em; color: #fff; max-width: 14ch; margin-top: 1.1rem;
 }
-.mcs-hero-lede { margin-top: 1.35rem; max-width: 42ch; color: var(--on-ink-muted); font-size: 1.15rem; }
-.mcs-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.75rem; }
+.mcs-hero-lede { margin-top: 1.1rem; max-width: 42ch; color: var(--on-ink-muted); font-size: 1.1rem; }
+.mcs-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
 .mcs-facts { margin: 1.75rem 0 0; max-width: 34rem; color: var(--on-ink-muted); font-size: 0.95rem; }
+@media (min-width: 56rem) {
+  .mcs-hero { min-height: min(88vh, 52rem); display: grid; align-items: center; }
+  .mcs-hero-grid { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr); align-items: center; gap: clamp(2rem, 4vw, 4rem); padding-top: 3rem; padding-bottom: 3.5rem; }
+  .mcs-hero-media { order: 2; margin: 0; height: min(64vh, 36rem); min-height: 24rem; border-radius: 28px; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35); }
+  .mcs-hero-media img { height: 100%; aspect-ratio: auto; object-position: 15% 55%; }
+  .mcs-hero-media::after { display: none; }
+  .mcs-hero-body { margin-top: 0; padding: 0; }
+}
 
-/* The glass card: a bus driving from the pickup to you. */
+/* The opening story (RideStory.jsx). A tall section whose screen stays put
+   while scrolling moves through five shots. --p is the whole story (0 to 1),
+   --s1 to --s5 each shot; only the photo's box, transforms and opacity
+   change as you scroll. */
+.mcs-story { --p: 0; --s1: 0; --s2: 0; --s3: 0; --s4: 0; --s5: 0; position: relative; height: 520vh; background: var(--night); overflow-x: clip; }
+.mcs-story-stage {
+  position: sticky; top: calc(var(--header-h) + env(safe-area-inset-top));
+  height: calc(100svh - var(--header-h) - env(safe-area-inset-top)); overflow: hidden; isolation: isolate;
+  background: radial-gradient(ellipse at 12% 18%, rgba(79, 216, 222, 0.10), transparent 55%), var(--ink);
+}
+.mcs-story-stage > * { position: absolute; }
+
+/* 1-2. The van: a panel (on top on a phone), pulled out to the whole
+   screen, then a push onto the front of the van. */
+.mcs-story-photo {
+  --t: 0%; --r: 0%; --b: 58%; --l: 0%; --rad: 0px;
+  z-index: 1; overflow: hidden; background: var(--night);
+  top: calc(var(--t) * (1 - var(--s1))); right: calc(var(--r) * (1 - var(--s1)));
+  bottom: calc(var(--b) * (1 - var(--s1))); left: calc(var(--l) * (1 - var(--s1)));
+  border-radius: calc(var(--rad) * (1 - var(--s1)));
+  opacity: calc(1 - var(--s3) * 2.5);
+}
+.mcs-story-photo img {
+  display: block; width: 100%; height: 100%; object-fit: cover; object-position: calc(15% + 30% * var(--s1)) 55%;
+  transform-origin: 41% 57%; transform: scale(calc(1 + var(--s2) * 1.3)); will-change: transform;
+}
+.mcs-story-photo::after {
+  content: ""; position: absolute; inset: 0; opacity: var(--s1);
+  background: linear-gradient(0deg, rgba(4, 22, 26, 0.92), rgba(4, 22, 26, 0) 55%);
+}
+
+/* 3. The night road: a glowing grid and lane lines rushing past. */
+.mcs-story-night { inset: 0; z-index: 0; overflow: hidden; background: #03121a; opacity: min(calc(var(--s3) * 3), calc(1 - var(--s4) * 2.5)); }
+.mcs-night-sky {
+  position: absolute; inset: 0 0 42% 0;
+  background: radial-gradient(ellipse at 50% 100%, rgba(79, 216, 222, 0.32), transparent 62%), radial-gradient(rgba(238, 246, 245, 0.35) 1px, transparent 1.4px) 0 0 / 46px 46px, linear-gradient(#01080b, #072a31);
+}
+.mcs-night-floor {
+  position: absolute; left: -60%; right: -60%; top: 58%; height: 70%;
+  background-image: linear-gradient(rgba(79, 216, 222, 0.5) 2px, transparent 2px), linear-gradient(90deg, rgba(79, 216, 222, 0.22) 2px, transparent 2px);
+  background-size: 110px 110px; background-position: 0 calc(var(--p) * 5000px);
+  transform-origin: 50% 0; transform: perspective(380px) rotateX(62deg);
+  -webkit-mask-image: linear-gradient(transparent, #000 30%); mask-image: linear-gradient(transparent, #000 30%);
+}
+.mcs-night-road { position: absolute; left: 0; right: 0; bottom: 0; top: 58%; width: 100%; height: 42%; }
+.mcs-night-road polygon { fill: rgba(3, 16, 20, 0.88); }
+.mcs-road-edge { stroke: var(--glow); stroke-width: 3; filter: drop-shadow(0 0 6px rgba(79, 216, 222, 0.9)); }
+.mcs-road-lane { stroke: var(--sun); stroke-width: 5; stroke-dasharray: 26 34; stroke-dashoffset: calc(var(--p) * -3000px); opacity: 0.85; }
+.mcs-night-glow { position: absolute; left: 50%; bottom: 4%; width: min(80vw, 760px); height: 110px; transform: translateX(-50%); background: radial-gradient(ellipse at center, rgba(79, 216, 222, 0.45), transparent 70%); filter: blur(8px); }
+.mcs-night-van {
+  position: absolute; left: 50%; bottom: 6%; width: min(80vw, 600px); height: auto; transform-origin: 50% 100%;
+  transform: translateX(-50%) translateY(calc((1 - var(--s3)) * 70px)) scale(calc(0.72 + var(--s3) * 0.4));
+  filter: brightness(0.82) contrast(1.06) drop-shadow(0 0 22px rgba(79, 216, 222, 0.35)) drop-shadow(0 24px 30px rgba(0, 0, 0, 0.7));
+}
+.mcs-night-word {
+  position: absolute; left: 50%; top: 9%; white-space: nowrap; pointer-events: none;
+  font: 900 min(30vw, 22rem)/1 var(--display); text-transform: uppercase; color: transparent;
+  -webkit-text-stroke: 2px rgba(79, 216, 222, 0.32); transform: translateX(calc(-50% + (0.5 - var(--s3)) * 24vw));
+}
+
+/* 4. Track it live: the route draws itself and the bus rides it. */
+.mcs-story-track {
+  inset: 0; z-index: 0; opacity: min(calc(var(--s4) * 3), calc(1 - var(--s5) * 2.5));
+  background: radial-gradient(circle at 68% 40%, rgba(79, 216, 222, 0.14), transparent 55%), radial-gradient(rgba(238, 246, 245, 0.08) 1.2px, transparent 1.6px) 0 0 / 22px 22px, var(--night);
+}
+.mcs-track-map { position: absolute; left: 6%; right: 6%; top: 6%; bottom: 52%; }
+.mcs-track-map svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.mcs-track-shadow { fill: none; stroke: rgba(238, 246, 245, 0.16); stroke-width: 4; stroke-dasharray: 3 12; }
+.mcs-track-line { fill: none; stroke: var(--glow); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: calc(1 - var(--s4)); filter: drop-shadow(0 0 8px rgba(79, 216, 222, 0.85)); }
+.mcs-track-stop { position: absolute; transform: translate(-50%, -50%); }
+.mcs-track-stop i { display: block; width: 16px; height: 16px; border-radius: 50%; background: var(--night); border: 3px solid var(--glow); }
+.mcs-track-stop[data-end] i { background: var(--sun); border-color: var(--sun); box-shadow: 0 0 0 6px rgba(247, 201, 72, 0.25); }
+.mcs-track-stop b { position: absolute; left: 50%; top: 1.4rem; transform: translateX(-50%); white-space: nowrap; font: 600 0.8rem/1 var(--body); color: var(--on-ink); text-shadow: 0 1px 6px #000; }
+.mcs-track-bus {
+  position: absolute; transform: translate(-50%, -50%); display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%;
+  background: var(--sun); color: var(--ink); box-shadow: 0 0 0 6px rgba(247, 201, 72, 0.22), 0 0 30px rgba(247, 201, 72, 0.55);
+}
+.mcs-track-bus svg { width: 1.2rem; height: 1.2rem; }
 .mcs-live-card {
-  position: absolute; left: 1.25rem; bottom: 1.25rem; z-index: 1; display: none; width: min(19rem, calc(100% - 2.5rem));
-  padding: 1rem 1.1rem 1.1rem; border-radius: 18px; color: var(--on-ink);
-  background: rgba(7, 31, 36, 0.58); border: 1px solid rgba(238, 246, 245, 0.18);
-  -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  position: absolute; display: none; width: min(19rem, calc(100% - 2.5rem)); padding: 1rem 1.1rem 1.1rem; border-radius: 18px; color: var(--on-ink);
+  background: rgba(7, 31, 36, 0.62); border: 1px solid rgba(238, 246, 245, 0.18);
+  -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 .mcs-live-label { display: flex; align-items: center; gap: 0.45rem; font: 600 0.78rem/1 var(--body); color: var(--on-ink-muted); }
 .mcs-live-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--glow); box-shadow: 0 0 0 0 rgba(79, 216, 222, 0.6); animation: mcs-pulse 2s ease-out infinite; }
@@ -172,48 +244,91 @@
 .mcs-live-route { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.9rem; font: 600 0.8rem/1 var(--body); color: var(--on-ink-muted); }
 .mcs-live-end { display: inline-flex; align-items: center; gap: 0.3rem; flex: none; }
 .mcs-live-end svg { width: 0.9rem; height: 0.9rem; color: var(--sun); }
-.mcs-live-line {
-  position: relative; flex: 1; height: 2px; border-radius: 2px;
-  background: repeating-linear-gradient(90deg, rgba(238, 246, 245, 0.45) 0 6px, transparent 6px 11px);
-}
-.mcs-live-bus {
-  position: absolute; top: 50%; left: 0; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; margin: -0.875rem 0 0 -0.875rem;
-  border-radius: 50%; background: var(--sun); color: var(--ink); box-shadow: 0 0 0 4px rgba(247, 201, 72, 0.22);
-  animation: mcs-drive 7s cubic-bezier(.45, 0, .55, 1) infinite;
-}
-.mcs-live-bus svg { width: 0.95rem; height: 0.95rem; }
-@keyframes mcs-drive { 0% { left: 0; } 80%, 100% { left: 100%; } }
+.mcs-live-line { position: relative; flex: 1; height: 2px; background: repeating-linear-gradient(90deg, rgba(238, 246, 245, 0.4) 0 6px, transparent 6px 11px); }
+.mcs-live-fill { position: absolute; inset: 0 auto 0 0; width: calc(var(--s4) * 100%); background: var(--glow); box-shadow: 0 0 8px var(--glow); }
 
-/* Pause and play for the moving picture. */
-.mcs-motion {
-  position: absolute; right: calc(var(--gutter) + 0.5rem); top: 0.75rem; z-index: 1; display: grid; place-items: center;
-  width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 1px solid rgba(238, 246, 245, 0.3); cursor: pointer;
-  background: rgba(7, 31, 36, 0.5); color: var(--on-ink); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-}
-.mcs-motion svg { width: 1.05rem; height: 1.05rem; }
-.mcs-motion:hover { background: rgba(7, 31, 36, 0.75); }
-.mcs-still :is(img, .mcs-live-bus, .mcs-live-dot) { animation-play-state: paused; }
-@media (prefers-reduced-motion: reduce) {
-  .mcs-hero-media img, .mcs-live-dot { animation: none; }
-  .mcs-live-bus { animation: none; left: 55%; }
+/* 5. Where to? The night coast and the buttons. */
+.mcs-story-book { inset: 0; z-index: 0; opacity: calc(var(--s5) * 3); background: var(--night); }
+.mcs-story-book img {
+  position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 65%; object-fit: cover; opacity: 0.6;
+  transform: scale(calc(1.12 - var(--s5) * 0.12)); -webkit-mask-image: linear-gradient(transparent, #000 45%); mask-image: linear-gradient(transparent, #000 45%);
 }
 
+/* The words for each shot. */
+.mcs-story-copy { z-index: 3; left: var(--gutter); right: var(--gutter); color: var(--on-ink); }
+.mcs-copy-intro { top: calc(42% + 0.5rem); opacity: calc(1 - var(--s1) * 3); transform: translateY(calc(var(--s1) * -50px)); }
+.mcs-copy-shot { bottom: 7%; max-width: 38rem; }
+.mcs-copy-shot[data-n="2"] { opacity: min(calc(var(--s2) * 4), calc((1 - var(--s2)) * 4)); transform: translateY(calc((0.5 - var(--s2)) * 50px)); }
+.mcs-copy-shot[data-n="3"] { opacity: min(calc(var(--s3) * 4), calc((1 - var(--s3)) * 4)); transform: translateY(calc((0.5 - var(--s3)) * 50px)); top: 7%; bottom: auto; }
+.mcs-copy-shot[data-n="4"] { opacity: min(calc(var(--s4) * 4), calc((1 - var(--s4)) * 4)); transform: translateY(calc((0.5 - var(--s4)) * 50px)); }
+.mcs-copy-book { top: 50%; opacity: calc(var(--s5) * 3); transform: translateY(calc(-50% + (1 - var(--s5)) * 50px)); max-width: 40rem; }
+.mcs-story-kicker { display: inline-flex; align-items: center; gap: 0.6rem; font: 650 0.85rem/1 var(--body); letter-spacing: 0.01em; color: var(--sun); }
+.mcs-story-kicker::before { content: ""; width: 1.75rem; height: 2px; background: var(--sun); }
+.mcs-story h2 { margin-top: 0.85rem; font: 800 clamp(2.5rem, 11vw, 6rem)/0.92 var(--display); text-transform: uppercase; color: #fff; max-width: 11ch; text-shadow: 0 4px 30px rgba(0, 0, 0, 0.45); }
+.mcs-story-copy p { margin-top: 1rem; max-width: 40ch; color: var(--on-ink-muted); font-size: 1.08rem; }
+.mcs-copy-book .mcs-sign { margin-bottom: 1.25rem; }
+.mcs-copy-book h2 { max-width: none; }
+
+/* Where you are: numbered shots down the side, and a line along the bottom. */
+.mcs-story-rail { z-index: 4; right: 1.25rem; top: 50%; transform: translateY(-50%); display: none; flex-direction: column; gap: 0.25rem; }
+.mcs .mcs-story-rail button {
+  display: flex; align-items: center; justify-content: flex-end; gap: 0.7rem; min-height: 2.5rem; padding: 0 0.25rem;
+  background: none; border: 0; cursor: pointer; color: rgba(238, 246, 245, 0.5); text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+.mcs-story-rail span { font: 700 1rem/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.mcs-story-rail b { order: -1; font: 600 0.8rem/1 var(--body); opacity: 0; transform: translateX(6px); transition: opacity 0.2s, transform 0.2s; }
+.mcs .mcs-story-rail button:is(:hover, :focus-visible, [aria-current]) { color: #fff; }
+.mcs-story-rail button:is(:hover, :focus-visible, [aria-current]) b { opacity: 1; transform: none; }
+.mcs-story-rail button[aria-current] span { color: var(--sun); }
+.mcs-story-hint { z-index: 4; left: 50%; bottom: 1.1rem; transform: translateX(-50%); display: none; align-items: center; gap: 0.35rem; font: 600 0.8rem/1 var(--body); color: var(--on-ink-muted); opacity: calc(1 - var(--s1) * 4); }
+.mcs-story-hint svg { width: 1rem; height: 1rem; animation: mcs-bob 1.6s ease-in-out infinite; }
+@keyframes mcs-bob { 50% { transform: translateY(4px); } }
+.mcs-story-bar { z-index: 4; left: 0; right: 0; bottom: 0; height: 3px; background: var(--sun); transform-origin: 0 50%; transform: scaleX(var(--p)); }
+
+/* Short phones: the intro keeps its headline and buttons. */
+@media (max-width: 55.99rem) and (max-height: 720px) {
+  .mcs-copy-intro .mcs-hero-lede { display: none; }
+  .mcs-story-photo { --b: 62%; }
+  .mcs-copy-intro { top: calc(38% + 0.5rem); }
+}
 @media (min-width: 56rem) {
-  .mcs-hero { min-height: min(88vh, 52rem); display: grid; align-items: center; }
-  .mcs-hero-grid {
-    display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr); align-items: center;
-    gap: clamp(2rem, 4vw, 4rem); padding-top: 3rem; padding-bottom: 3.5rem;
-  }
-  .mcs-hero-media {
-    order: 2; margin: 0; height: min(64vh, 36rem); min-height: 24rem; border-radius: 28px;
-    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(238, 246, 245, 0.08);
-  }
-  .mcs-hero-media :is(img, video) { height: 100%; aspect-ratio: auto; object-position: 15% 55%; }
-  .mcs-hero-media::after { height: 55%; background: linear-gradient(to top, rgba(7, 31, 36, 0.6), rgba(7, 31, 36, 0)); }
-  .mcs-hero-body { margin-top: 0; padding: 0; }
-  .mcs-hero h1 { font-size: clamp(3rem, 4.9vw, 4.9rem); }
+  .mcs-story-photo { --t: 12%; --r: 6%; --b: 12%; --l: 52%; --rad: 28px; }
+  .mcs-story-photo::after { background: linear-gradient(90deg, rgba(4, 22, 26, 0.9), rgba(4, 22, 26, 0.4) 42%, rgba(4, 22, 26, 0) 68%); }
+  .mcs-story-copy { left: max(var(--gutter), calc((100% - var(--wide)) / 2 + var(--gutter))); right: auto; width: min(42%, 36rem); }
+  .mcs-copy-intro { top: 50%; transform: translateY(calc(-50% - var(--s1) * 60px)); }
+  .mcs-copy-shot[data-n] { top: 50%; bottom: auto; }
+  .mcs-copy-shot[data-n="2"] { transform: translateY(calc(-50% + (0.5 - var(--s2)) * 50px)); }
+  .mcs-copy-shot[data-n="3"] { transform: translateY(calc(-50% + (0.5 - var(--s3)) * 50px)); }
+  .mcs-copy-shot[data-n="4"] { transform: translateY(calc(-50% + (0.5 - var(--s4)) * 50px)); }
+  .mcs-night-van { left: 66%; bottom: 7%; width: min(46vw, 680px); }
+  .mcs-night-glow { left: 66%; }
+  .mcs-track-map { left: 46%; right: 8%; top: 14%; bottom: 20%; }
   .mcs-live-card { display: block; }
-  .mcs-motion { right: 1rem; top: 1rem; }
+  .mcs-track-card { right: 8%; bottom: 7%; }
+  .mcs-copy-book { width: min(46%, 38rem); }
+  .mcs-story-rail { display: flex; }
+  .mcs-story-hint { display: flex; }
+}
+
+/* The departures board's rows flip in, and the booking steps light up
+   along their route, as they scroll into view. */
+.mcs-board-row[data-reveal] {
+  opacity: 0; transform: perspective(900px) rotateX(-75deg); transform-origin: 50% 0;
+  transition: opacity 0.5s ease, transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1); transition-delay: calc(var(--i, 0) * 90ms);
+}
+.mcs-board-row.mcs-in { opacity: 1; transform: none; }
+.mcs-stops[data-reveal] li { opacity: 0.3; transition: opacity 0.5s ease; }
+.mcs-stops[data-reveal] li:nth-child(2) { transition-delay: 0.45s; }
+.mcs-stops[data-reveal] li:nth-child(3) { transition-delay: 0.9s; }
+.mcs-stops[data-reveal] li:not(:last-child)::after { transform: scaleY(0); transform-origin: 50% 0; transition: transform 0.6s ease 0.2s; }
+.mcs-stops[data-reveal] li:nth-child(2)::after { transition-delay: 0.65s; }
+.mcs-stops.mcs-in li { opacity: 1; }
+.mcs-stops.mcs-in li:not(:last-child)::after { transform: none; }
+@media (min-width: 56rem) { .mcs-stops[data-reveal] li:not(:last-child)::after { transform: scaleX(0); transform-origin: 0 50%; } .mcs-stops.mcs-in li:not(:last-child)::after { transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mcs-live-dot, .mcs-story-hint svg { animation: none; }
+  .mcs-board-row[data-reveal], .mcs-stops[data-reveal] li, .mcs-stops[data-reveal] li::after { transition: none; }
 }
 
 /* The destination sign: the front of a bus, saying where it is going. */
@@ -222,7 +337,7 @@
   position: relative;
   background: var(--night);
   border-radius: 14px;
-  padding: 0.85rem 3.25rem 0.85rem 1.1rem;
+  padding: 0.85rem 1.1rem;
   box-shadow: inset 0 0 0 4px #04161a, inset 0 8px 24px rgba(0, 0, 0, 0.45), 0 10px 30px rgba(0, 0, 0, 0.35);
   overflow: hidden;
   max-width: 26rem;
@@ -260,13 +375,6 @@
 .mcs-sign-glow.mcs-new { animation: mcs-glow 480ms steps(4, end) both; }
 @keyframes mcs-scan { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes mcs-glow { from { opacity: 0; } to { opacity: 0.45; } }
-.mcs .mcs-sign-pause {
-  position: absolute; right: 0.6rem; top: 50%; translate: 0 -50%;
-  width: 2.25rem; height: 2.25rem; display: grid; place-items: center;
-  border-radius: 8px; border: 1px solid rgba(159, 211, 207, 0.35); background: transparent; color: var(--on-ink-muted); cursor: pointer;
-}
-.mcs .mcs-sign-pause:hover { background: rgba(159, 211, 207, 0.12); color: #fff; }
-.mcs-sign-pause svg { width: 1rem; height: 1rem; }
 @media (prefers-reduced-motion: reduce) {
   .mcs-sign-text.mcs-new, .mcs-sign-glow.mcs-new { animation: none; }
 }
