@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, Route, Routes } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { homeFor } from "@/lib/roleHome";
@@ -16,7 +16,9 @@ import DiagramPage from "@/components/workshop/DiagramPage";
 import Models, { CarSheet } from "@/components/workshop/Models";
 import PartsPage from "@/components/workshop/PartsPage";
 import PartPage from "@/components/workshop/PartPage";
-import { ArrowLeft, BookOpen, Bus, Car, LogOut, Package, Plus, RefreshCw } from "lucide-react";
+import SearchPage, { SearchBox } from "@/components/workshop/SearchPage";
+import ReorderPage from "@/components/workshop/ReorderPage";
+import { ArrowLeft, BookOpen, Bus, Car, ClipboardList, LogOut, Package, Plus, RefreshCw, Search } from "lucide-react";
 
 // The Workshop: app.mcsweenstransport.com/workshop, for the shared tablet in
 // the workshop (and phones), laid out like a parts catalogue. Every vehicle
@@ -87,6 +89,7 @@ function useWorkshopData() {
 function Home() {
   const { vehicles, specs, diagrams, groups, parts, missing, isAdmin, user, state } = useWorkshop();
   const stock = stockSummary(parts);
+  const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
   const buses = vehicles.filter((v) => v.kind === "bus");
   const cars = vehicles.filter((v) => v.kind === "car");
@@ -117,6 +120,7 @@ function Home() {
 
   return (
     <>
+      <SearchBox className="mb-6" onSearch={(q) => navigate(q ? `/workshop/search?q=${encodeURIComponent(q)}` : "/workshop/search")} />
       {buses.length > 0 && (
         <section aria-labelledby="ws-buses" className="mb-6">
           <h2 id="ws-buses" className="mb-2 text-body font-semibold text-muted-foreground">Buses</h2>
@@ -139,6 +143,9 @@ function Home() {
               badge={!missing.parts && stock.low > 0 && <StatusChip tone="warning">{stock.low} low or out</StatusChip>}
             />
           </li>
+          {!missing.parts && stock.low > 0 && (
+            <li><Tile to="/workshop/parts/reorder" icon={ClipboardList} title="Reorder list" lines={[`${pluralize(stock.low, "part")} to order`, "Send on WhatsApp, email or print"]} /></li>
+          )}
         </ul>
       </section>
       {state === "ready" && vehicles.length === 0 && <Notice>No vehicles yet. Buses are added in Admin › Vehicles{isAdmin ? "; cars with Add a car" : ""}.</Notice>}
@@ -185,9 +192,12 @@ export default function Workshop() {
               </span>
             </Link>
             <Button asChild variant="ghost" className="ml-auto h-12 rounded-lg px-3 text-body">
+              <Link to="/workshop/search"><Search className="h-4 w-4 sm:mr-1.5" aria-hidden="true" /><span className="sr-only sm:not-sr-only">Search</span></Link>
+            </Button>
+            <Button asChild variant="ghost" className="h-12 rounded-lg px-3 text-body">
               <Link to={back.to}><ArrowLeft className="h-4 w-4 sm:mr-1.5" aria-hidden="true" /><span className="sr-only sm:not-sr-only">{back.label}</span></Link>
             </Button>
-            <Button variant="ghost" className="h-12 rounded-lg text-body" onClick={() => logout()}><LogOut className="mr-1.5 h-4 w-4" aria-hidden="true" />Sign out</Button>
+            <Button variant="ghost" className="h-12 rounded-lg px-3 text-body" onClick={() => logout()}><LogOut className="h-4 w-4 sm:mr-1.5" aria-hidden="true" /><span className="sr-only sm:not-sr-only">Sign out</span></Button>
           </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-4">
@@ -204,7 +214,9 @@ export default function Workshop() {
             <Routes>
               <Route index element={<Home />} />
               <Route path="models" element={<Models />} />
+              <Route path="search" element={<SearchPage />} />
               <Route path="parts" element={<PartsPage />} />
+              <Route path="parts/reorder" element={<ReorderPage />} />
               <Route path="parts/:partId" element={<PartPage />} />
               <Route path=":kind/:id" element={<VehiclePage />} />
               <Route path=":kind/:id/torque" element={<VehiclePage section="torque" />} />

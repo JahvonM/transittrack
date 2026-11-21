@@ -3,7 +3,7 @@
 // values and bolt maps. These are the app's rules, kept apart from the
 // screens so they can be tested.
 import { DOCUMENT_KINDS, MAX_DOCUMENT_BYTES, SECTION_IDS, checkedCounts, covers, guideFromStarter, matchesSearch } from "@/lib/busLibrary";
-import { partMatches, stockLevel } from "@/lib/partsCatalogue";
+import { numbersOf, partKey, partMatches, replacementsFor, stockLevel } from "@/lib/partsCatalogue";
 
 export const TORQUE_SYSTEMS = [
   { id: "wheels_brakes", label: "Wheels & brakes" },
@@ -433,3 +433,71 @@ export function oldViewLink(role, area) {
   const which = area === "library" ? "library" : "parts";
   return role === "admin" ? `/admin/${which}` : `/mechanic?tab=${which}&old=1`;
 }
+
+// ----- scanning a part's barcode -----
+
+// The parts a scanned code points at, most certain first: a part whose own
+// number is the whole code (dashes and spaces don't matter); else a part with
+// it as a replacement number; else a known number of 6 or more characters
+// inside the code, as box labels often add a prefix or a quantity (the
+// longest such number wins).
+export function partFromScan(text, parts = [], interchanges = []) {
+  const number = String(text ?? "").trim();
+  const key = partKey(number);
+  if (key.length < 3) return { matches: [], number };
+  const known = parts.map((part) => ({ part, own: numbersOf(part), other: replacementsFor(part, interchanges).map((r) => partKey(r.number)).filter(Boolean) }));
+  const own = known.filter((k) => k.own.includes(key)).map((k) => k.part);
+  if (own.length) return { matches: own, number };
+  const replaced = known.filter((k) => k.other.includes(key)).map((k) => k.part);
+  if (replaced.length) return { matches: replaced, number };
+  let best = 0;
+  let inside = [];
+  for (const k of known) {
+    const len = Math.max(0, ...[...k.own, ...k.other].filter((n) => n.length >= 6 && key.includes(n)).map((n) => n.length));
+    if (!len) continue;
+    if (len > best) { best = len; inside = [k.part]; } else if (len === best) inside.push(k.part);
+  }
+  return { matches: inside, number };
+}
+
+// ----- reordering low stock -----
+
+export const BUSINESS_NAME = "McSween Transport";
+
+// How many to order: back up to twice the warning level, at least one; one
+// when no warning level is set.
+export function suggestedOrder(part) {
+  const qty = Math.max(0, Number(part?.quantity_in_stock) || 0);
+  const min = part?.min_stock == null || part.min_stock === "" ? 0 : Number(part.min_stock);
+  if (!Number.isFinite(min) || min <= 0) return 1;
+  return Math.max(1, 2 * min - qty);
+}
+
+// The parts that are low or out of stock, by supplier ("" when none is set,
+// listed last), each with how many to order.
+export function reorderLines(parts = []) {
+  const groups = new Map();
+  for (const part of parts) {
+    if (stockLevel(part) === "ok") continue;
+    const name = String(part.supplier || "").trim();
+    const key = name.toLowerCase();
+    if (!groups.has(key)) groups.set(key, { supplier: name, lines: [] });
+    groups.get(key).lines.push({ part, qty: suggestedOrder(part) });
+  }
+  const out = [...groups.values()];
+  for (const g of out) g.lines.sort((a, b) => String(a.part.part_name || "").localeCompare(String(b.part.part_name || ""), undefined, { numeric: true }));
+  return out.sort((a, b) => (!a.supplier) - (!b.supplier) || a.supplier.localeCompare(b.supplier));
+}
+
+// One line of an order: the part's numbers, its name and how many.
+export const orderLine = ({ part, qty }) =>
+  `• ${[[part.oem_number, part.aftermarket_number].filter(Boolean).join(" / "), part.part_name].filter(Boolean).join(" ")} × ${qty}`;
+
+// An order as a message for WhatsApp, email or reading out.
+export function orderMessage({ supplier = "", lines = [] } = {}) {
+  return [`Hello${supplier ? ` ${supplier}` : ""},`, `${BUSINESS_NAME} would like to order:`, ...lines.map(orderLine), "", "Thank you."].join("\n");
+}
+
+export const orderEmailLink = (order) =>
+  `mailto:?subject=${encodeURIComponent(`Parts order from ${BUSINESS_NAME}`)}&body=${encodeURIComponent(orderMessage(order))}`;
+
