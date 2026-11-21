@@ -13,6 +13,9 @@ let locked = 0;
 
 beforeEach(() => {
   vi.useFakeTimers();
+  // Local noon: the checks below wait up to two minutes, which must not
+  // cross midnight into the next day (the unlock is for one day).
+  vi.setSystemTime(new Date(2026, 5, 15, 12, 0, 0));
   installMemoryStorage();
   vi.stubGlobal('crypto', webcrypto);
   vi.stubGlobal('navigator', { onLine: true });

@@ -63,3 +63,38 @@ test('a style file that never loads still lets the page open',async({page})=>{
  expect(state.reports[0]).toMatchObject({source:'style'});
  expect(state.reports[0].message).toMatch(/^Unable to preload CSS/);
 });
+
+// An address the open version doesn't have: usually a page added by a newer
+// version than the saved copy the device opened. The app gets the newest
+// version and reloads into it once; if the page still isn't there, it says so
+// plainly (no leftover builder text).
+test('an unknown address reloads once into the newest version, then says the page is not there',async({page})=>{
+ const state=await admin(page,{failTimes:0});
+ await page.goto('/no-such-page');
+ await expect(page.getByRole('heading',{name:'Page not found'})).toBeVisible({timeout:20000});
+ expect(state.loads).toBe(2);
+ await expect(page.getByText('/no-such-page',{exact:true})).toBeVisible();
+ await expect(page.getByText(/Admin Note|implement it in the chat|404/)).toHaveCount(0);
+ await page.waitForTimeout(1500);
+ expect(state.loads).toBe(2);
+ expect(state.reports).toEqual([]);
+ await page.getByRole('button',{name:'Go home'}).click();
+ await expect(page).not.toHaveURL(/no-such-page/);
+});
+
+// Offline, a reload can't fetch anything, so it says why and waits; once the
+// device is back online it gets the newest version by itself.
+test('offline, an unknown address says so without reloading, then updates once back online',async({page})=>{
+ const state=await admin(page,{failTimes:0});
+ await page.goto('/admin/app-errors');
+ await expect(page.getByRole('heading',{name:'App errors',level:1})).toBeVisible({timeout:20000});
+ await page.evaluate(()=>{ Object.defineProperty(navigator,'onLine',{configurable:true,get:()=>false}); window.dispatchEvent(new Event('offline')); history.pushState({},'','/no-such-page'); window.dispatchEvent(new PopStateEvent('popstate')); });
+ await expect(page.getByRole('heading',{name:'Page not found'})).toBeVisible();
+ await expect(page.getByText("If this page is new, it opens once you're back online.")).toBeVisible();
+ await page.waitForTimeout(1000);
+ expect(state.loads).toBe(1);
+ await page.evaluate(()=>{ Object.defineProperty(navigator,'onLine',{configurable:true,get:()=>true}); window.dispatchEvent(new Event('online')); });
+ await expect.poll(()=>state.loads,{timeout:20000}).toBe(2);
+ await expect(page.getByRole('heading',{name:'Page not found'})).toBeVisible({timeout:20000});
+ expect(state.reports).toEqual([]);
+});

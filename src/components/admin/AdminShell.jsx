@@ -46,6 +46,7 @@ import {
   ShieldCheck,
   LifeBuoy,
   BookOpen,
+  Warehouse,
   Hourglass,
   ClipboardCheck,
   Tv,
@@ -88,6 +89,8 @@ export const ADMIN_SECTIONS = [
   { id: "plan-pickups", label: "Plan pickups", icon: Users },
   { id: "travel-times", label: "Travel times", icon: Hourglass },
 
+  // The Workshop app (/workshop): parts catalogue, torque values and photos.
+  { id: "workshop", label: "Workshop", icon: Warehouse },
   { id: "service", label: "Service Queue", icon: Wrench },
   { id: "faults", label: "Faults", icon: AlertTriangle },
   { id: "parts", label: "Parts", icon: Package },

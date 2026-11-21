@@ -8,6 +8,7 @@ import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useStat
 import SupportNumberSetting from "@/components/admin/SupportNumberSetting";
 import BusinessDetailsSetting from "@/components/admin/BusinessDetailsSetting";
 import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
+import { adminPath } from "@/lib/adminMenu";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { EmbeddedLayout } from "@/components/AppLayout";
@@ -182,7 +183,7 @@ export default function Admin() {
   const adminLoader=useMemo(()=>createAdminBatchLoader(keys=>withRateLimitRetry(()=>base44.functions.invoke("entityAccess",{entity:"AdminBootstrap",operation:"list",datasets:keys}))),[user?.id]);
 
 
-  const go = (s) => navigate("/admin/" + s);
+  const go = (s) => navigate(adminPath(s));
 
   const sectionKeys = useMemo(
     () => PASSENGER_SECTIONS.includes(section) ? [] : ["vehicles", ...(SECTION_DATA[section] || [])].filter((k, i, a) => a.indexOf(k) === i),

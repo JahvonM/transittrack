@@ -61,7 +61,7 @@ export const ADMIN_MENU = [
   "signup-day",
   "users",
   "companies",
-  { group: "Maintenance", ids: ["service", "faults", "parts", "library", "schedule", "calendar", "templates", "inspection-history", "service-history", "incident-reports", "safety-standards"] },
+  { group: "Maintenance", ids: ["workshop", "service", "faults", "parts", "library", "schedule", "calendar", "templates", "inspection-history", "service-history", "incident-reports", "safety-standards"] },
   { group: "Operations", ids: ["kiosks", "messaging", "lost-items", "ride-history", "passenger-bookings", "support"] },
   "divider",
   "ads",
@@ -69,6 +69,11 @@ export const ADMIN_MENU = [
   "profile",
   { group: "All tools", ids: ["notifications", "app-errors", "audit", "data"] },
 ];
+
+// Sections that are screens of their own, outside the admin area. The menu
+// and the search box open them at their own address.
+export const OWN_PAGES = { workshop: "/workshop" };
+export const adminPath = (section) => OWN_PAGES[section] || "/admin/" + section;
 
 // The hub a section is a tab of, or null.
 export function hubOf(section) {
