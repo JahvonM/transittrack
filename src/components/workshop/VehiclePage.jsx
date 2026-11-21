@@ -5,23 +5,27 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { busRecordWarnings, chunks, guideTitle, modelKey, yearsLabel } from "@/lib/busLibrary";
+import { busRecordWarnings, checkedCounts, chunks, guideTitle, modelKey, yearsLabel } from "@/lib/busLibrary";
 import { newGroups, parseDiagramIndex, progress, stockFor, stockIndex } from "@/lib/makerCatalogue";
 import { pictureSource } from "@/lib/partDrawings";
 import {
   catalogueCategories, catalogueName, categorySlug, embeddable, groupMatches, isToyotaDiagram, jpCarPartsLink, jpCarPartsModel,
-  modelCodeFor, pictureForGroup, torqueCounts,
+  modelCodeFor, partsForGuide, pictureForGroup, stockSummary, torqueCounts,
 } from "@/lib/workshop";
 import { EditSheet, Field, Notice, ScreenBar, pluralize, useVehicleRoute } from "@/components/workshop/kit";
 import TorqueSection from "@/components/workshop/TorqueSection";
+import SpecsSection from "@/components/workshop/SpecsSection";
+import ManualsSection from "@/components/workshop/ManualsSection";
+import ModelPartsSection from "@/components/workshop/ModelParts";
 import PhotosSection, { Thumb } from "@/components/workshop/Pictures";
 import { CarSheet } from "@/components/workshop/Models";
-import { BookOpen, ClipboardPaste, Copy, Link2, MapPin, Pencil, Search, Wrench } from "lucide-react";
+import { BookOpen, ClipboardList, ClipboardPaste, Copy, FileText, Link2, MapPin, Package, Pencil, Search, Wrench } from "lucide-react";
 
 // A vehicle's page, laid out like a parts catalogue: the vehicle's details
-// at the top; down the side its sections (torque values, photos, and the
-// maker's own categories of diagrams, pasted in from Partsouq); and in the
-// middle, the section's table or its diagrams as pictures to tap.
+// at the top; down the side its sections (torque values, specs & service,
+// the parts that fit, photos, manuals, and the maker's own categories of
+// diagrams, pasted in from Partsouq); and in the middle, the section's table
+// or its diagrams as pictures to tap.
 
 function VehicleInfo({ vehicle, guide, modelCode }) {
   const { toast } = useToast();
@@ -234,7 +238,7 @@ function CategorySection({ name, groups, base }) {
 
 export default function VehiclePage({ section }) {
   const { category: slug } = useParams();
-  const { vehicle, guide, base, kind, specs, diagrams, groups, isAdmin } = useVehicleRoute();
+  const { vehicle, guide, base, kind, specs, diagrams, groups, facts, documents, parts, isAdmin } = useVehicleRoute();
   const [pasting, setPasting] = useState(false);
   const mine = useMemo(() => (guide ? groups.filter((g) => g.guide_id === guide.id) : []), [groups, guide]);
   const categories = useMemo(() => catalogueCategories(mine), [mine]);
@@ -260,10 +264,16 @@ export default function VehiclePage({ section }) {
   }
 
   const torque = torqueCounts(specs.filter((s) => s.guide_id === guide.id));
+  const library = checkedCounts(facts.filter((f) => f.guide_id === guide.id));
+  const fitting = stockSummary(partsForGuide(parts, guide.id));
+  const manuals = documents.filter((d) => d.guide_id === guide.id).length;
   const pictures = diagrams.filter((d) => d.guide_id === guide.id).length;
   const items = [
     { key: "torque", label: "Torque values", count: torque.total, to: `${base}/torque`, icon: Wrench, hint: torque.unchecked ? `${torque.unchecked} not checked` : "How tight each bolt goes" },
+    { key: "specs", label: "Specs & service", count: library.total, to: `${base}/specs`, icon: ClipboardList, hint: library.unchecked ? `${library.unchecked} not checked` : "Oils, tyres, service schedule" },
+    { key: "parts", label: "Parts that fit", count: fitting.total, to: `${base}/parts`, icon: Package, hint: fitting.low ? `${fitting.low} low or out` : "From your shelves" },
     { key: "maps", label: "Photos & bolt maps", count: pictures, to: `${base}/maps`, icon: MapPin, hint: "Numbered pins on your own photos" },
+    { key: "manuals", label: "Manuals", count: manuals, to: `${base}/manuals`, icon: FileText, hint: "Owner's and workshop manuals" },
     ...[...categories].map(([name, list]) => ({ key: `c:${categorySlug(name)}`, name, label: name, count: list.length, to: `${base}/c/${categorySlug(name)}`, icon: BookOpen, hint: `Maker's diagrams · parts pasted for ${progress(list).done}` })),
   ];
   const current = section === "category" ? items.find((i) => i.key === `c:${slug}`) : items.find((i) => i.key === section);
@@ -306,6 +316,9 @@ export default function VehiclePage({ section }) {
             </section>
           )}
           {section === "torque" && <TorqueSection kind={kind} guide={guide} />}
+          {section === "specs" && <SpecsSection kind={kind} guide={guide} />}
+          {section === "parts" && <ModelPartsSection kind={kind} guide={guide} />}
+          {section === "manuals" && <ManualsSection guide={guide} />}
           {section === "maps" && <PhotosSection guide={guide} base={base} />}
           {section === "category" && <CategorySection name={current.name} groups={categories.get(current.name)} base={base} />}
         </div>

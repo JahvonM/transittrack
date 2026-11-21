@@ -83,12 +83,12 @@ test('on the tablet: a vehicle page like a parts catalogue, and checking and add
   await expect(details).toContainText('KDH212R-JEMDY');
   await expect(details).toContainText('2KD-FTV 2.5 diesel turbo');
   const sections = page.getByRole('region', { name: 'Sections' });
-  await expect(sections.getByRole('link')).toHaveText([/Torque values \(1\)/, /Photos & bolt maps \(1\)/, /Engine \/ Fuel \/ Tool \(2\)/]);
+  await expect(sections.getByRole('link')).toHaveText([/Torque values \(1\)/, /Specs & service \(0\)/, /Parts that fit \(2\)/, /Photos & bolt maps \(1\)/, /Manuals \(0\)/, /Engine \/ Fuel \/ Tool \(2\)/]);
   await page.screenshot({ path: '/tmp/tt-workshop-vehicle.png' });
 
   await sections.getByRole('link', { name: /Torque values/ }).click();
   const nav = page.getByRole('navigation', { name: 'Catalogue' });
-  await expect(nav.getByRole('link')).toHaveText([/Torque values\s*1/, /Photos & bolt maps\s*1/, /Engine \/ Fuel \/ Tool\s*2/]);
+  await expect(nav.getByRole('link')).toHaveText([/Torque values\s*1/, /Specs & service\s*0/, /Parts that fit\s*2/, /Photos & bolt maps\s*1/, /Manuals\s*0/, /Engine \/ Fuel \/ Tool\s*2/]);
   await expect(page).toHaveURL(/\/workshop\/bus\/bus-a\/torque$/);
   await expect(nav.getByRole('link', { name: /Torque values/ })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('navigation', { name: 'Where you are' })).toContainText('Workshop');
@@ -346,7 +346,7 @@ test('on a phone: every page fits the screen, and the sheet fills it', async ({ 
   const { errors } = await open(page, '/workshop', { width: 390, height: 844 });
   await expect(page.getByRole('region', { name: 'Buses' }).getByRole('link')).toHaveCount(2);
   await noSideScroll(page);
-  for (const path of ['/workshop/bus/bus-a', '/workshop/bus/bus-a/torque', '/workshop/bus/bus-a/c/engine-fuel-tool', '/workshop/bus/bus-a/group/c1']) {
+  for (const path of ['/workshop/bus/bus-a', '/workshop/bus/bus-a/torque', '/workshop/bus/bus-a/specs', '/workshop/bus/bus-a/parts', '/workshop/bus/bus-a/manuals', '/workshop/bus/bus-a/c/engine-fuel-tool', '/workshop/bus/bus-a/group/c1', '/workshop/parts', '/workshop/parts/p2']) {
     await page.goto(path);
     await page.getByRole('navigation', { name: 'Where you are' }).waitFor();
     await settle(page);
@@ -401,6 +401,9 @@ test('a mechanic opens the Workshop from their screen, and comes back', async ({
   await page.getByRole('link', { name: 'Workshop', exact: true }).click();
   await expect(page).toHaveURL(/\/workshop$/);
   await expect(page.getByRole('link', { name: 'Workshop home' })).toBeVisible();
+  // The new screen slides in from the side (.tt-route-in): measure once it
+  // has arrived, like the phone test above.
+  await settle(page);
   await noSideScroll(page);
   await page.getByRole('link', { name: 'Mechanic', exact: true }).click();
   await expect(page).toHaveURL(/\/mechanic$/);

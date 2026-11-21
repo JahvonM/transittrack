@@ -145,6 +145,10 @@ test('the starter replacement numbers are added once from the library', async ({
 test('a mechanic has the library, with part pictures, in their dashboard', async ({ page }) => {
   const { errors } = await open(page, '/mechanic', { role: 'mechanic', width: 390, height: 844 });
   await page.getByRole('tab', { name: 'Library' }).click();
+  // It moved to the Workshop; the old view is one tap away for now.
+  await expect(page.getByRole('note')).toContainText('The Bus library now lives in the Workshop');
+  await expect(page.getByRole('note').getByRole('link', { name: 'Open in the Workshop' })).toHaveAttribute('href', '/workshop');
+  await page.getByRole('button', { name: 'Old view' }).click();
   await page.getByRole('button', { name: /Toyota Hiace/ }).click();
   await expect(page.getByRole('region', { name: 'Part pictures' })).toContainText('Front brakes');
   // Mechanics don't delete.
@@ -294,7 +298,7 @@ test('the parts kiosk (/parts) on a tablet: no menus, the dark app look, and add
   await expect(log.getByRole('listitem')).toHaveCount(3);
   await expect(log.getByRole('listitem').first()).toContainText('+1 to stock, now 8');
   await expect(log.getByRole('listitem').last()).toContainText('New part, 2 in stock');
-  await expect(log.getByRole('link', { name: 'See all parts' })).toHaveAttribute('href', '/mechanic');
+  await expect(log.getByRole('link', { name: 'See all parts' })).toHaveAttribute('href', '/workshop/parts');
   await page.screenshot({ path: '/tmp/tt-parts-kiosk.png' });
   expect(errors).toEqual([]);
 });
@@ -376,7 +380,7 @@ test('the parts kiosk on a phone: one screen with Add always in view, a photo up
   await page.getByRole('button', { name: /^Added on this screen/ }).click();
   const log = page.getByRole('dialog', { name: 'Added on this screen' });
   await expect(log.getByRole('listitem')).toHaveCount(3);
-  await expect(log.getByRole('link', { name: 'See all parts' })).toHaveAttribute('href', '/admin/parts');
+  await expect(log.getByRole('link', { name: 'See all parts' })).toHaveAttribute('href', '/workshop/parts');
   await page.screenshot({ path: '/tmp/tt-parts-kiosk-phone-log.png' });
   await page.keyboard.press('Escape');
 

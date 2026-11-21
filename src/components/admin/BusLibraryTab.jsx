@@ -17,6 +17,7 @@ import REPLACEMENTS from "@/data/partsCatalogue/replacements.json";
 import PICTURES from "@/data/partsCatalogue/pictures.json";
 import { starterPictures } from "@/lib/partDrawings";
 import { starterInterchanges } from "@/lib/partsCatalogue";
+import { openGuideDocument, uploadGuideDocument } from "@/lib/guideDocuments";
 import {
   DOCUMENT_KINDS, FACT_STATUS, MAX_DOCUMENT_BYTES, SECTIONS,
   busRecordWarnings, busesOf, bySection, checkedCounts, chunks, documentKindLabel, documentText,
@@ -537,8 +538,7 @@ function DocumentsPanel({ guide, documents, canDelete, onChange }) {
     }
     setSaving(true);
     try {
-      const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
-      await base44.entities.GuideDocument.create({ guide_id: guide.id, title: form.title.trim(), kind: form.kind, notes: form.notes.trim(), file_uri, file_name: file.name });
+      await uploadGuideDocument({ guideId: guide.id, title: form.title, kind: form.kind, notes: form.notes, file });
       setForm({ title: "", kind: "owners_manual", notes: "" });
       setFile(null);
       await onChange();
@@ -550,14 +550,9 @@ function DocumentsPanel({ guide, documents, canDelete, onChange }) {
   };
   const openDoc = async (doc) => {
     setOpening(doc.id);
-    // Opened in the click, before the link arrives, so pop-up blockers allow it.
-    const win = window.open("", "_blank");
-    if (win) win.opener = null;
     try {
-      const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({ file_uri: doc.file_uri, expires_in: 300 });
-      if (win) win.location.href = signed_url; else window.location.assign(signed_url);
+      await openGuideDocument(doc);
     } catch (e) {
-      win?.close();
       toast({ title: "Couldn't open the document", description: e?.message, variant: "destructive" });
     } finally {
       setOpening("");

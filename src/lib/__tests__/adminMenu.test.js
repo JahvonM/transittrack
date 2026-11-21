@@ -45,12 +45,14 @@ describe("admin menu", () => {
     expect(links).toBe(37);
   });
 
-  it("opens the Workshop at its own address, first under Maintenance; every other section inside Admin", () => {
-    expect(OWN_PAGES).toEqual({ workshop: "/workshop" });
+  it("opens the Workshop at its own address, first under Maintenance; Parts and Bus library open it too; every other section inside Admin", () => {
+    expect(OWN_PAGES).toEqual({ workshop: "/workshop", parts: "/workshop/parts", library: "/workshop" });
     expect(ADMIN_MENU.find((e) => e && e.group === "Maintenance").ids[0]).toBe("workshop");
     expect(adminPath("workshop")).toBe("/workshop");
-    expect(adminPath("parts")).toBe("/admin/parts");
-    expect(adminPath("library")).toBe("/admin/library");
+    expect(adminPath("parts")).toBe("/workshop/parts");
+    expect(adminPath("library")).toBe("/workshop");
+    expect(adminPath("faults")).toBe("/admin/faults");
+    expect(adminPath("service")).toBe("/admin/service");
   });
 
   it("finds a section's hub and folding group", () => {

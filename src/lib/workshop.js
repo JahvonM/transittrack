@@ -2,7 +2,8 @@
 // buses, and the workshop's own cars), and for each its model page's torque
 // values and bolt maps. These are the app's rules, kept apart from the
 // screens so they can be tested.
-import { checkedCounts, covers, guideFromStarter, matchesSearch } from "@/lib/busLibrary";
+import { DOCUMENT_KINDS, MAX_DOCUMENT_BYTES, SECTION_IDS, checkedCounts, covers, guideFromStarter, matchesSearch } from "@/lib/busLibrary";
+import { partMatches, stockLevel } from "@/lib/partsCatalogue";
 
 export const TORQUE_SYSTEMS = [
   { id: "wheels_brakes", label: "Wheels & brakes" },
@@ -308,4 +309,127 @@ export function jpCarPartsLink(listUrl, code) {
   for (const key of ["maker", "type", "model", "profile"]) url.searchParams.set(key, params[key]);
   url.searchParams.set("fig", fig);
   return url.toString();
+}
+
+// ----- parts (the stock) -----
+
+const byPartName = (a, b) => String(a.part_name || "").localeCompare(String(b.part_name || ""), undefined, { numeric: true });
+
+// The parts that fit a model page, by name.
+export const partsForGuide = (parts = [], guideId) =>
+  guideId ? parts.filter((p) => Array.isArray(p.guide_ids) && p.guide_ids.includes(guideId)).sort(byPartName) : [];
+
+// How many parts there are, and how many are low or out of stock.
+export const stockSummary = (parts = []) => ({ total: parts.length, low: parts.filter((p) => stockLevel(p) !== "ok").length });
+
+// The Parts page's list: every word of the search in a name or any number
+// (replacement numbers too), then only the low ones when asked; by name.
+// show: "all" or "low".
+export const visibleParts = (parts = [], interchanges = [], { query = "", show = "all" } = {}) =>
+  parts.filter((p) => (show !== "low" || stockLevel(p) !== "ok") && partMatches(p, query, interchanges)).sort(byPartName);
+
+// The count after some taps on − and +; never below 0.
+export const nextStock = (count, delta) => Math.max(0, (Math.floor(Number(count)) || 0) + (Math.trunc(Number(delta)) || 0));
+
+// A part's details, as the edit sheet shows them, and what saving sends: the
+// same fields as Admin › Parts › Details. Models only from pages that exist.
+const PART_TEXT = ["part_name", "oem_number", "aftermarket_number", "vehicle_compatibility", "category", "supplier", "bin_location"];
+export const partForm = (part = {}) => ({
+  ...Object.fromEntries(PART_TEXT.map((k) => [k, String(part[k] ?? "")])),
+  unit_price: part.unit_price == null ? "" : String(part.unit_price),
+  min_stock: part.min_stock == null ? "" : String(part.min_stock),
+  guide_ids: Array.isArray(part.guide_ids) ? part.guide_ids : [],
+});
+export function partData(form, guides = []) {
+  const t = (k) => String(form[k] ?? "").trim();
+  const known = new Set(guides.map((g) => g.id));
+  return {
+    ...Object.fromEntries(PART_TEXT.map((k) => [k, t(k)])),
+    unit_price: Number(t("unit_price")) || 0,
+    min_stock: t("min_stock") === "" ? null : Number(t("min_stock")),
+    ...(guides.length ? { guide_ids: (form.guide_ids || []).filter((id) => known.has(id)) } : {}),
+  };
+}
+export function partProblem(form) {
+  const t = (k) => String(form[k] ?? "").trim();
+  if (!t("part_name")) return "A part needs a name.";
+  const min = t("min_stock");
+  if (min !== "" && !(Number.isInteger(Number(min)) && Number(min) >= 0 && Number(min) <= 100000)) return "Warn at is a whole number, up to 100,000.";
+  const price = t("unit_price");
+  if (price !== "" && !(Number.isFinite(Number(price)) && Number(price) >= 0)) return "The price is a number.";
+  if (t("bin_location").length > 60) return "Kept at is up to 60 characters.";
+  return "";
+}
+
+// ----- specs & service (the model page's facts) -----
+
+// The server's limits (entityAccess, GuideFact).
+export const FACT_TEXT_LIMITS = { label: 200, value: 500, detail: 4000, applies_to: 200, source_name: 200, source_link: 2000 };
+export const MAX_INTERVAL_KM = 1_000_000;
+export const MAX_INTERVAL_MONTHS = 240;
+const FACT_FIELDS = ["section", "label", "value", "applies_to", "interval_km", "interval_months", "detail", "source_name", "source_link"];
+
+export const blankFact = (section = "specs") => ({ section, label: "", value: "", applies_to: "", interval_km: "", interval_months: "", detail: "", source_name: "", source_link: "" });
+export const factForm = (fact = {}) => ({ ...blankFact(fact.section || "specs"), ...Object.fromEntries(FACT_FIELDS.filter((k) => fact[k] != null).map((k) => [k, String(fact[k])])) });
+
+// What saving sends. Only the service schedule has km and months. When a
+// fact is edited, only what changed is sent: the server marks a fact
+// "Not checked" again when its answer changes, and an unchanged save must
+// not do that.
+export function factData(form, existing = null) {
+  const t = (k) => String(form[k] ?? "").trim();
+  const service = form.section === "service";
+  const amount = (k) => (service && t(k) !== "" ? Number(t(k)) : null);
+  const data = {
+    section: SECTION_IDS.has(form.section) ? form.section : "notes",
+    label: t("label"), value: t("value"), applies_to: t("applies_to"), detail: t("detail"),
+    interval_km: amount("interval_km"), interval_months: amount("interval_months"),
+    source_name: t("source_name"), source_link: t("source_link"),
+  };
+  if (!existing) return data;
+  const same = (a, b) => String(a ?? "") === String(b ?? "");
+  return Object.fromEntries(Object.entries(data).filter(([k, v]) => !same(v, existing[k])));
+}
+
+export function factProblem(form) {
+  const t = (k) => String(form[k] ?? "").trim();
+  if (!t("label")) return "Say what it is, like Engine oil with filter.";
+  if (!SECTION_IDS.has(form.section)) return "Choose a section.";
+  for (const [field, max] of Object.entries(FACT_TEXT_LIMITS)) if (t(field).length > max) return "One of the boxes is too long.";
+  if (t("source_link") && !/^https:\/\/\S+$/i.test(t("source_link"))) return "The source link must start with https://";
+  if (form.section === "service") {
+    const whole = (k, max) => t(k) === "" || (Number.isInteger(Number(t(k))) && Number(t(k)) >= 0 && Number(t(k)) <= max);
+    if (!whole("interval_km", MAX_INTERVAL_KM)) return "Every … km is a whole number, up to 1,000,000.";
+    if (!whole("interval_months", MAX_INTERVAL_MONTHS)) return "Months is a whole number, up to 240.";
+  }
+  return "";
+}
+
+// After the facts already on the page.
+export const nextFactOrder = (facts = [], guideId) => facts.filter((f) => f.guide_id === guideId).reduce((max, f) => Math.max(max, Number(f.sort_order) || 0), 0) + 10;
+
+// ----- manuals -----
+
+export const DOCUMENT_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp", "image/heic"];
+export const DOCUMENT_TEXT_LIMITS = { title: 200, notes: 4000 };
+const DOCUMENT_KIND_IDS = new Set(DOCUMENT_KINDS.map((k) => k.id));
+
+export function documentProblem({ title, kind, notes, file }) {
+  const t = String(title ?? "").trim();
+  if (!t) return "Give it a title, like Owner's manual 2017.";
+  if (t.length > DOCUMENT_TEXT_LIMITS.title || String(notes ?? "").trim().length > DOCUMENT_TEXT_LIMITS.notes) return "One of the boxes is too long.";
+  if (!DOCUMENT_KIND_IDS.has(kind)) return "Choose what kind of document it is.";
+  if (!file) return "Choose the file: a PDF or a photo.";
+  if (file.size > MAX_DOCUMENT_BYTES) return "That file is over 25 MB. Split a big manual into chapters.";
+  if (file.type && !DOCUMENT_TYPES.includes(file.type)) return "Use a PDF or a photo (PNG, JPEG, WebP or HEIC).";
+  return "";
+}
+
+// ----- the old screens, kept for one release -----
+
+// Where the old Parts or Bus library screen is for this person: Admin's,
+// or the mechanic screen's tab, opened on the old view.
+export function oldViewLink(role, area) {
+  const which = area === "library" ? "library" : "parts";
+  return role === "admin" ? `/admin/${which}` : `/mechanic?tab=${which}&old=1`;
 }

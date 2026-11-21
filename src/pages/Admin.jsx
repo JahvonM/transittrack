@@ -9,6 +9,7 @@ import SupportNumberSetting from "@/components/admin/SupportNumberSetting";
 import BusinessDetailsSetting from "@/components/admin/BusinessDetailsSetting";
 import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
 import { adminPath } from "@/lib/adminMenu";
+import MovedToWorkshop from "@/components/admin/MovedToWorkshop";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { EmbeddedLayout } from "@/components/AppLayout";
@@ -559,8 +560,18 @@ export default function Admin() {
           />
         )}
         {section === "faults" && <FaultsTab faults={faults} onChange={refresh} />}
-        {section === "parts" && <PartsTab parts={parts} companies={companies} onChange={refresh} />}
-        {section === "library" && <BusLibraryTab vehicles={vehicles} canDelete />}
+        {section === "parts" && (
+          <>
+            <MovedToWorkshop title="Parts now lives in the Workshop." to="/workshop/parts" />
+            <PartsTab parts={parts} companies={companies} onChange={refresh} />
+          </>
+        )}
+        {section === "library" && (
+          <>
+            <MovedToWorkshop title="The Bus library now lives in the Workshop: each vehicle's specs, service schedule, parts and manuals." to="/workshop" />
+            <BusLibraryTab vehicles={vehicles} canDelete />
+          </>
+        )}
         {section === "schedule" && <MaintenanceScheduleTab schedules={schedules} vehicles={vehicles} onChange={refresh} />}
         {section === "calendar" && <MaintenanceCalendarTab schedules={schedules} vehicles={vehicles} />}
         {section === "templates" && <InspectionTemplatesTab templates={templates} companies={companies} vehicles={vehicles} onChange={refresh} />}
