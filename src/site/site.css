@@ -178,9 +178,9 @@
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(180deg, rgba(6, 19, 29, 0.6), rgba(6, 19, 29, 0) 18%), linear-gradient(0deg, rgba(6, 19, 29, 0.85), rgba(6, 19, 29, 0) 52%);
 }
-/* Where each photo is framed, so the van is in view: the front of the
-   McSween van, the side view, and the van seen from above. */
-.mcs-shot[data-i="0"] { --x: 12%; --y: 60%; }
+/* Where each photo is framed, so the van is in view: from the front, from
+   the side and from above. */
+.mcs-shot[data-i="0"] { --x: 58%; --y: 55%; }
 .mcs-shot[data-i="1"] { --x: 62%; --y: 60%; }
 .mcs-shot[data-i="2"] { --x: 86%; --y: 50%; }
 /* The first photo settles in when the page opens. */
@@ -272,10 +272,8 @@
       linear-gradient(90deg, rgba(6, 19, 29, 0.82) 0%, rgba(6, 19, 29, 0.5) 34%, rgba(6, 19, 29, 0) 60%),
       linear-gradient(0deg, rgba(6, 19, 29, 0.5), rgba(6, 19, 29, 0) 30%);
   }
-  /* The front of the van: a large photo on the right that fades into the
-     sea-blue, so the words don't cover the van. */
-  .mcs-shot[data-i="0"] img { left: 32%; width: 68%; --x: 14%; --y: 62%; -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%); mask-image: linear-gradient(90deg, transparent, #000 14%); }
-  /* The side view and the view from above: the van right of the words. */
+  /* Each photo has the van right of the words. */
+  .mcs-shot[data-i="0"] { --x: 15%; }
   .mcs-shot[data-i="1"] { --x: 30%; }
   .mcs-shot[data-i="2"] { --x: 100%; }
   .mcs-open-copy { left: var(--edge); right: auto; bottom: calc(41% + 1.5rem); width: min(48%, 40rem); }

@@ -16,18 +16,18 @@ import { SCENES, sceneAt, sceneProgress, scrollTopFor, storyProgress } from "@/s
 
 const SHOTS = [
   {
-    // Front: the McSween van, with its plate.
-    img: "/images/mcsween-van.webp", w: 1600, h: 900,
+    // Front: the van at sunset on the coast road.
+    img: "/images/van-front.webp", w: 1672, h: 941,
     title: ["Airport", "to", "anywhere"], level: 1,
     text: "Airport pickups, transfers and island tours in Grenada. Tell us where and when, and we email you the price and your bus.",
-    card: { label: "Request a ride", value: "2 min", note: "That's all a request takes. No account needed.", to: "/book", go: "Start a ride request" },
+    // No card on the first two shots: it would sit on the van.
+    card: null,
   },
   {
     // Side: the van at sunset on the coast road.
     img: "/images/van-side.webp", w: 1672, h: 941,
     title: ["Anywhere", "on the", "island"], level: 2,
     text: "Hotels, villas, restaurants and events, or a day out around Grenada for your group. Each ride is booked just for you.",
-    // No card: it would sit on the van's back wheel.
     card: null,
   },
   {

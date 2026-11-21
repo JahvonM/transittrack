@@ -42,6 +42,8 @@ test('scrolling moves the opening through its shots, and its numbers jump to eac
   await page.evaluate(() => { const s = document.querySelector('.mcs-story'); window.scrollTo(0, s.offsetTop + (s.offsetHeight - innerHeight) * 0.5); });
   await expect(story).toHaveAttribute('data-scene', '1');
   await expect(page.getByRole('heading', { name: 'Anywhere on the island' })).toBeInViewport();
+  // The card belongs to the last shot; its link can't be reached before then.
+  expect(await page.evaluate(() => document.querySelector('.mcs-open-card[data-i="2"]').inert)).toBe(true);
   // The numbers on the side go straight to a shot.
   await page.getByRole('navigation', { name: 'Story' }).getByRole('button', { name: 'Go to Track' }).click();
   await expect(story).toHaveAttribute('data-scene', '2');
@@ -49,7 +51,6 @@ test('scrolling moves the opening through its shots, and its numbers jump to eac
   await expect(page.getByRole('link', { name: 'Open ride tracking' })).toBeVisible();
   // Words and links of shots that are off screen can't be reached with Tab.
   expect(await page.evaluate(() => document.querySelector('.mcs-open-copy[data-i="0"]').inert)).toBe(true);
-  expect(await page.evaluate(() => document.querySelector('.mcs-open-card[data-i="0"]').inert)).toBe(true);
   // Past the opening the header is solid again.
   await page.evaluate(() => { const s = document.querySelector('.mcs-story'); window.scrollTo(0, s.offsetTop + s.offsetHeight + 200); });
   await expect(page.locator('.mcs')).not.toHaveAttribute('data-over-hero', '');
