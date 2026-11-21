@@ -401,6 +401,9 @@ test('a mechanic opens the Workshop from their screen, and comes back', async ({
   await page.getByRole('link', { name: 'Workshop', exact: true }).click();
   await expect(page).toHaveURL(/\/workshop$/);
   await expect(page.getByRole('link', { name: 'Workshop home' })).toBeVisible();
+  // The new screen slides in from the side (.tt-route-in): measure once it
+  // has arrived, like the phone test above.
+  await settle(page);
   await noSideScroll(page);
   await page.getByRole('link', { name: 'Mechanic', exact: true }).click();
   await expect(page).toHaveURL(/\/mechanic$/);
