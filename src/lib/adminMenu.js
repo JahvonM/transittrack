@@ -71,8 +71,10 @@ export const ADMIN_MENU = [
 ];
 
 // Sections that are screens of their own, outside the admin area. The menu
-// and the search box open them at their own address.
-export const OWN_PAGES = { workshop: "/workshop" };
+// and the search box open them at their own address. Parts and the Bus
+// library moved into the Workshop; their old screens stay at /admin/parts
+// and /admin/library for one release (the Workshop links to them).
+export const OWN_PAGES = { workshop: "/workshop", parts: "/workshop/parts", library: "/workshop" };
 export const adminPath = (section) => OWN_PAGES[section] || "/admin/" + section;
 
 // The hub a section is a tab of, or null.

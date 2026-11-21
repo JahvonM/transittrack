@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Segmented, StatusChip } from "@/components/admin/kit";
-import { ModelChecklist, ReplacementsList, StockChip } from "@/components/admin/partsCatalogueKit";
+import { PartFields, ReplacementsList, StockChip } from "@/components/admin/partsCatalogueKit";
 import QuickAddPart from "@/components/admin/QuickAddPart";
 import { inStockReplacements, partMatches, replacementsFor, stockLevel } from "@/lib/partsCatalogue";
 import { Link } from "react-router-dom";
@@ -220,9 +220,11 @@ export default function PartsTab({ parts = [], onChange, canDelete = true }) {
                       <StockChip part={p} className="mr-auto sm:mr-2" />
                       <Button variant="outline" size="icon" className="h-10 w-10 sm:h-7 sm:w-7" onClick={() => adjustStock(p, -1)} aria-label={`One fewer ${p.part_name}`}><Minus className="w-3 h-3" /></Button>
                       <Button variant="outline" size="icon" className="h-10 w-10 sm:h-7 sm:w-7" onClick={() => adjustStock(p, 1)} aria-label={`One more ${p.part_name}`}><Plus className="w-3 h-3" /></Button>
-                      <Button variant="ghost" size="icon" className="shrink-0" onClick={() => remove(p.id)} aria-label={`Delete ${p.part_name}`}>
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
+                      {canDelete && (
+                        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => remove(p.id)} aria-label={`Delete ${p.part_name}`}>
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {spare.length > 0 && (
@@ -280,35 +282,6 @@ export default function PartsTab({ parts = [], onChange, canDelete = true }) {
       </div>
       {editing && <EditPartDialog initial={editing} guides={guides} onCancel={() => setEditing(null)} onSave={saveEdit} />}
     </div>
-  );
-}
-
-// The fields a part has, for adding one and for its Details.
-function PartFields({ form, set, guides, idPrefix }) {
-  const id = (k) => `${idPrefix}-${k}`;
-  return (
-    <>
-      <div className="space-y-1.5"><Label htmlFor={id("part_name")}>Part name</Label><Input id={id("part_name")} value={form.part_name} onChange={(e) => set("part_name", e.target.value)} /></div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1.5"><Label htmlFor={id("oem_number")}>OEM #</Label><Input id={id("oem_number")} value={form.oem_number} onChange={(e) => set("oem_number", e.target.value)} /></div>
-        <div className="space-y-1.5"><Label htmlFor={id("aftermarket_number")}>Aftermarket #</Label><Input id={id("aftermarket_number")} value={form.aftermarket_number} onChange={(e) => set("aftermarket_number", e.target.value)} /></div>
-      </div>
-      <div className="space-y-1.5"><Label htmlFor={id("vehicle_compatibility")}>Compatible vehicle</Label><Input id={id("vehicle_compatibility")} value={form.vehicle_compatibility} onChange={(e) => set("vehicle_compatibility", e.target.value)} placeholder="e.g. Toyota Hiace" /></div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1.5"><Label htmlFor={id("category")}>Category</Label><Input id={id("category")} value={form.category} onChange={(e) => set("category", e.target.value)} /></div>
-        <div className="space-y-1.5"><Label htmlFor={id("supplier")}>Supplier</Label><Input id={id("supplier")} value={form.supplier} onChange={(e) => set("supplier", e.target.value)} /></div>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1.5"><Label htmlFor={id("min_stock")}>Warn at (qty)</Label><Input id={id("min_stock")} type="number" min="0" value={form.min_stock} onChange={(e) => set("min_stock", e.target.value)} placeholder="e.g. 2" /></div>
-        <div className="space-y-1.5"><Label htmlFor={id("bin_location")}>Kept at</Label><Input id={id("bin_location")} value={form.bin_location} onChange={(e) => set("bin_location", e.target.value)} placeholder="Shelf B2" /></div>
-      </div>
-      {guides.length > 0 && (
-        <fieldset className="space-y-1.5">
-          <legend className="text-sm font-medium">Fits these bus models</legend>
-          <ModelChecklist guides={guides} value={form.guide_ids || []} onChange={(v) => set("guide_ids", v)} idPrefix={id("model")} />
-        </fieldset>
-      )}
-    </>
   );
 }
 

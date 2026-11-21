@@ -9,18 +9,22 @@ import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/admin/kit";
 import { busRecordWarnings } from "@/lib/busLibrary";
-import { modelCodeFor, torqueCounts, workshopVehicles } from "@/lib/workshop";
+import { modelCodeFor, oldViewLink, stockSummary, torqueCounts, workshopVehicles } from "@/lib/workshop";
 import { Notice, Tile, WorkshopContext, pluralize, useWorkshop } from "@/components/workshop/kit";
 import VehiclePage from "@/components/workshop/VehiclePage";
 import DiagramPage from "@/components/workshop/DiagramPage";
 import Models, { CarSheet } from "@/components/workshop/Models";
-import { ArrowLeft, BookOpen, Bus, Car, LogOut, Plus, RefreshCw } from "lucide-react";
+import PartsPage from "@/components/workshop/PartsPage";
+import PartPage from "@/components/workshop/PartPage";
+import { ArrowLeft, BookOpen, Bus, Car, LogOut, Package, Plus, RefreshCw } from "lucide-react";
 
 // The Workshop: app.mcsweenstransport.com/workshop, for the shared tablet in
 // the workshop (and phones), laid out like a parts catalogue. Every vehicle
 // the workshop looks after; tap one for its details and its sections down
-// the side (torque values, photos, and the maker's own categories of
-// diagrams); tap a diagram for its picture beside its table of parts. A trail
+// the side (torque values, specs & service, the parts that fit, photos,
+// manuals, and the maker's own categories of diagrams); tap a diagram for
+// its picture beside its table of parts. Parts has its own page, with a page
+// for each part (stock, shelf, numbers, replacements). A trail
 // at the top leads back, and all editing is in one sheet with Cancel and Save.
 // Administrators and mechanics only (the server checks every read and save);
 // on the tablet, sign in once and it stays signed in until Sign out.
@@ -29,24 +33,39 @@ import { ArrowLeft, BookOpen, Bus, Car, LogOut, Plus, RefreshCw } from "lucide-r
 
 const LIST = 2000;
 
+// Lists the Workshop works without for a while. When one can't be loaded,
+// the screen that shows it says so (with Try again) rather than looking
+// empty; a list that loaded before keeps what it had.
+const OPTIONAL = {
+  parts: () => base44.entities.Part.list(),
+  interchanges: () => base44.entities.PartInterchange.list("-created_date", 5000),
+  facts: () => base44.entities.GuideFact.list("sort_order", 5000),
+  documents: () => base44.entities.GuideDocument.list("-created_date", 500),
+};
+
 function useWorkshopData() {
   const [state, setState] = useState("loading");
-  const [data, setData] = useState({ buses: [], cars: [], guides: [], specs: [], diagrams: [], groups: [], parts: [] });
+  const [data, setData] = useState({ buses: [], cars: [], guides: [], specs: [], diagrams: [], groups: [], parts: [], interchanges: [], facts: [], documents: [], missing: {} });
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setState("loading");
     try {
-      const [buses, cars, guides, specs, diagrams, groups, parts] = await Promise.all([
+      const missing = {};
+      const optional = Object.entries(OPTIONAL).map(([key, list]) => list().catch(() => { missing[key] = true; return null; }));
+      const [buses, cars, guides, specs, diagrams, groups, ...extra] = await Promise.all([
         base44.entities.Vehicle.list(),
         base44.entities.WorkshopVehicle.list("name", 200),
         base44.entities.VehicleGuide.list("make", 200),
         base44.entities.TorqueSpec.list("sort_order", LIST),
         base44.entities.PartDiagram.list("sort_order", 500),
         base44.entities.CatalogueGroup.list("sort_order", LIST),
-        // Parts only name what a pin points at: the Workshop works without them.
-        base44.entities.Part.list().catch(() => []),
+        ...optional,
       ]);
-      setData({ buses: buses || [], cars: cars || [], guides: guides || [], specs: specs || [], diagrams: diagrams || [], groups: groups || [], parts: parts || [] });
+      setData((d) => ({
+        buses: buses || [], cars: cars || [], guides: guides || [], specs: specs || [], diagrams: diagrams || [], groups: groups || [],
+        ...Object.fromEntries(Object.keys(OPTIONAL).map((key, i) => [key, missing[key] ? d[key] : extra[i] || []])),
+        missing,
+      }));
       setState("ready");
     } catch {
       setState((s) => (quiet && s === "ready" ? s : "failed"));
@@ -60,12 +79,14 @@ function useWorkshopData() {
     setData((d) => ({ ...d, [key]: d[key].some((r) => r.id === record.id) ? d[key].map((r) => (r.id === record.id ? record : r)) : [...d[key], record] }));
   }, []);
   const drop = useCallback((key, id) => setData((d) => ({ ...d, [key]: d[key].filter((r) => r.id !== id) })), []);
+  const reload = useCallback(() => load({ quiet: true }), [load]);
 
-  return { state, ...data, load, put, drop, reload: () => load({ quiet: true }) };
+  return { state, ...data, load, put, drop, reload };
 }
 
 function Home() {
-  const { vehicles, specs, diagrams, groups, isAdmin, state } = useWorkshop();
+  const { vehicles, specs, diagrams, groups, parts, missing, isAdmin, user, state } = useWorkshop();
+  const stock = stockSummary(parts);
   const [adding, setAdding] = useState(false);
   const buses = vehicles.filter((v) => v.kind === "bus");
   const cars = vehicles.filter((v) => v.kind === "car");
@@ -108,6 +129,18 @@ function Home() {
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{cars.map(tile)}</ul>
         </section>
       )}
+      <section aria-labelledby="ws-stock" className="mb-6">
+        <h2 id="ws-stock" className="mb-2 text-body font-semibold text-muted-foreground">Stock</h2>
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <li>
+            <Tile
+              to="/workshop/parts" icon={Package} title="Parts"
+              lines={[missing.parts ? "Couldn't load the parts" : `${pluralize(stock.total, "part")} on the shelves`, "Stock, shelves, numbers and replacements"]}
+              badge={!missing.parts && stock.low > 0 && <StatusChip tone="warning">{stock.low} low or out</StatusChip>}
+            />
+          </li>
+        </ul>
+      </section>
       {state === "ready" && vehicles.length === 0 && <Notice>No vehicles yet. Buses are added in Admin › Vehicles{isAdmin ? "; cars with Add a car" : ""}.</Notice>}
       {isAdmin && (
         <section aria-labelledby="ws-manage">
@@ -118,6 +151,10 @@ function Home() {
           </ul>
         </section>
       )}
+      <p className="mt-6 text-body-sm text-muted-foreground">
+        Moved here from the Bus library: each vehicle's specs, service schedule and manuals.{" "}
+        <Link to={oldViewLink(user?.role, "library")} className="font-medium text-primary underline underline-offset-2">Bus library (old view)</Link>
+      </p>
       {adding && <CarSheet onClose={() => setAdding(false)} />}
     </>
   );
@@ -167,8 +204,13 @@ export default function Workshop() {
             <Routes>
               <Route index element={<Home />} />
               <Route path="models" element={<Models />} />
+              <Route path="parts" element={<PartsPage />} />
+              <Route path="parts/:partId" element={<PartPage />} />
               <Route path=":kind/:id" element={<VehiclePage />} />
               <Route path=":kind/:id/torque" element={<VehiclePage section="torque" />} />
+              <Route path=":kind/:id/specs" element={<VehiclePage section="specs" />} />
+              <Route path=":kind/:id/parts" element={<VehiclePage section="parts" />} />
+              <Route path=":kind/:id/manuals" element={<VehiclePage section="manuals" />} />
               <Route path=":kind/:id/maps" element={<VehiclePage section="maps" />} />
               <Route path=":kind/:id/c/:category" element={<VehiclePage section="category" />} />
               <Route path=":kind/:id/maps/:diagramId" element={<DiagramPage mode="picture" />} />
