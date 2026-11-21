@@ -1,0 +1,280 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap');
+
+/* The admin console in the website's look (src/site/site.css): deep
+   sea-blue and white, Archivo (wide capitals for headings, labels and
+   numbers; normal width for reading), white pill buttons, frosted glass over
+   photos. Switched on by Admin.jsx (html.tt-admin-sea).
+   Light mode and a colour theme chosen in Account -> Appearance still apply:
+   light mode gets the website's white pages (the menu stays sea-blue), and
+   a chosen colour replaces the white highlight. */
+html.tt-admin-sea {
+  --font-heading: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  /* The menu is sea-blue in both modes, like the website's header. */
+  --sidebar-background: 206 66% 7%;   /* #06131d */
+  --sidebar-foreground: 200 33% 96%;
+  --sidebar-accent: 206 50% 14%;
+  --sidebar-accent-foreground: 200 33% 96%;
+  --sidebar-border: 206 40% 13%;
+  --ad-sidebar: #06131d;
+  --ad-nav-text: #a9bccb;
+  --ad-nav-hover-bg: #ffffff0f;
+  --ad-nav-hover-text: #ffffff;
+  --ad-nav-current-text: #ffffff;
+  --ad-nav-current-bg: #ffffff12;
+  --ad-nav-line: #1d3446;
+  --ad-nav-sep: #1d3446;
+  --ad-nav-active-bg: #ffffff;
+  --ad-nav-active-edge: transparent;
+  --ad-nav-active-text: #0b1f2e;
+}
+
+/* Dark (the default): the website's deep sea. */
+html.tt-admin-sea:not(.light.tt-theme-chosen) {
+  --background: 206 61% 11%;          /* #0b1f2e */
+  --foreground: 200 33% 96%;          /* #f2f6f8 */
+  --card: 206 57% 15%;                /* #10283a */
+  --card-foreground: 200 33% 96%;
+  --popover: 206 55% 16%;
+  --popover-foreground: 200 33% 96%;
+  --secondary: 206 54% 19%;
+  --secondary-foreground: 200 33% 96%;
+  --muted: 206 48% 18%;
+  --muted-foreground: 206 25% 73%;    /* #a9bccb */
+  --accent: 206 50% 22%;
+  --accent-foreground: 200 33% 96%;
+  --border: 206 36% 23%;
+  --input: 206 25% 42%;
+  --surface-0: 206 61% 11%;
+  --surface-1: 206 57% 15%;
+  --surface-2: 206 54% 18%;
+  --surface-3: 206 50% 21%;
+  --ad-page: hsl(var(--background));
+  --ad-header: #0b1f2ee8;
+  --ad-card-image: none;
+  --ad-card-shadow: 0 20px 50px -30px #00000099;
+  --ad-row-bg: #f2f6f80a;
+  --ad-row-hover-edge: hsl(var(--ring) / .45);
+  --ad-row-hover-bg: #f2f6f812;
+  --ad-icon-text: #c4d3de;
+  --ad-icon-bg: #f2f6f80f;
+  --ad-action-text: #ffffff;
+  --ad-action-edge: #2c4a60;
+  --ad-th-text: #a9bccb;
+  --ad-tr-hover: #f2f6f808;
+  --ad-focus: hsl(var(--ring));
+  color-scheme: dark;
+}
+/* White is the highlight (buttons, the open tab), like the website, unless a
+   colour theme was chosen; the light sky-blue marks focus. */
+html.tt-admin-sea:not(.light.tt-theme-chosen):not([data-accent]) {
+  --primary: 0 0% 100%;
+  --primary-foreground: 206 61% 11%;
+  --ring: 202 72% 78%;                /* #9fd2f0 */
+}
+html.tt-admin-sea:not(.light.tt-theme-chosen) body { background: hsl(var(--background)); }
+
+/* Light (once picked in Account -> Appearance): the website's white pages. */
+html.tt-admin-sea.tt-admin-app.light.tt-theme-chosen {
+  --background: 203 33% 95%;          /* #eef3f6 */
+  --foreground: 206 61% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 206 61% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 206 61% 11%;
+  --secondary: 205 30% 91%;
+  --secondary-foreground: 206 61% 11%;
+  --muted: 205 30% 92%;
+  --muted-foreground: 206 19% 36%;
+  --accent: 205 35% 89%;
+  --accent-foreground: 206 61% 11%;
+  --border: 205 24% 86%;
+  --input: 206 15% 60%;
+  --ad-page: hsl(var(--background));
+  --ad-header: #eef3f6e0;
+  --ad-th-text: #4e6272;
+  --ad-row-bg: #f6f9fb;
+  --ad-row-hover-bg: #e9f1f6;
+  --ad-tr-hover: #f3f7fa;
+  --ad-icon-text: #4e6272;
+  --ad-icon-bg: #e6eef3;
+  --ad-action-text: #0b1f2e;
+  --ad-action-edge: #cfdbe3;
+}
+html.tt-admin-sea.tt-admin-app.light.tt-theme-chosen:not([data-accent]) {
+  --primary: 206 61% 11%;             /* the deep sea: dark pills, white text */
+  --primary-foreground: 0 0% 100%;
+  --ring: 204 66% 33%;                /* #1c5d8a */
+}
+html.tt-admin-sea.light.tt-theme-chosen body { background: hsl(var(--background)); }
+
+/* ---- Type: wide capitals for page titles, card titles and labels ---- */
+html.tt-admin-sea .tt-admin-shell main h1 {
+  font-stretch: 125%; font-weight: 850; text-transform: uppercase; letter-spacing: -0.012em; line-height: 0.98;
+  font-size: clamp(1.75rem, 2.4vw, 2.5rem);
+}
+html.tt-admin-sea .tt-admin-shell main :is(h2.text-title-sm, .tt-admin-card h2),
+html.tt-admin-sea .tt-admin-shell .tt-surface .font-semibold.leading-none.tracking-tight {
+  font-stretch: 125%; font-weight: 800; text-transform: uppercase; letter-spacing: 0.01em; font-size: 15px; line-height: 1.2;
+}
+html.tt-admin-sea .tt-admin-shell :is(th, .tt-admin-breadcrumb) { font-stretch: 125%; letter-spacing: 0.05em; }
+html.tt-admin-sea .tt-admin-shell th { text-transform: uppercase; font-size: 10.5px; font-weight: 600; }
+
+/* ---- Buttons: pills, as on the website ---- */
+html.tt-admin-sea :is(button, a).inline-flex.whitespace-nowrap:is(.rounded-md, .rounded-lg) { border-radius: 999px; }
+html.tt-admin-sea :is(button, a).inline-flex.whitespace-nowrap.bg-primary { font-stretch: 112%; letter-spacing: 0.01em; }
+
+/* ---- The menu: the website's deep sea; the open section a white pill ---- */
+html.tt-admin-sea .tt-admin-brand { font-stretch: 125%; font-weight: 800; font-size: 14px; letter-spacing: 0.02em; text-transform: uppercase; }
+html.tt-admin-sea .tt-admin-brand span span { color: inherit; font-weight: 400; }
+html.tt-admin-sea .tt-admin-nav :is(button, .tt-admin-group-toggle) {
+  border-radius: 999px; min-height: 42px; font-stretch: 125%; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+}
+html.tt-admin-sea .tt-admin-nav .tt-admin-group-items button { font-size: 10.5px; }
+html.tt-admin-sea .tt-admin-nav button[aria-current="page"] { background: #ffffff; color: #0b1f2e; }
+html.tt-admin-sea .tt-admin-nav button[aria-current="page"] svg { color: inherit; }
+html.tt-admin-sea .tt-admin-nav button[aria-current="page"] > span.absolute { display: none; }
+html.tt-admin-sea .tt-admin-group-current { color: #ffffff; background: #ffffff12; }
+
+/* A section's tabs: pills with wide capitals; the open one filled. */
+html.tt-admin-sea .tt-admin-shell nav.tt-admin-hub-tabs [aria-current="page"] {
+  background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); box-shadow: none;
+}
+html.tt-admin-sea .tt-admin-shell nav.tt-admin-hub-tabs > div { background: transparent; border: 1px solid hsl(var(--border)); border-radius: 999px; }
+html.tt-admin-sea .tt-admin-shell nav.tt-admin-hub-tabs a { border-radius: 999px; font-stretch: 125%; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
+
+/* Cards: rounder, with a fine edge. */
+html.tt-admin-sea .tt-admin-shell :is(section.rounded-2xl, div.rounded-2xl.border, .tt-surface.rounded-2xl) { border-color: hsl(var(--border)); border-radius: 24px; }
+
+/* ---------------------------------------------------------------------------
+   Admin home (AdminOverview)
+   ------------------------------------------------------------------------ */
+
+/* The photo strip: the van from above on the coast road, the day's headline
+   and the main numbers as frosted cards. White text over a dark shade in
+   both modes. */
+.tt-admin-hero {
+  position: relative; isolation: isolate; overflow: hidden; border-radius: 28px; min-height: 380px;
+  padding: 28px 30px 24px; display: flex; flex-direction: column; justify-content: flex-end; gap: 22px;
+  background: #0b1f2e; color: #ffffff; font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+}
+.tt-admin-hero-photo { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 78% 42%; }
+.tt-admin-hero::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, rgba(6,19,29,0.9) 0%, rgba(6,19,29,0.62) 38%, rgba(6,19,29,0.06) 72%), linear-gradient(0deg, rgba(6,19,29,0.82), rgba(6,19,29,0) 58%);
+}
+.tt-admin-hero-date { margin: 0 0 12px; font-size: 12px; font-weight: 600; font-stretch: 125%; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(242,246,248,0.86); }
+.tt-admin-hero-title { margin: 0; font-size: clamp(2.6rem, 5vw, 4.6rem); line-height: 0.9; font-weight: 850; font-stretch: 125%; letter-spacing: -0.015em; text-transform: uppercase; }
+.tt-admin-hero-sum { margin: 14px 0 0; max-width: 46ch; font-size: 16px; line-height: 1.55; color: rgba(242,246,248,0.9); }
+.tt-admin-hero .tt-admin-stats { display: flex; flex-wrap: wrap; gap: 12px; }
+.tt-admin-hero .tt-admin-stats > button.tt-admin-tile {
+  flex: 1 1 170px; min-height: 112px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding: 16px 18px; border-radius: 22px; text-align: left; color: #ffffff; cursor: pointer;
+  background: rgba(255,255,255,0.13); border: 1px solid rgba(255,255,255,0.22); box-shadow: none;
+  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+  transition: background-color 160ms ease;
+}
+.tt-admin-hero .tt-admin-stats > button.tt-admin-tile:hover { background: rgba(255,255,255,0.2); }
+.tt-admin-hero .tt-admin-stats > button.tt-admin-tile:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
+.tt-admin-tile-value { font-size: 44px; line-height: 1; font-weight: 300; font-stretch: 125%; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tt-admin-tile-label { display: block; font-size: 11px; line-height: 1.3; font-weight: 600; font-stretch: 125%; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.9); }
+.tt-admin-tile-detail { display: block; margin-top: 2px; font-size: 12px; color: rgba(255,255,255,0.78); }
+.tt-admin-tile-warn .tt-admin-tile-value { color: #ffc56b; }
+.tt-admin-tile-alert .tt-admin-tile-value { color: #ff9b8f; }
+.tt-admin-hero .tt-admin-totals { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; border: 0; }
+.tt-admin-hero .tt-admin-chip { color: rgba(255,255,255,0.86); border-color: rgba(255,255,255,0.3); background: rgba(6,19,29,0.25); }
+.tt-admin-hero .tt-admin-chip strong { color: #ffffff; }
+.tt-admin-hero .tt-admin-chip:hover { border-color: #ffffff; color: #ffffff; }
+@media (max-width: 640px) {
+  .tt-admin-hero { min-height: 0; padding: 22px 18px 18px; border-radius: 24px; }
+  .tt-admin-hero-photo { object-position: 86% 40%; }
+  .tt-admin-hero::before { background: linear-gradient(0deg, rgba(6,19,29,0.92) 30%, rgba(6,19,29,0.35) 100%); }
+  .tt-admin-hero .tt-admin-stats > button.tt-admin-tile { flex-basis: calc(50% - 6px); min-height: 96px; padding: 14px; }
+  .tt-admin-tile-value { font-size: 34px; }
+}
+@media (prefers-reduced-motion: reduce) { .tt-admin-hero .tt-admin-stats > button.tt-admin-tile { transition: none; } }
+
+/* The rest of the home: the live map with what needs you beside it on wide
+   screens, then the bus list, then tablets and recent activity. */
+.tt-admin-home { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.tt-admin-home-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.tt-admin-home-foot { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1280px) {
+  .tt-admin-home { grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); align-items: start; }
+  .tt-admin-home-wide { grid-column: 1 / -1; }
+  .tt-admin-home-foot { grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); }
+}
+
+/* The small arrow to a card's full page. */
+.tt-admin-card-go {
+  display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 999px;
+  color: hsl(var(--muted-foreground)); border: 1px solid hsl(var(--border));
+}
+.tt-admin-card-go:hover { color: hsl(var(--foreground)); background: hsl(var(--accent)); }
+.tt-admin-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 14px; border-radius: 999px;
+  border: 1px solid hsl(var(--border)); font-size: 12px; color: hsl(var(--muted-foreground));
+}
+.tt-admin-chip strong { color: hsl(var(--foreground)); font-weight: 600; }
+.tt-admin-chip:hover { border-color: hsl(var(--ring) / .6); color: hsl(var(--foreground)); }
+
+/* Fleet by status: one bar split by status, then each status with its count. */
+.tt-admin-split-bar { display: flex; gap: 3px; height: 12px; border-radius: 999px; overflow: hidden; background: hsl(var(--muted)); }
+.tt-admin-split-bar > span { min-width: 4px; }
+.tt-admin-split-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 4px 8px; border-radius: 12px;
+  font-size: 13px; text-align: left;
+}
+.tt-admin-split-row:hover { background: hsl(var(--accent) / .6); }
+.tt-admin-split-swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+/* Needs attention: compact rows. */
+.tt-admin-home .tt-admin-attention-row { min-height: 64px; padding: 10px 12px; gap: 10px; border-radius: 18px; }
+.tt-admin-home .tt-admin-attention-icon { width: 40px; height: 40px; border-radius: 12px; }
+.tt-admin-home .tt-admin-attention-action { padding: 6px 12px; border-radius: 999px; }
+
+/* The live map's search field, in the card's title row. */
+.tt-admin-map-search {
+  display: flex; align-items: center; gap: 8px; width: 300px; max-width: 100%; height: 40px; padding: 0 16px;
+  border-radius: 999px; border: 1px solid hsl(var(--border)); background: hsl(var(--secondary) / .5);
+}
+.tt-admin-map-search:focus-within { box-shadow: 0 0 0 2px hsl(var(--ring)); }
+.tt-admin-shell .tt-admin-map-search input { background-color: transparent !important; border-radius: 0 !important; height: 100%; }
+.tt-admin-map-panel .tt-admin-map { border-radius: 20px; }
+
+/* The bus list's filters: a row of pills, the chosen one filled. */
+.tt-admin-segments { display: flex; gap: 6px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.tt-admin-segments::-webkit-scrollbar { display: none; }
+.tt-admin-segments button {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; min-height: 36px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid hsl(var(--border)); font-size: 11px; font-weight: 600; font-stretch: 125%; letter-spacing: 0.04em; text-transform: uppercase;
+  color: hsl(var(--foreground));
+}
+.tt-admin-segments button > span { opacity: .7; }
+.tt-admin-segments button:hover { border-color: hsl(var(--ring) / .6); }
+.tt-admin-segments button[aria-pressed="true"] { background: hsl(var(--primary)); border-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.tt-admin-segments button[aria-pressed="true"] > span { opacity: .8; }
+.tt-admin-home .tt-admin-status-table { min-width: 720px; }
+.tt-admin-home .tt-admin-status-table :is(th, td) { padding-left: 12px; padding-right: 12px; }
+.tt-admin-home .tt-admin-status-table td:last-child { white-space: nowrap; }
+.tt-admin-home .tt-admin-status-table small { display: block; }
+/* Each bus with its picture (its own, or the McSween van). */
+.tt-admin-bus-thumb {
+  display: grid; place-items: center; width: 56px; height: 40px; flex-shrink: 0; border-radius: 12px; overflow: hidden;
+  background: hsl(var(--secondary));
+}
+.tt-admin-bus-thumb img { width: 52px; height: 36px; object-fit: contain; filter: none; }
+.tt-admin-bus-name { font-stretch: 125%; font-weight: 700; text-transform: uppercase; font-size: 13px; letter-spacing: 0.02em; }
+
+/* Tablet health: tablets side by side. */
+.tt-admin-tablet-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+.tt-admin-tablet-grid .tt-admin-tablet-row,
+.tt-admin-tablet-grid .tt-admin-tablet-row:last-child { min-height: 0; padding: 12px 14px; border: 1px solid hsl(var(--border)); border-radius: 18px; }
+.tt-admin-tablet-grid .tt-admin-tablet-row:hover { background: hsl(var(--accent) / .5); }
+
+@media (max-width: 600px) {
+  .tt-admin-map-panel .tt-admin-map { height: 320px; }
+  .tt-admin-map-panel > div:first-child > span:last-child { flex: 1 1 100%; }
+  .tt-admin-map-search { flex: 1; width: auto; }
+}

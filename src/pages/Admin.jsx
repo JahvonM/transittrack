@@ -84,7 +84,7 @@ import LostItemsTab from "@/components/admin/LostItemsTab";
 import TravelTimesTab from "@/components/admin/TravelTimesTab";
 import { loadScreen, saveScreen } from "@/lib/savedScreen";
 import "@/components/admin/adminApple.css";
-import "@/components/admin/adminInk.css";
+import "@/components/admin/adminSea.css";
 
 // The overview's lists are kept on this device (for this admin, up to a day)
 // so the console opens with them straight away and refreshes behind them.
@@ -153,12 +153,12 @@ const FLEET_SECTIONS = ["fleet", "fleet-workspace", "health"];
 export default function Admin() {
   const { user, logout, checkUserAuth } = useAuth();
   useFutureAppearance(user?.role === "admin", "tt-admin-app");
-  // Ink & cream look (adminInk.css), on <html> so dialogs get it too.
+  // The website look (adminSea.css), on <html> so dialogs get it too.
   useEffect(() => {
     if (user?.role !== "admin") return undefined;
     const root = document.documentElement;
-    root.classList.add("tt-admin-ink");
-    return () => root.classList.remove("tt-admin-ink");
+    root.classList.add("tt-admin-sea");
+    return () => root.classList.remove("tt-admin-sea");
   }, [user?.role]);
   const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: "admin" });
   const navigate = useNavigate();

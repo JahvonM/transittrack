@@ -324,7 +324,7 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
 
   const sidebar = (
     <div className="flex h-full flex-col">
-      <Link to="/admin" className="flex h-16 shrink-0 items-center gap-2.5 px-5 font-heading text-title-sm font-bold text-sidebar-foreground">
+      <Link to="/admin" className="tt-admin-brand flex h-16 shrink-0 items-center gap-2.5 px-5 font-heading text-title-sm font-bold text-sidebar-foreground">
         <Logo className="h-8 w-8" />
         <span>McSween <span className="text-sidebar-primary">Transport</span></span>
       </Link>

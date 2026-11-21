@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { computeOccupancyByVehicle } from "@/lib/occupancy";
 import { freshnessOf, formatAge } from "@/components/system/status";
 import RecentActivityFeed from "@/components/admin/RecentActivityFeed";
+import BusArtwork from "@/components/BusArtwork";
 
 import { adminTabletHealth } from "@/lib/adminTabletHealth";
 import { PageActions } from "@/components/admin/kit";
@@ -40,20 +41,23 @@ export function StatusPill({ status }) {
   );
 }
 
-// Icon tiles stay grey; only a count that needs action (faults, tablets) takes a colour.
-const QUIET = "bg-secondary text-muted-foreground";
-function Stat({ icon: Icon, tone, value, label, detail, onClick }) {
+// The main numbers, as frosted cards on the photo. Only a count that needs
+// action (faults, tablets) takes a colour.
+function Stat({ tone, value, label, detail, onClick }) {
   return (
-    <button type="button" onClick={onClick} className="tt-admin-tile">
-      <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl", tone)} aria-hidden="true"><Icon className="h-[18px] w-[18px]" /></span>
-      <span className="min-w-0">
-        <span className="block font-display text-[1.75rem] font-semibold leading-none tabular-nums">{value}</span>
-        <span className="mt-1 block text-body-sm font-semibold">{label}</span>
-        {detail && <span className="block truncate text-caption text-muted-foreground">{detail}</span>}
+    <button type="button" onClick={onClick} className={cn("tt-admin-tile", tone && "tt-admin-tile-" + tone)}>
+      <span className="tt-admin-tile-value">{value}</span>
+      <span>
+        <span className="tt-admin-tile-label">{label}</span>
+        {detail && <span className="tt-admin-tile-detail">{detail}</span>}
       </span>
     </button>
   );
 }
+
+// The day, in Grenada.
+const today = (now) => new Date(now).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", timeZone: "America/Grenada" });
+const COLOUR = { success: "hsl(var(--success))", warning: "hsl(var(--warning))", danger: "hsl(var(--danger))", offline: "hsl(var(--muted-foreground) / .55)", info: "hsl(var(--info))" };
 
 // A card with its title and, top right, a small arrow to the full page.
 function Panel({ title, go, goLabel, children, className, extra }) {
@@ -87,10 +91,6 @@ const FILTERS = [
 ];
 const RANK = { sos: 0, speed: 1, lost: 2, stale: 3, out: 4, live: 5, idle: 6 };
 
-function TickBar({ value, total }) {
-  const pct = total ? Math.round(100 * value / total) : 0;
-  return <span className="tt-admin-ticks" aria-hidden="true"><span style={{ width: pct + "%" }} /></span>;
-}
 
 export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults=[], schedules=[], companies=[], kiosks=[], kiosksReady=false, checkIns=[], checkInsReady=false, onNavigate, tools }) {
  const occupancy=useMemo(()=>computeOccupancyByVehicle(checkIns),[checkIns]);
@@ -127,7 +127,6 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
  const inFilter=(v,key=filter)=>{const f=filterOf(key);return !f?.keys||f.keys.includes(keyOf(v));};
  const rows=shown.filter(v=>inFilter(v));
  const onRoad=inService.filter(v=>["live","stale","speed"].includes(keyOf(v))).length;
- const roadPct=inService.length?Math.round(100*onRoad/inService.length):0;
  const alerts=[
   ...sos.map(v=>({id:"sos-"+v.id,vehicle:v,icon:Siren,title:v.name+": SOS",detail:v.driver_name||companyOf(v),go:"fleet",action:"View fleet",tone:"danger"})),
   ...fleet.filter(v=>keyOf(v)==="speed").map(v=>({id:"speed-"+v.id,vehicle:v,icon:Gauge,title:v.name+": speeding",detail:v.driver_name||companyOf(v),go:"fleet",action:"View fleet",tone:"danger"})),
@@ -138,49 +137,52 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
  ];
  const tabletRows=[...devices].sort((a,b)=>Number(tabletStates[b.id]?.attention)-Number(tabletStates[a.id]?.attention)).slice(0,6);
  const totals=[["on board",occupancyReady?onBoard:"—","checkins"],["active trips",trips.filter(belongs).length,"trips"],["signal issues",signal.length,"fleet"],["maintenance due",due.length,"schedule"]];
+ const split=SPLIT.filter(s=>s.key!=="sos"||sos.length).map(s=>({...s,n:fleet.filter(v=>s.keys.includes(keyOf(v))).length}));
+ // One sentence for the photo strip: how much of the fleet is out, and
+ // whether anything needs the admin.
+ const summary=[
+  inService.length?`${onRoad} of ${inService.length} ${inService.length===1?"bus":"buses"} in service ${onRoad===1?"is":"are"} on the road.`:"No buses in service yet.",
+  alerts.length?`${alerts.length} ${alerts.length===1?"thing needs":"things need"} you.`:"Nothing needs you right now.",
+ ].join(" ");
  return <div className="tt-admin-overview space-y-4">
   <PageActions>
    <label className="sr-only" htmlFor="tt-overview-company">Overview company</label>
    <ChoiceSelect aria-label="Overview company" id="tt-overview-company" value={scope} onChange={e=>setScope(e.target.value)} className="h-10 max-w-[230px] rounded-xl border border-input bg-card px-3 text-sm"><option value="all">All companies</option>{companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</ChoiceSelect>
    <Button onClick={()=>onNavigate("vehicles?create=1")}><Plus className="w-4 h-4" />Add vehicle</Button>
   </PageActions>
+  {/* Today: the van from above on the coast road, the day's headline and
+      the main numbers. */}
+  <section aria-label="Today" className="tt-admin-hero">
+   <img className="tt-admin-hero-photo" src="/images/van-top.webp" alt="" width="1672" height="941" decoding="async" />
+   <div>
+    <p className="tt-admin-hero-date">{today(now)}{scope==="all"?"":", "+companyOf({company_id:scope})}</p>
+    <h2 className="tt-admin-hero-title">Fleet<br />today</h2>
+    <p className="tt-admin-hero-sum">{summary}</p>
+   </div>
+   <section aria-label="Fleet overview" className="tt-admin-stats">
+    <Stat value={fleet.length} label="Vehicles" onClick={()=>onNavigate("vehicles")} />
+    <Stat value={onTrip.length} label="On trip" onClick={()=>onNavigate("fleet")} />
+    <Stat tone={openFaults.length?"alert":null} value={openFaults.length>=500?"500+":openFaults.length} label="Open faults" onClick={()=>onNavigate("faults")} />
+    <Stat tone={kiosksReady&&needsTablets.length?"warn":null} value={kiosksReady?needsTablets.length:"—"} label="Tablets needing attention" detail={kiosksReady?null:"Tablet data unavailable"} onClick={()=>onNavigate("kiosks")} />
+   </section>
+   <ul aria-label="Fleet totals" className="tt-admin-totals">
+    {totals.map(([label,value,go])=><li key={label}><button type="button" onClick={()=>onNavigate(go)} className="tt-admin-chip"><strong className="tabular-nums">{value}</strong> {label}</button></li>)}
+   </ul>
+  </section>
   <div className="tt-admin-home">
+   <Panel title="Live fleet" go={()=>onNavigate("fleet")} goLabel="Open live fleet" className="tt-admin-map-panel overflow-hidden"
+    extra={<label className="tt-admin-map-search">
+      <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <span className="sr-only">Find a bus</span>
+      <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a bus, plate or driver" className="min-w-0 flex-1 bg-transparent text-body-sm outline-none placeholder:text-muted-foreground" />
+     </label>}>
+    <div className="p-2 pt-0">
+     <Suspense fallback={<div className="tt-admin-map h-[440px] animate-pulse rounded-xl bg-muted" />}><LiveTransitMap variant="page" className="tt-admin-map h-[440px] rounded-xl" vehicles={shown.filter(v=>v.current_lat!=null&&v.current_lng!=null)} routes={routes} label="Fleet map" /></Suspense>
+    </div>
+    <p className="px-5 pb-3 pt-1 text-xs text-muted-foreground">Latest recorded positions. Delayed or missing reports show in the list below.</p>
+   </Panel>
    <div className="tt-admin-home-side">
-    {/* Today: how much of the fleet is out, and the counts that matter. */}
-    <Panel title="Today" go={()=>onNavigate("fleet")} goLabel="Open live fleet" className="tt-admin-today tt-order-1">
-     <div className="px-5 pb-5">
-      <p className="text-caption text-muted-foreground">{scope==="all"?"All companies":companyOf({company_id:scope})}</p>
-      <div className="tt-admin-gauge mt-4" role="img" aria-label={`${onRoad} of ${inService.length} buses in service are on the road (${roadPct}%)`}>
-       <span className="tt-admin-gauge-track" aria-hidden="true" />
-       <span className="tt-admin-gauge-knob" style={{ left: roadPct + "%" }} aria-hidden="true"><b>{roadPct}%</b></span>
-      </div>
-      <div className="mt-2 flex justify-between text-caption text-muted-foreground" aria-hidden="true"><span>0%</span><span>100%</span></div>
-      <p className="mt-1 text-center text-body-sm"><strong className="tabular-nums">{onRoad} / {inService.length}</strong> <span className="text-muted-foreground">buses on the road</span></p>
-      <section aria-label="Fleet overview" className="tt-admin-stats mt-4 grid grid-cols-2 gap-2">
-       <Stat icon={Bus} tone={QUIET} value={fleet.length} label="Vehicles" onClick={()=>onNavigate("vehicles")} />
-       <Stat icon={Bus} tone={QUIET} value={onTrip.length} label="On trip" onClick={()=>onNavigate("fleet")} />
-       <Stat icon={OctagonAlert} tone={openFaults.length?"bg-danger/15 text-danger":QUIET} value={openFaults.length>=500?"500+":openFaults.length} label="Open faults" onClick={()=>onNavigate("faults")} />
-       <Stat icon={Smartphone} tone={kiosksReady&&needsTablets.length?"bg-warning/15 text-warning":QUIET} value={kiosksReady?needsTablets.length:"—"} label="Tablets needing attention" detail={kiosksReady?null:"Tablet data unavailable"} onClick={()=>onNavigate("kiosks")} />
-      </section>
-      <ul aria-label="Fleet totals" className="tt-admin-totals mt-4 flex flex-wrap gap-2">
-       {totals.map(([label,value,go])=><li key={label}><button type="button" onClick={()=>onNavigate(go)} className="tt-admin-chip"><strong className="tabular-nums">{value}</strong> {label}</button></li>)}
-      </ul>
-     </div>
-    </Panel>
-    <Panel title="Fleet by status" go={()=>onNavigate("vehicles")} goLabel="View vehicles" className="tt-order-4">
-     <ul className="px-5 pb-5 space-y-1">
-      {SPLIT.filter(s=>s.key!=="sos"||sos.length).map(s=>{const n=fleet.filter(v=>s.keys.includes(keyOf(v))).length;const Icon=s.icon;return <li key={s.key}>
-       <button type="button" onClick={()=>{setFilter(FILTERS.find(f=>f.keys?.some(k=>s.keys.includes(k)))?.key||"all");document.getElementById("tt-admin-buses")?.scrollIntoView({block:"nearest",behavior:"smooth"});}} className="tt-admin-split-row">
-        <Icon className={cn("h-4 w-4 shrink-0",PILL[s.tone])} aria-hidden="true" />
-        <span className="flex-1 truncate">{s.label}</span>
-        <strong className="w-8 text-right tabular-nums">{n}</strong>
-        <TickBar value={n} total={fleet.length} />
-        <span className="w-10 text-right text-caption tabular-nums text-muted-foreground">{fleet.length?Math.round(100*n/fleet.length):0}%</span>
-       </button>
-      </li>;})}
-     </ul>
-    </Panel>
-    <Panel title="Needs attention" go={()=>onNavigate("health")} goLabel="Fleet health" className="tt-order-5">
+    <Panel title="Needs attention" go={()=>onNavigate("health")} goLabel="Fleet health">
      <div className="tt-admin-alert-list px-4 pb-4 space-y-2">
       {alerts.slice(0,4).map(a=>{const Icon=a.icon;return <button type="button" key={a.id} onClick={()=>onNavigate(a.go)} className="tt-admin-attention-row">
        <span className={cn("tt-admin-attention-icon",a.tone==="danger"?"text-danger":"text-warning")}><Icon className="w-5 h-5" aria-hidden="true" /></span>
@@ -192,42 +194,47 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
       {!kiosksReady&&<p role="status" className="text-sm text-warning">Tablet health could not be loaded.</p>}
      </div>
     </Panel>
-   </div>
-   <div className="tt-admin-home-main">
-    <Panel title="Live fleet" go={()=>onNavigate("fleet")} goLabel="Open live fleet" className="tt-admin-map-panel overflow-hidden tt-order-2"
-     extra={<label className="tt-admin-map-search">
-       <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-       <span className="sr-only">Find a bus</span>
-       <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a bus, plate or driver" className="min-w-0 flex-1 bg-transparent text-body-sm outline-none placeholder:text-muted-foreground" />
-      </label>}>
-     <div className="p-2 pt-0">
-      <Suspense fallback={<div className="tt-admin-map h-[440px] animate-pulse rounded-xl bg-muted" />}><LiveTransitMap variant="page" className="tt-admin-map h-[440px] rounded-xl" vehicles={shown.filter(v=>v.current_lat!=null&&v.current_lng!=null)} routes={routes} label="Fleet map" /></Suspense>
+    <Panel title="Fleet by status" go={()=>onNavigate("vehicles")} goLabel="View vehicles">
+     <div className="px-5 pb-5">
+      <div className="tt-admin-split-bar" aria-hidden="true">{split.filter(s=>s.n>0).map(s=><span key={s.key} style={{ flexGrow: s.n, background: COLOUR[s.tone] }} />)}</div>
+      <ul className="mt-3 space-y-0.5">
+       {split.map(s=>{const Icon=s.icon;return <li key={s.key}>
+        <button type="button" onClick={()=>{setFilter(FILTERS.find(f=>f.keys?.some(k=>s.keys.includes(k)))?.key||"all");document.getElementById("tt-admin-buses")?.scrollIntoView({block:"nearest",behavior:"smooth"});}} className="tt-admin-split-row">
+         <span className="tt-admin-split-swatch" style={{ background: COLOUR[s.tone] }} aria-hidden="true" />
+         <Icon className={cn("h-4 w-4 shrink-0",PILL[s.tone])} aria-hidden="true" />
+         <span className="flex-1 truncate">{s.label}</span>
+         <strong className="w-8 text-right tabular-nums">{s.n}</strong>
+         <span className="w-10 text-right text-caption tabular-nums text-muted-foreground">{fleet.length?Math.round(100*s.n/fleet.length):0}%</span>
+        </button>
+       </li>;})}
+      </ul>
      </div>
-     <p className="px-5 pb-3 pt-1 text-xs text-muted-foreground">Latest recorded positions. Delayed or missing reports show in the list below.</p>
-    </Panel>
-    <Panel title="Fleet status" go={()=>onNavigate("vehicles")} goLabel="View vehicles" className="tt-order-3"
-     extra={<div role="group" aria-label="Show buses" className="tt-admin-segments">{FILTERS.map(f=>{const n=f.keys?shown.filter(v=>f.keys.includes(keyOf(v))).length:shown.length;return <button key={f.key} type="button" aria-pressed={filter===f.key} onClick={()=>setFilter(f.key)}>{f.label}<span className="tabular-nums">{n}</span></button>;})}</div>}>
-     <div id="tt-admin-buses" className="overflow-x-auto"><table className="tt-admin-status-table"><thead><tr><th>Vehicle</th><th>Route · company</th><th>Driver</th><th>On board</th><th>Last update</th><th>Status</th></tr></thead><tbody>
-      {rows.slice(0,8).map(v=><tr key={v.id}>
-       <td><button type="button" onClick={()=>onNavigate("fleet")} className="flex items-center gap-3 text-left"><span className="tt-admin-bus-icon" aria-hidden="true"><Bus className="h-4 w-4" /></span><span><strong className="block">{v.name}</strong><small className="text-muted-foreground">{v.plate_number||"No plate"}</small></span></button></td>
-       <td><span className="block">{routeOf(v)?.name||"No route assigned"}</span><small className="text-muted-foreground">{companyOf(v)}</small></td>
-       <td>{v.driver_name||<span className="text-muted-foreground">—</span>}</td>
-       <td className="tabular-nums">{occupancy[v.id]>0?<>{occupancy[v.id]}{v.capacity?<span className="text-muted-foreground"> / {v.capacity}</span>:null}</>:<span className="text-muted-foreground">—</span>}</td>
-       <td className="text-muted-foreground">{age(v.last_location_update)}</td>
-       <td><StatusPill status={statuses[v.id]} /></td>
-      </tr>)}
-     </tbody></table></div>
-     {!fleet.length&&<p className="p-5 text-sm text-muted-foreground">No vehicles in this view.</p>}
-     {fleet.length>0&&!rows.length&&<p className="p-5 text-sm text-muted-foreground">No buses match{words?` "${query.trim()}"`:""} in this list.</p>}
-     {rows.length>8&&<button type="button" onClick={()=>onNavigate("vehicles")} className="mx-5 mb-4 self-start text-caption font-semibold text-muted-foreground hover:text-foreground">{rows.length-8} more in Vehicles</button>}
     </Panel>
    </div>
+   <Panel title="Fleet status" go={()=>onNavigate("vehicles")} goLabel="View vehicles" className="tt-admin-home-wide"
+    extra={<div role="group" aria-label="Show buses" className="tt-admin-segments">{FILTERS.map(f=>{const n=f.keys?shown.filter(v=>f.keys.includes(keyOf(v))).length:shown.length;return <button key={f.key} type="button" aria-pressed={filter===f.key} onClick={()=>setFilter(f.key)}>{f.label}<span className="tabular-nums">{n}</span></button>;})}</div>}>
+    <div id="tt-admin-buses" className="overflow-x-auto"><table className="tt-admin-status-table"><thead><tr><th>Vehicle</th><th>Route · company</th><th>Driver</th><th>On board</th><th>Last update</th><th>Status</th></tr></thead><tbody>
+     {rows.slice(0,8).map(v=><tr key={v.id}>
+      <td><button type="button" onClick={()=>onNavigate("fleet")} className="flex items-center gap-3 text-left"><span className="tt-admin-bus-thumb" aria-hidden="true"><BusArtwork vehicle={v} width={52} loading="lazy" /></span><span><strong className="tt-admin-bus-name block">{v.name}</strong><small className="text-muted-foreground">{v.plate_number||"No plate"}</small></span></button></td>
+      <td><span className="block">{routeOf(v)?.name||"No route assigned"}</span><small className="text-muted-foreground">{companyOf(v)}</small></td>
+      <td>{v.driver_name||<span className="text-muted-foreground">—</span>}</td>
+      <td className="tabular-nums">{occupancy[v.id]>0?<>{occupancy[v.id]}{v.capacity?<span className="text-muted-foreground"> / {v.capacity}</span>:null}</>:<span className="text-muted-foreground">—</span>}</td>
+      <td className="text-muted-foreground">{age(v.last_location_update)}</td>
+      <td><StatusPill status={statuses[v.id]} /></td>
+     </tr>)}
+    </tbody></table></div>
+    {!fleet.length&&<p className="p-5 text-sm text-muted-foreground">No vehicles in this view.</p>}
+    {fleet.length>0&&!rows.length&&<p className="p-5 text-sm text-muted-foreground">No buses match{words?` "${query.trim()}"`:""} in this list.</p>}
+    {rows.length>8&&<button type="button" onClick={()=>onNavigate("vehicles")} className="mx-5 mb-4 self-start text-caption font-semibold text-muted-foreground hover:text-foreground">{rows.length-8} more in Vehicles</button>}
+   </Panel>
   </div>
-  <Panel title="Tablet health" go={()=>onNavigate("kiosks")} goLabel="View tablets">
-   <div className="tt-admin-tablet-grid px-4 pb-4">{tabletRows.map(d=><button key={d.id} type="button" onClick={()=>onNavigate("kiosks")} className="tt-admin-tablet-row"><Smartphone className="w-5 h-5 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 flex-1"><strong className="block break-words">{d.label||d.name||d.vehicle_name||"Tablet"}</strong><small className="block text-muted-foreground">{d.vehicle_name||nameOf(d.vehicle_id)||"No vehicle"} · {companyOf(d)}</small><small className="block text-muted-foreground">Last seen: {age(d.last_seen)}</small></span><StatusPill status={tabletStates[d.id]} /></button>)}</div>
-   {!devices.length&&<p className="p-5 text-sm text-muted-foreground">{kiosksReady?"No tablets in this view.":"Tablet data unavailable."}</p>}
-  </Panel>
-  <RecentActivityFeed onNavigate={onNavigate} />
+  <div className="tt-admin-home-foot">
+   <Panel title="Tablet health" go={()=>onNavigate("kiosks")} goLabel="View tablets">
+    <div className="tt-admin-tablet-grid px-4 pb-4">{tabletRows.map(d=><button key={d.id} type="button" onClick={()=>onNavigate("kiosks")} className="tt-admin-tablet-row"><Smartphone className="w-5 h-5 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="min-w-0 flex-1"><strong className="block break-words">{d.label||d.name||d.vehicle_name||"Tablet"}</strong><small className="block text-muted-foreground">{d.vehicle_name||nameOf(d.vehicle_id)||"No vehicle"} · {companyOf(d)}</small><small className="block text-muted-foreground">Last seen: {age(d.last_seen)}</small></span><StatusPill status={tabletStates[d.id]} /></button>)}</div>
+    {!devices.length&&<p className="p-5 text-sm text-muted-foreground">{kiosksReady?"No tablets in this view.":"Tablet data unavailable."}</p>}
+   </Panel>
+   <RecentActivityFeed onNavigate={onNavigate} />
+  </div>
   {tools}
  </div>;
 }
