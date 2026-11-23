@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StockChip } from "@/components/admin/partsCatalogueKit";
+import { StatusChip } from "@/components/admin/kit";
 import { MIN_QUERY, workshopSearch } from "@/lib/workshopSearch";
 import { ScreenBar, useWorkshop } from "@/components/workshop/kit";
 import ScanSheet from "@/components/workshop/ScanSheet";
@@ -36,6 +37,7 @@ function Hit({ hit }) {
         {hit.subtitle && <span className="block truncate text-body-sm text-muted-foreground">{hit.subtitle}</span>}
       </span>
       {hit.part && <StockChip part={hit.part} className="shrink-0" />}
+      {hit.open !== undefined && <StatusChip tone={hit.open ? "warning" : "success"} className="shrink-0">{hit.open ? "Open" : "Done"}</StatusChip>}
       {hit.to && <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />}
     </>
   );

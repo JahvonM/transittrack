@@ -7,7 +7,7 @@ import { StockChip } from "@/components/admin/partsCatalogueKit";
 import QuickAddPart from "@/components/admin/QuickAddPart";
 import { partFromScan } from "@/lib/workshop";
 import { useWorkshop } from "@/components/workshop/kit";
-import { Plus, ScanLine, Search } from "lucide-react";
+import { Pencil, Plus, ScanLine, Search } from "lucide-react";
 
 // The camera is a big download, so it loads only when the scanner opens.
 const QrScanner = lazy(() => import("@/components/kiosk/QrScanner"));
@@ -17,8 +17,9 @@ const PART_CODES = ["QR_CODE", "CODE_128", "CODE_39", "EAN_13", "EAN_8", "UPC_A"
 
 // Scan a part's barcode (or type its number) to find it on the shelves: one
 // part opens its page, several are offered to choose from, and a number not
-// in the parts can be added straight away.
-export default function ScanSheet({ open, onOpenChange }) {
+// in the parts can be added straight away. A job uses it to pick a part
+// (onPick), and a number not in the parts is written in instead (onNotFound).
+export default function ScanSheet({ open, onOpenChange, onPick, onNotFound }) {
   const navigate = useNavigate();
   const { parts, interchanges, guides, put } = useWorkshop();
   const [result, setResult] = useState(null);
@@ -26,13 +27,14 @@ export default function ScanSheet({ open, onOpenChange }) {
   const [adding, setAdding] = useState(null);
 
   const close = () => { setResult(null); setTyped(""); onOpenChange(false); };
+  const choose = (part) => {
+    close();
+    if (onPick) onPick(part);
+    else navigate(`/workshop/parts/${part.id}`);
+  };
   const find = (text) => {
     const found = partFromScan(text, parts, interchanges);
-    if (found.matches.length === 1) {
-      close();
-      navigate(`/workshop/parts/${found.matches[0].id}`);
-      return;
-    }
+    if (found.matches.length === 1) { choose(found.matches[0]); return; }
     setResult(found);
   };
 
@@ -67,7 +69,7 @@ export default function ScanSheet({ open, onOpenChange }) {
                     <ul className="divide-y divide-border rounded-lg border border-border">
                       {result.matches.map((part) => (
                         <li key={part.id}>
-                          <button type="button" onClick={() => { close(); navigate(`/workshop/parts/${part.id}`); }} className="flex min-h-[3.5rem] w-full items-center gap-3 px-3 py-2 text-left hover:bg-secondary/60">
+                          <button type="button" onClick={() => choose(part)} className="flex min-h-[3.5rem] w-full items-center gap-3 px-3 py-2 text-left hover:bg-secondary/60">
                             <span className="min-w-0 flex-1">
                               <span className="block truncate font-semibold text-primary">{part.part_name}</span>
                               <span className="block truncate text-body-sm text-muted-foreground">{[part.oem_number, part.aftermarket_number, part.bin_location].filter(Boolean).join(" · ")}</span>
@@ -82,9 +84,15 @@ export default function ScanSheet({ open, onOpenChange }) {
                   <div className="rounded-xl border border-border bg-card p-4">
                     <p className="font-semibold">Not in your parts</p>
                     <p className="text-body-sm text-muted-foreground">No part on the shelves has this number or a replacement for it.</p>
-                    <Button className="mt-3 h-12 rounded-lg text-body" onClick={() => { setAdding({ number: result.number }); close(); }}>
-                      <Plus className="mr-1.5 h-5 w-5" aria-hidden="true" />Add it
-                    </Button>
+                    {onNotFound ? (
+                      <Button className="mt-3 h-12 rounded-lg text-body" onClick={() => { const number = result.number; close(); onNotFound(number); }}>
+                        <Pencil className="mr-1.5 h-5 w-5" aria-hidden="true" />Write it in
+                      </Button>
+                    ) : (
+                      <Button className="mt-3 h-12 rounded-lg text-body" onClick={() => { setAdding({ number: result.number }); close(); }}>
+                        <Plus className="mr-1.5 h-5 w-5" aria-hidden="true" />Add it
+                      </Button>
+                    )}
                   </div>
                 )}
                 <Button variant="outline" className="h-12 rounded-lg text-body" onClick={() => setResult(null)}><ScanLine className="mr-1.5 h-4 w-4" aria-hidden="true" />Scan another</Button>

@@ -137,9 +137,12 @@ export default function PartsTab({ parts = [], onChange, canDelete = true }) {
     }
   };
 
+  // Adds the tap to the latest count on the server (a job may have taken
+  // parts since this list loaded), so it never undoes another screen's change.
   const adjustStock = async (part, delta) => {
-    const next = Math.max(0, (part.quantity_in_stock || 0) + delta);
     try {
+      const fresh = (await base44.entities.Part.get(part.id)) || part;
+      const next = Math.max(0, (Number(fresh.quantity_in_stock) || 0) + delta);
       await base44.entities.Part.update(part.id, { quantity_in_stock: next });
       onChange();
     } catch (e) {

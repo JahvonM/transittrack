@@ -18,7 +18,7 @@ async function uniqueAccessCode(db,entity,field) {
 ENTITY_FIELDS.KioskDevice.push('display_layout');
 // A driver's own phone (store app): belongs to a driver; the phone picks the bus.
 ENTITY_FIELDS.KioskDevice.push('personal', 'driver_id', 'driver_name');
-const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings", "VehicleGuide", "GuideFact", "GuideDocument", "PartDiagram", "PartInterchange", "CatalogueGroup", "TorqueSpec", "WorkshopVehicle"]);
+const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings", "VehicleGuide", "GuideFact", "GuideDocument", "PartDiagram", "PartInterchange", "CatalogueGroup", "TorqueSpec", "WorkshopVehicle", "WorkshopJob", "WorkshopJobPart"]);
 
 for(const name of ['InspectionResult','Fault']) ENTITY_FIELDS[name].push('client_request_id');
 ENTITY_FIELDS.GroupMessage.push('sender_id','sender_email');
@@ -81,6 +81,11 @@ ENTITY_FIELDS.CatalogueGroup=['guide_id','vehicle_id','model_code','category','c
 // apart from Vehicle so they never reach the fleet, kiosk or company screens.
 ENTITY_FIELDS.TorqueSpec=['guide_id','system','item','size','nm','stages','sequence','new_bolt','thread_lock','applies_to','source_name','source_link','status','checked_by','checked_at','sort_order'];
 ENTITY_FIELDS.WorkshopVehicle=['name','make','model','year','engine','transmission','vin','plate_number','notes'];
+// Workshop jobs: the work done on a bus or workshop car, and the parts used.
+// The database takes a part from the shelf off its stock as it is saved, and
+// puts it back when removed (supabase/migrations/*_workshop_job_stock.sql).
+ENTITY_FIELDS.WorkshopJob=['vehicle_kind','vehicle_id','vehicle_name','guide_id','title','symptom','fault_codes','fault_id','status','steps','fix','notes','odometer','done_at','done_by'];
+ENTITY_FIELDS.WorkshopJobPart=['job_id','part_id','part_name','part_number','qty','from_stock'];
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Vehicle:new Set(['driver_id']),Trip:new Set(['client_id','client_name','price','currency','shared_with_company'])};
 const SERVER_ONLY_FIELDS={StaffCheckIn:new Set(['person_key','run_key','shift_id','review_reason','saved_offline']),Driver:new Set(['username','auth_user_id','must_change_password']),Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
@@ -346,6 +351,96 @@ async function cleanPartFields(db,ctx,data) {
  }
  guideAmount(data,'min_stock',100_000);
  text(data,'bin_location',60);
+}
+// A job stays on the vehicle it was started on, and the server copies that
+// vehicle's name. Who marked it done, and when, is the server's to say.
+const JOB_KINDS=new Set(['bus','car']);
+const JOB_STATUSES=new Set(['open','done']);
+async function cleanWorkshopJob(db,ctx,data,existing) {
+ const user=ctx.user;
+ for(const field of ['vehicle_kind','vehicle_id']) if(existing&&Object.hasOwn(data,field)&&data[field]!==existing[field]) fail(400,'A job stays on its vehicle');
+ delete data.vehicle_name;delete data.done_at;delete data.done_by;
+ const kind=existing?.vehicle_kind??data.vehicle_kind, vehicleId=existing?.vehicle_id??data.vehicle_id;
+ if(!existing) {
+  if(!JOB_KINDS.has(kind)) fail(400,'Say whether the job is on a bus or a car');
+  if(typeof vehicleId!=='string'||!vehicleId) fail(400,'Choose the vehicle');
+  const vehicle=await db[kind==='bus'?'Vehicle':'WorkshopVehicle'].get(vehicleId).catch(()=>null);
+  if(!vehicle) fail(400,'Vehicle not found');
+  data.vehicle_name=String(vehicle.name||'').slice(0,120);
+ }
+ if((!existing||Object.hasOwn(data,'title'))&&(typeof data.title!=='string'||!data.title.trim())) fail(400,'Say what the job is');
+ for(const [field,max] of [['title',120],['symptom',2000],['fault_codes',200],['fix',4000],['notes',4000]]) text(data,field,max);
+ wholeNumber(data,'odometer',5_000_000);
+ if(Object.hasOwn(data,'guide_id')) {
+  if(data.guide_id===null||data.guide_id==='') data.guide_id='';
+  else if(!(await guideExists(db,ctx,data.guide_id))) fail(400,'Library page not found');
+ }
+ if(Object.hasOwn(data,'fault_id')) {
+  if(data.fault_id===null||data.fault_id==='') data.fault_id='';
+  else {
+   const fault=kind==='bus'&&typeof data.fault_id==='string'?await db.Fault.get(data.fault_id).catch(()=>null):null;
+   if(!fault||fault.vehicle_id!==vehicleId) fail(400,'That fault is not on this bus');
+  }
+ }
+ if(Object.hasOwn(data,'steps')) {
+  const steps=data.steps??[];
+  if(!Array.isArray(steps)||steps.length>60) fail(400,'A job can have up to 60 steps');
+  data.steps=steps.map(s=>{
+   if(!s||typeof s!=='object'||typeof s.text!=='string'||!s.text.trim()||s.text.length>300) fail(400,'Each step needs words, up to 300 characters');
+   if(s.done!==undefined&&typeof s.done!=='boolean') fail(400,'Invalid step');
+   if(s.torque_id!==undefined&&s.torque_id!==null&&s.torque_id!==''&&(typeof s.torque_id!=='string'||s.torque_id.length>64)) fail(400,'Invalid step');
+   return s.torque_id?{text:s.text.trim(),done:s.done===true,torque_id:s.torque_id}:{text:s.text.trim(),done:s.done===true};
+  });
+  // A step's torque value is one of the job's model's. One from another model,
+  // or one since deleted, is dropped (as bolt pins do), so ticking still saves.
+  const torques=[...new Set(data.steps.map(s=>s.torque_id).filter(Boolean))];
+  if(torques.length) {
+   const guideId=Object.hasOwn(data,'guide_id')?data.guide_id:existing?.guide_id;
+   const found=guideId?new Set((await db.TorqueSpec.filter({id:{$in:torques}},'-created_date',torques.length)).filter(t=>t.guide_id===guideId).map(t=>t.id)):new Set();
+   data.steps=data.steps.map(s=>s.torque_id&&!found.has(s.torque_id)?{text:s.text,done:s.done}:s);
+  }
+ }
+ if(Object.hasOwn(data,'status')&&!JOB_STATUSES.has(data.status)) fail(400,'Invalid job status');
+ const before=existing?.status||'open';
+ const status=Object.hasOwn(data,'status')?data.status:before;
+ if(!existing||status!==before) {
+  data.status=status;
+  if(status==='done') { data.done_at=new Date().toISOString(); data.done_by=user.full_name||user.email||''; }
+  else if(existing) { data.done_at=null; data.done_by=''; }
+ }
+}
+// A part used on a job. While its job is open it can be added, changed or
+// removed (a mechanic may remove one too); a done job's parts stay as they
+// were until the job is reopened. A part from the shelf must be on the parts
+// list and the server copies its name and number; one bought for the job can
+// be written in. The stock itself moves in the database.
+async function cleanJobPart(db,ctx,data,existing) {
+ for(const field of ['job_id','part_id']) if(existing&&Object.hasOwn(data,field)&&(data[field]||'')!==(existing[field]||'')) fail(400,'To use a different part, remove this one and add the right one');
+ const jobId=existing?.job_id??data.job_id;
+ if(typeof jobId!=='string'||!jobId) fail(400,'Choose the job');
+ const job=await db.WorkshopJob.get(jobId).catch(()=>null);
+ if(!job) fail(400,'Job not found');
+ if(job.status==='done') fail(409,'This job is done. Reopen it to change its parts');
+ if(Object.hasOwn(data,'from_stock')&&typeof data.from_stock!=='boolean') fail(400,'Say whether it came from the shelf');
+ if(!existing||Object.hasOwn(data,'qty')) {
+  const n=Number(data.qty);
+  if(data.qty===null||data.qty===''||!Number.isFinite(n)||n<=0||n>10000) fail(400,'How many? More than 0, up to 10,000');
+  data.qty=Math.round(n*100)/100;
+ }
+ const fromStock=Object.hasOwn(data,'from_stock')?data.from_stock:existing?existing.from_stock!==false:true;
+ const listed=existing?!!existing.part_id:!!data.part_id;
+ if(!existing&&listed) {
+  const part=typeof data.part_id==='string'?await db.Part.get(data.part_id).catch(()=>null):null;
+  if(!part) fail(400,'That part is no longer in your parts list');
+  data.part_name=String(part.part_name||'Part').slice(0,200);
+  data.part_number=String(part.oem_number||part.aftermarket_number||'').slice(0,60);
+  return;
+ }
+ if(listed) { delete data.part_name;delete data.part_number;return; }
+ delete data.part_id;
+ if(fromStock) fail(400,'Choose the part from your parts list, or mark it bought for this job');
+ if((!existing||Object.hasOwn(data,'part_name'))&&(typeof data.part_name!=='string'||!data.part_name.trim())) fail(400,'Name the part');
+ for(const [field,max] of [['part_name',200],['part_number',60]]) text(data,field,max);
 }
 const GUIDE_ENTITIES=new Set(['VehicleGuide','GuideFact','GuideDocument','PartDiagram','PartInterchange','CatalogueGroup','TorqueSpec','WorkshopVehicle']);
 const SECURITY_FIELDS={Company:new Set(['access_code','access_code_expires_at']),KioskDevice:new Set(['pairing_code','pairing_expires_at','paired','status'])};
@@ -662,6 +757,8 @@ async function prepare(db,ctx,name,input,existing=null) {
  }
  if(GUIDE_ENTITIES.has(name)) await cleanGuideRecord(db,ctx,name,data,existing);
  if(name==='Part') await cleanPartFields(db,ctx,data);
+ if(name==='WorkshopJob') await cleanWorkshopJob(db,ctx,data,existing);
+ if(name==='WorkshopJobPart') await cleanJobPart(db,ctx,data,existing);
  if(name==='LostItemReport' && user.role!=='admin' && user.role!=='company') {
   if(existing && existing.reporter_id!==user.id) fail(403,'Own reports only');
   data.reporter_id=user.id;data.reporter_email=user.email;data.reporter_name=user.full_name||user.email;
@@ -945,7 +1042,8 @@ export default async function(req) {
   }
   if(operation==='delete') {
    if(name==='Company') fail(409,'Use the protected company deletion workflow');
-   if(ctx.user.role!=='admin'&&MAINTENANCE.has(name))fail(403,'Maintenance deletion is admin-only');
+   // A mechanic may take a part back off an open job (cleanJobPart checks it is open).
+   if(ctx.user.role!=='admin'&&MAINTENANCE.has(name)&&!(ctx.user.role==='mechanic'&&name==='WorkshopJobPart'))fail(403,'Maintenance deletion is admin-only');
    if(ctx.user.role!=='admin' && !(ctx.user.role==='company' && COMPANY_READ.has(name) && name!=='Company') && !(ctx.user.role==='mechanic' && MAINTENANCE.has(name) && name!=='Vehicle') && !(name==='GroupMessage' && existing.sender_id===ctx.user.id)) fail(403,'Delete forbidden');
    // Deleting an old schedule does not need its now-removed vehicle/company
    // to pass create/update validation. Visibility and admin checks ran above.

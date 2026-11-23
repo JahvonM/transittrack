@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/admin/kit";
 import { busRecordWarnings } from "@/lib/busLibrary";
 import { modelCodeFor, oldViewLink, stockSummary, torqueCounts, workshopVehicles } from "@/lib/workshop";
+import { isOpen, openFaultsFor, openJobsFor } from "@/lib/workshopJobs";
 import { Notice, Tile, WorkshopContext, pluralize, useWorkshop } from "@/components/workshop/kit";
 import VehiclePage from "@/components/workshop/VehiclePage";
 import DiagramPage from "@/components/workshop/DiagramPage";
@@ -18,7 +19,9 @@ import PartsPage from "@/components/workshop/PartsPage";
 import PartPage from "@/components/workshop/PartPage";
 import SearchPage, { SearchBox } from "@/components/workshop/SearchPage";
 import ReorderPage from "@/components/workshop/ReorderPage";
-import { ArrowLeft, BookOpen, Bus, Car, ClipboardList, LogOut, Package, Plus, RefreshCw, Search } from "lucide-react";
+import JobsPage from "@/components/workshop/JobsPage";
+import JobPage from "@/components/workshop/JobPage";
+import { ArrowLeft, BookOpen, Bus, Car, ClipboardList, LogOut, Package, Plus, RefreshCw, Search, Wrench } from "lucide-react";
 
 // The Workshop: app.mcsweenstransport.com/workshop, for the shared tablet in
 // the workshop (and phones), laid out like a parts catalogue. Every vehicle
@@ -43,11 +46,14 @@ const OPTIONAL = {
   interchanges: () => base44.entities.PartInterchange.list("-created_date", 5000),
   facts: () => base44.entities.GuideFact.list("sort_order", 5000),
   documents: () => base44.entities.GuideDocument.list("-created_date", 500),
+  jobs: () => base44.entities.WorkshopJob.list("-created_date", LIST),
+  jobParts: () => base44.entities.WorkshopJobPart.list("-created_date", 5000),
+  faults: () => base44.entities.Fault.list("-created_date", 500),
 };
 
 function useWorkshopData() {
   const [state, setState] = useState("loading");
-  const [data, setData] = useState({ buses: [], cars: [], guides: [], specs: [], diagrams: [], groups: [], parts: [], interchanges: [], facts: [], documents: [], missing: {} });
+  const [data, setData] = useState({ buses: [], cars: [], guides: [], specs: [], diagrams: [], groups: [], parts: [], interchanges: [], facts: [], documents: [], jobs: [], jobParts: [], faults: [], missing: {} });
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setState("loading");
@@ -87,7 +93,8 @@ function useWorkshopData() {
 }
 
 function Home() {
-  const { vehicles, specs, diagrams, groups, parts, missing, isAdmin, user, state } = useWorkshop();
+  const { vehicles, specs, diagrams, groups, parts, jobs, faults, missing, isAdmin, user, state } = useWorkshop();
+  const openJobs = jobs.filter(isOpen).length;
   const stock = stockSummary(parts);
   const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
@@ -101,13 +108,17 @@ function Home() {
     const catalogue = v.guide ? groups.filter((g) => g.guide_id === v.guide.id) : [];
     const code = modelCodeFor(v, catalogue);
     const warnings = v.kind === "bus" ? busRecordWarnings(v.record) : [];
+    const working = openJobsFor(jobs, v).length;
+    const faulty = openFaultsFor(faults, v).length;
     return (
       <li key={`${v.kind}-${v.id}`}>
         <Tile
           to={`/workshop/${v.kind}/${v.id}`} icon={v.kind === "bus" ? Bus : Car} title={v.name}
           lines={[[v.model !== v.name ? v.model : "", code].filter(Boolean).join(" · "), v.engine, v.guide ? [pluralize(counts.total, "torque value"), catalogue.length ? pluralize(catalogue.length, "diagram") : "", pictures ? pluralize(pictures, "photo") : ""].filter(Boolean).join(" · ") : ""]}
-          badge={(!v.guide || counts.unchecked > 0 || warnings.length > 0) && (
+          badge={(!v.guide || counts.unchecked > 0 || warnings.length > 0 || working > 0 || faulty > 0) && (
             <span className="flex flex-wrap gap-1.5">
+              {working > 0 && <StatusChip tone="info">{pluralize(working, "open job")}</StatusChip>}
+              {faulty > 0 && <StatusChip tone="warning">{pluralize(faulty, "open fault")}</StatusChip>}
               {!v.guide && <StatusChip tone="warning">No model page</StatusChip>}
               {counts.unchecked > 0 && <StatusChip tone="warning">{counts.unchecked} not checked</StatusChip>}
               {warnings.length > 0 && <StatusChip tone="warning">Check record</StatusChip>}
@@ -133,6 +144,18 @@ function Home() {
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{cars.map(tile)}</ul>
         </section>
       )}
+      <section aria-labelledby="ws-work" className="mb-6">
+        <h2 id="ws-work" className="mb-2 text-body font-semibold text-muted-foreground">Work</h2>
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <li>
+            <Tile
+              to="/workshop/jobs" icon={Wrench} title="Jobs"
+              lines={[missing.jobs ? "Couldn't load the jobs" : openJobs ? `${pluralize(openJobs, "open job")}` : "No open jobs", "Repairs and services, with the parts used"]}
+              badge={!missing.jobs && openJobs > 0 && <StatusChip tone="info">{openJobs} open</StatusChip>}
+            />
+          </li>
+        </ul>
+      </section>
       <section aria-labelledby="ws-stock" className="mb-6">
         <h2 id="ws-stock" className="mb-2 text-body font-semibold text-muted-foreground">Stock</h2>
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -218,12 +241,16 @@ export default function Workshop() {
               <Route path="parts" element={<PartsPage />} />
               <Route path="parts/reorder" element={<ReorderPage />} />
               <Route path="parts/:partId" element={<PartPage />} />
+              <Route path="jobs" element={<JobsPage />} />
+              <Route path="jobs/:jobId" element={<JobPage />} />
               <Route path=":kind/:id" element={<VehiclePage />} />
               <Route path=":kind/:id/torque" element={<VehiclePage section="torque" />} />
               <Route path=":kind/:id/specs" element={<VehiclePage section="specs" />} />
               <Route path=":kind/:id/parts" element={<VehiclePage section="parts" />} />
               <Route path=":kind/:id/manuals" element={<VehiclePage section="manuals" />} />
               <Route path=":kind/:id/maps" element={<VehiclePage section="maps" />} />
+              <Route path=":kind/:id/jobs" element={<VehiclePage section="jobs" />} />
+              <Route path=":kind/:id/troubleshooting" element={<VehiclePage section="troubleshooting" />} />
               <Route path=":kind/:id/c/:category" element={<VehiclePage section="category" />} />
               <Route path=":kind/:id/maps/:diagramId" element={<DiagramPage mode="picture" />} />
               <Route path=":kind/:id/group/:groupId" element={<DiagramPage mode="group" />} />
