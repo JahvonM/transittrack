@@ -14,6 +14,8 @@ import Bus3DStudio from "@/components/vehicle3d/Bus3DStudio";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
 import "@/pages/busHero.css";
+import "@/components/admin/adminSea.css";
+import useFutureAppearance from "@/hooks/useFutureAppearance";
 
 // The picture at the top of a bus's page: its own, else the van at sunset.
 const HERO_FALLBACK = "/images/van-side.webp";
@@ -29,6 +31,15 @@ export default function VehicleDetail() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  // Admins see a bus's page in the admin console's look (adminSea.css).
+  const admin = user?.role === "admin";
+  useFutureAppearance(admin, "tt-admin-app");
+  useEffect(() => {
+    if (!admin) return undefined;
+    const root = document.documentElement;
+    root.classList.add("tt-admin-sea");
+    return () => root.classList.remove("tt-admin-sea");
+  }, [admin]);
   const [vehicle, setVehicle] = useState(null);
   const [faults, setFaults] = useState([]);
   const [schedules, setSchedules] = useState([]);

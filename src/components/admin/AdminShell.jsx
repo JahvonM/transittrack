@@ -414,8 +414,8 @@ export default function AdminShell({ active, onNavigate, children, alertVehicles
           ) : (
             <div className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
               <div className="min-w-0">
-                <h1 className="text-headline font-bold">{title}</h1>
-                {active === "overview" && <p className="mt-1 text-body-sm text-muted-foreground">Across all companies</p>}
+                {/* Admin home opens with its photo strip, so its title is for screen readers only. */}
+                <h1 className={cn("text-headline font-bold", active === "overview" && "sr-only")}>{title}</h1>
                 <div ref={setIntroEl} />
               </div>
               <div ref={setActionsEl} className="flex flex-wrap items-center justify-end gap-2 empty:hidden" />

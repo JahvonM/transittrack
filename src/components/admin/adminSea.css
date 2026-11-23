@@ -77,6 +77,20 @@ html.tt-admin-sea:not(.light.tt-theme-chosen) body { background: hsl(var(--backg
 
 /* Light (once picked in Account -> Appearance): the website's white pages. */
 html.tt-admin-sea.tt-admin-app.light.tt-theme-chosen {
+  /* The menu stays sea-blue (these outrank the app's own light menu). */
+  --sidebar-background: 206 66% 7%;
+  --sidebar-foreground: 200 33% 96%;
+  --sidebar-accent: 206 50% 14%;
+  --sidebar-accent-foreground: 200 33% 96%;
+  --sidebar-border: 206 40% 13%;
+  --ad-sidebar: #06131d;
+  --ad-nav-text: #a9bccb;
+  --ad-nav-hover-bg: #ffffff0f;
+  --ad-nav-hover-text: #ffffff;
+  --ad-nav-current-text: #ffffff;
+  --ad-nav-current-bg: #ffffff12;
+  --ad-nav-line: #1d3446;
+  --ad-nav-sep: #1d3446;
   --background: 203 33% 95%;          /* #eef3f6 */
   --foreground: 206 61% 11%;
   --card: 0 0% 100%;
@@ -265,7 +279,7 @@ html.tt-admin-sea .tt-admin-shell :is(section.rounded-2xl, div.rounded-2xl.borde
   background: hsl(var(--secondary));
 }
 .tt-admin-bus-thumb img { width: 52px; height: 36px; object-fit: contain; filter: none; }
-.tt-admin-bus-name { font-stretch: 125%; font-weight: 700; text-transform: uppercase; font-size: 13px; letter-spacing: 0.02em; }
+.tt-admin-bus-name { font-stretch: 125%; font-weight: 700; text-transform: uppercase; font-size: 13px; letter-spacing: 0.02em; white-space: nowrap; }
 
 /* Tablet health: tablets side by side. */
 .tt-admin-tablet-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
