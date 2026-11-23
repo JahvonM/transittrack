@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Segmented } from "@/components/admin/kit";
 import { ModelChecklist, StockChip } from "@/components/admin/partsCatalogueKit";
 import useQuickAddPart from "@/hooks/useQuickAddPart";
+import ScanNumberButton from "@/components/admin/ScanNumberButton";
 import { CheckCircle2, ChevronDown, ChevronUp, ClipboardPaste, ImagePlus, Loader2, Minus, Plus, RotateCcw, X } from "lucide-react";
 
 // Add a part from a phone: a photo, the number (pasted from a parts catalogue
@@ -103,9 +104,12 @@ export function QuickAddPartForm({ parts = [], guides = [], onSaved, onDone, onA
             </label>
           )}
 
-          <Button type="button" variant="outline" className="h-11 w-full" onClick={q.pasteCopied}>
-            <ClipboardPaste className="mr-2 h-4 w-4" />Paste a copied part number
-          </Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" className="h-11 min-w-0 flex-1" onClick={q.pasteCopied}>
+              <ClipboardPaste className="mr-2 h-4 w-4" />Paste a copied part number
+            </Button>
+            <ScanNumberButton onScan={q.fill} className="h-11" />
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="quick-number">Part number</Label>

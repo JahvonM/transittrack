@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { StockChip } from "@/components/admin/partsCatalogueKit";
 import { PhotoPreview, QuickMoreFields } from "@/components/admin/QuickAddPart";
 import useQuickAddPart from "@/hooks/useQuickAddPart";
+import ScanNumberButton from "@/components/admin/ScanNumberButton";
 import { guideLabel } from "@/lib/partsCatalogue";
 import { Camera, Check, CheckCircle2, ChevronRight, ClipboardPaste, Loader2, Minus, Plus } from "lucide-react";
 
@@ -65,6 +66,7 @@ export default function KioskPartForm({ parts, guides = [], ready = true, notRea
               <Button type="button" variant="secondary" size="icon" className="h-12 w-12 shrink-0 rounded-xl md:w-auto md:px-4" onClick={q.pasteCopied} aria-label="Paste a copied part number" title="Paste a copied part number">
                 <ClipboardPaste className="h-5 w-5" aria-hidden="true" /><span className="ml-1.5 hidden md:inline">Paste</span>
               </Button>
+              <ScanNumberButton onScan={q.fill} compact className="h-12 w-12 rounded-xl" />
             </div>
             <div role="group" aria-label="Kind of number" className="grid grid-cols-2 gap-2">
               <button type="button" aria-pressed={form.kind === "genuine"} onClick={() => set("kind", "genuine")} className={chip(form.kind === "genuine")}>Genuine</button>

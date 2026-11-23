@@ -7,7 +7,8 @@ import QuickAddPart from "@/components/admin/QuickAddPart";
 import { guideLabel } from "@/lib/partsCatalogue";
 import { oldViewLink, stockSummary, visibleParts } from "@/lib/workshop";
 import { Notice, ScreenBar, pluralize, useWorkshop } from "@/components/workshop/kit";
-import { Camera, MonitorSmartphone, Plus, RefreshCw, Search } from "lucide-react";
+import { Camera, ClipboardList, MonitorSmartphone, Plus, RefreshCw, ScanLine, Search } from "lucide-react";
+import ScanSheet from "@/components/workshop/ScanSheet";
 
 // Parts in the Workshop: the whole stock as a catalogue list (search by name
 // or any number, replacement numbers too, or just what's low), each part
@@ -46,6 +47,7 @@ export default function PartsPage() {
   const [query, setQuery] = useState("");
   const [show, setShow] = useState("all");
   const [adding, setAdding] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const list = useMemo(() => visibleParts(parts, interchanges, { query, show }), [parts, interchanges, query, show]);
   const stock = stockSummary(parts);
 
@@ -55,6 +57,12 @@ export default function PartsPage() {
         <Button asChild variant="outline" className="h-12 rounded-lg bg-card text-body">
           <Link to="/parts"><MonitorSmartphone className="mr-1.5 h-4 w-4" aria-hidden="true" />Parts kiosk</Link>
         </Button>
+        {stock.low > 0 && (
+          <Button asChild variant="outline" className="h-12 rounded-lg bg-card text-body">
+            <Link to="/workshop/parts/reorder"><ClipboardList className="mr-1.5 h-4 w-4" aria-hidden="true" />Reorder list ({stock.low})</Link>
+          </Button>
+        )}
+        <Button variant="outline" className="h-12 rounded-lg bg-card text-body" onClick={() => setScanning(true)}><ScanLine className="mr-1.5 h-4 w-4" aria-hidden="true" />Scan</Button>
         <Button className="h-12 rounded-lg text-body" onClick={() => setAdding(true)}><Plus className="mr-1.5 h-5 w-5" aria-hidden="true" />Add a part</Button>
       </ScreenBar>
 
@@ -99,6 +107,7 @@ export default function PartsPage() {
         <Link to={oldViewLink(user?.role, "parts")} className="font-medium text-primary underline underline-offset-2">Old view of Parts</Link>
       </p>
 
+      <ScanSheet open={scanning} onOpenChange={setScanning} />
       <QuickAddPart open={adding} onOpenChange={setAdding} parts={parts} guides={guides} onSaved={(saved) => put("parts", saved)} />
     </>
   );
