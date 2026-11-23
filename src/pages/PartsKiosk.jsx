@@ -48,7 +48,7 @@ function AddedLog({ log, allParts }) {
 export default function PartsKiosk() {
   useFutureAppearance();
   useHomeScreenApp({ manifest: "/parts.webmanifest?v=parts1", title: "Parts" });
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const [parts, setParts] = useState([]);
   const [guides, setGuides] = useState([]);
   const [state, setState] = useState("loading");
@@ -74,7 +74,7 @@ export default function PartsKiosk() {
   useEffect(() => { load(); }, [load]);
 
   const added = useCallback((entry) => setLog((l) => [{ ...entry, at: new Date() }, ...l].slice(0, 50)), []);
-  const allParts = user?.role === "mechanic" ? "/mechanic" : "/admin/parts";
+  const allParts = "/workshop/parts";
 
   return (
     <div className="tt-phone-future min-h-[100dvh] touch-manipulation bg-background text-foreground">

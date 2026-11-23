@@ -4,6 +4,8 @@ import {
   embeddable, ftLb, groupMatches, groupRefs, guideFor, isToyotaDiagram, jpCarPartsLink, jpCarPartsModel, modelCodeFor,
   pageFromStarter, pictureForGroup, pinKey, pinLabel, readyTorque,
   starterTorque, torqueBySystem, torqueData, torqueForm, torqueProblem, visibleTorque, workshopVehicles,
+  blankFact, documentProblem, factData, factForm, factProblem, nextFactOrder, nextStock, oldViewLink, partData, partForm, partProblem,
+  partsForGuide, stockSummary, visibleParts,
 } from "../workshop.js";
 import { TORQUE_STARTERS } from "../../data/workshop/torque/index.js";
 import { STARTERS as LIBRARY_STARTERS } from "../../data/busLibrary/index.js";
@@ -245,3 +247,115 @@ describe("the maker's diagram from the catalogue site", () => {
     expect(jpCarPartsModel("https://example.com")).toBe("");
   });
 });
+
+describe("parts in the Workshop", () => {
+  const parts = [
+    { id: "p1", part_name: "Wheel nut", oem_number: "90942-01058", quantity_in_stock: 12, guide_ids: ["g1"] },
+    { id: "p2", part_name: "Oil filter (genuine)", oem_number: "90915-YZZD2", quantity_in_stock: 1, min_stock: 2, guide_ids: ["g1", "g2"] },
+    { id: "p3", part_name: "Air filter", quantity_in_stock: 0 },
+  ];
+  const interchanges = [{ id: "i1", part_number: "90915-YZZD2", alt_number: "Z418", alt_brand: "Ryco", status: "unchecked" }];
+
+  it("finds the parts that fit a model page, by name", () => {
+    expect(partsForGuide(parts, "g1").map((p) => p.id)).toEqual(["p2", "p1"]);
+    expect(partsForGuide(parts, "g2").map((p) => p.id)).toEqual(["p2"]);
+    expect(partsForGuide(parts, "")).toEqual([]);
+  });
+
+  it("counts the parts, and those low or out of stock", () => {
+    expect(stockSummary(parts)).toEqual({ total: 3, low: 2 });
+    expect(stockSummary([])).toEqual({ total: 0, low: 0 });
+  });
+
+  it("searches names and every number, replacement numbers too, and shows only the low ones when asked", () => {
+    expect(visibleParts(parts, interchanges, { query: "z418" }).map((p) => p.id)).toEqual(["p2"]);
+    expect(visibleParts(parts, interchanges, { query: "filter" }).map((p) => p.id)).toEqual(["p3", "p2"]);
+    expect(visibleParts(parts, interchanges, { show: "low" }).map((p) => p.id)).toEqual(["p3", "p2"]);
+  });
+
+  it("never counts below 0", () => {
+    expect(nextStock(3, 2)).toBe(5);
+    expect(nextStock(3, -5)).toBe(0);
+    expect(nextStock(null, 1)).toBe(1);
+    expect(nextStock("4", -1)).toBe(3);
+  });
+
+  it("edits a part's details like Admin › Parts, keeping only models that have a page", () => {
+    const form = partForm({ ...parts[1], bin_location: "Shelf A1", unit_price: 12.5 });
+    expect(form).toMatchObject({ part_name: "Oil filter (genuine)", min_stock: "2", unit_price: "12.5", bin_location: "Shelf A1", guide_ids: ["g1", "g2"] });
+    const data = partData({ ...form, part_name: "  Oil filter  ", min_stock: "" }, [{ id: "g1" }]);
+    expect(data).toMatchObject({ part_name: "Oil filter", min_stock: null, unit_price: 12.5, bin_location: "Shelf A1", guide_ids: ["g1"] });
+    expect(partData(form, [])).not.toHaveProperty("guide_ids");
+  });
+
+  it("says what's wrong with a part's details", () => {
+    const ok = partForm(parts[0]);
+    expect(partProblem(ok)).toBe("");
+    expect(partProblem({ ...ok, part_name: " " })).toMatch(/needs a name/);
+    expect(partProblem({ ...ok, min_stock: "-1" })).toMatch(/Warn at/);
+    expect(partProblem({ ...ok, min_stock: "2.5" })).toMatch(/Warn at/);
+    expect(partProblem({ ...ok, unit_price: "abc" })).toMatch(/price/);
+    expect(partProblem({ ...ok, bin_location: "x".repeat(61) })).toMatch(/Kept at/);
+  });
+});
+
+describe("specs & service in the Workshop", () => {
+  const fact = { id: "f1", guide_id: "g1", section: "service", label: "Engine oil", value: "Every service", interval_km: 10000, interval_months: 6, status: "checked", source_name: "Manual", source_link: "https://example.com/manual" };
+
+  it("fills the form from a fact, and starts new facts empty", () => {
+    expect(factForm(fact)).toMatchObject({ section: "service", label: "Engine oil", interval_km: "10000", interval_months: "6", detail: "" });
+    expect(blankFact("tyres")).toMatchObject({ section: "tyres", label: "", interval_km: "" });
+  });
+
+  it("sends km and months only for the service schedule", () => {
+    expect(factData({ ...factForm(fact) })).toMatchObject({ interval_km: 10000, interval_months: 6 });
+    expect(factData({ ...factForm(fact), section: "specs" })).toMatchObject({ section: "specs", interval_km: null, interval_months: null });
+    expect(factData({ ...blankFact("nonsense"), label: "x" }).section).toBe("notes");
+  });
+
+  it("sends only what changed when editing, so an unchanged save keeps it checked", () => {
+    expect(factData(factForm(fact), fact)).toEqual({});
+    const unchanged = factData(factForm({ ...fact, detail: null, applies_to: null }), { ...fact, detail: null, applies_to: null });
+    expect(unchanged).toEqual({});
+    expect(factData({ ...factForm(fact), value: "Every 10,000 km" }, fact)).toEqual({ value: "Every 10,000 km" });
+  });
+
+  it("checks the answer against the server's limits", () => {
+    const ok = factForm(fact);
+    expect(factProblem(ok)).toBe("");
+    expect(factProblem({ ...ok, label: "" })).toMatch(/Say what it is/);
+    expect(factProblem({ ...ok, section: "bogus" })).toMatch(/section/);
+    expect(factProblem({ ...ok, value: "x".repeat(501) })).toMatch(/too long/);
+    expect(factProblem({ ...ok, source_link: "http://example.com" })).toMatch(/https/);
+    expect(factProblem({ ...ok, interval_km: "1000001" })).toMatch(/km/);
+    expect(factProblem({ ...ok, interval_months: "6.5" })).toMatch(/Months/);
+    expect(factProblem({ ...ok, section: "specs", interval_km: "nonsense" })).toBe("");
+  });
+
+  it("puts a new fact after the page's others", () => {
+    expect(nextFactOrder([{ guide_id: "g1", sort_order: 30 }, { guide_id: "g2", sort_order: 90 }], "g1")).toBe(40);
+    expect(nextFactOrder([], "g1")).toBe(10);
+  });
+});
+
+describe("manuals in the Workshop", () => {
+  const file = { size: 1000, type: "application/pdf" };
+  it("needs a title, a kind and a PDF or photo up to 25 MB", () => {
+    expect(documentProblem({ title: "Owner's manual", kind: "owners_manual", file })).toBe("");
+    expect(documentProblem({ title: " ", kind: "owners_manual", file })).toMatch(/title/);
+    expect(documentProblem({ title: "x", kind: "bogus", file })).toMatch(/kind/);
+    expect(documentProblem({ title: "x", kind: "other", file: null })).toMatch(/Choose the file/);
+    expect(documentProblem({ title: "x", kind: "other", file: { size: 26 * 1024 * 1024, type: "application/pdf" } })).toMatch(/25 MB/);
+    expect(documentProblem({ title: "x", kind: "other", file: { size: 10, type: "application/zip" } })).toMatch(/PDF or a photo/);
+  });
+});
+
+describe("the old screens, for one release", () => {
+  it("are Admin's for an administrator and the mechanic screen's tab for a mechanic", () => {
+    expect(oldViewLink("admin", "parts")).toBe("/admin/parts");
+    expect(oldViewLink("admin", "library")).toBe("/admin/library");
+    expect(oldViewLink("mechanic", "parts")).toBe("/mechanic?tab=parts&old=1");
+    expect(oldViewLink("mechanic", "library")).toBe("/mechanic?tab=library&old=1");
+  });
+});
+

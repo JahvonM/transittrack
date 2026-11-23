@@ -102,6 +102,7 @@ test("a mechanic pastes a diagram's parts on a phone", async ({ page }) => {
   const groups = [{ id: 'c1', guide_id: 'g1', category: 'Engine / Fuel / Tool', code: '2302', title: 'FUEL FILTER', parts: [], sort_order: 10 }];
   const { errors, server } = await open(page, '/mechanic', { role: 'mechanic', width: 390, height: 844, groups });
   await page.getByRole('tab', { name: 'Library' }).click();
+  await page.getByRole('button', { name: 'Old view' }).click();
   await page.getByRole('button', { name: /Toyota Hiace/ }).click();
   const catalogue = page.getByRole('region', { name: "Maker's catalogue" });
   await catalogue.getByRole('button', { name: 'Open the catalogue' }).click();
