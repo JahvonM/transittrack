@@ -16,19 +16,23 @@ import { SCENES, sceneAt, sceneProgress, scrollTopFor, storyProgress } from "@/s
 
 const SHOTS = [
   {
-    img: "/images/transit-welcome.webp", w: 1599, h: 900,
+    // Front: the van at sunset on the coast road.
+    img: "/images/van-front.webp", w: 1672, h: 941,
     title: ["Airport", "to", "anywhere"], level: 1,
     text: "Airport pickups, transfers and island tours in Grenada. Tell us where and when, and we email you the price and your bus.",
-    card: { label: "Request a ride", value: "2 min", note: "That's all a request takes. No account needed.", to: "/book", go: "Start a ride request" },
+    // No card on the first two shots: it would sit on the van.
+    card: null,
   },
   {
-    img: "/images/mcsween-van.webp", w: 1600, h: 900,
+    // Side: the van at sunset on the coast road.
+    img: "/images/van-side.webp", w: 1672, h: 941,
     title: ["Anywhere", "on the", "island"], level: 2,
     text: "Hotels, villas, restaurants and events, or a day out around Grenada for your group. Each ride is booked just for you.",
-    card: { label: "Rides we run", value: "05", note: "Airport pickups and drop-offs, transfers, island tours and staff transport.", to: "#services", go: "See the rides" },
+    card: null,
   },
   {
-    img: "/images/boarding-coast.webp", w: 1200, h: 447,
+    // From above: the van on the road by the sea.
+    img: "/images/van-top.webp", w: 1672, h: 941,
     title: ["Watch", "your bus", "arrive"], level: 2,
     text: "Your confirmation has a private link that shows your bus on a map. Only you can see it.",
     card: { label: "Tracking link", value: "Live", note: "Private to you. It stops working a day after the ride.", to: "/track", go: "Open ride tracking" },
@@ -85,6 +89,7 @@ const Copy = React.forwardRef(function Copy({ shot, i, on }, ref) {
 
 const Card = React.forwardRef(function Card({ shot, i, on, to }, ref) {
   const { card } = shot;
+  if (!card) return null;
   return (
     <div ref={ref} className="mcs-open-card" data-i={i} data-on={on ? "" : undefined}>
       <span className="mcs-open-card-label">{card.label}</span>
