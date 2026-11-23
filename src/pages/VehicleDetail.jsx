@@ -4,16 +4,21 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { NestedPage, StatusChip } from "@/components/admin/kit";
+import { NestedPage } from "@/components/admin/kit";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Bus, AlertTriangle, Wrench, ClipboardCheck, Box } from "lucide-react";
+import { AlertTriangle, Wrench, ClipboardCheck, Box } from "lucide-react";
 import FaultsTab from "@/components/admin/FaultsTab";
 import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
-import AnimatedBus from "@/components/AnimatedBus";
 import Bus3DStudio from "@/components/vehicle3d/Bus3DStudio";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
+import "@/pages/busHero.css";
+import "@/components/admin/adminSea.css";
+import useFutureAppearance from "@/hooks/useFutureAppearance";
+
+// The picture at the top of a bus's page: its own, else the van at sunset.
+const HERO_FALLBACK = "/images/van-side.webp";
 
 const RESTRICTED_ROLES = ["driver", "staff", "passenger"];
 
@@ -26,6 +31,15 @@ export default function VehicleDetail() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  // Admins see a bus's page in the admin console's look (adminSea.css).
+  const admin = user?.role === "admin";
+  useFutureAppearance(admin, "tt-admin-app");
+  useEffect(() => {
+    if (!admin) return undefined;
+    const root = document.documentElement;
+    root.classList.add("tt-admin-sea");
+    return () => root.classList.remove("tt-admin-sea");
+  }, [admin]);
   const [vehicle, setVehicle] = useState(null);
   const [faults, setFaults] = useState([]);
   const [schedules, setSchedules] = useState([]);
@@ -92,35 +106,23 @@ export default function VehicleDetail() {
   return (
     <AppLayout title={vehicle.name}>
       <div className="mx-auto max-w-5xl space-y-4">
-        <div className="rounded-2xl border border-border bg-card p-5 pb-0 overflow-hidden">
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary" aria-hidden="true">
-              <Bus className="h-6 w-6" />
+        <section className="tt-bus-hero" aria-labelledby="tt-bus-name">
+          <img className="tt-bus-hero-photo" src={vehicle.image_url || HERO_FALLBACK} onError={(e) => { if (!e.currentTarget.src.endsWith(HERO_FALLBACK)) e.currentTarget.src = HERO_FALLBACK; }} alt="" decoding="async" />
+          <div>
+            <div className="tt-bus-hero-tags">
+              <span className="tt-bus-hero-tag" data-tone={vehicle.in_service === false ? "warning" : undefined}>{vehicle.in_service === false ? "Out of service" : "In service"}</span>
+              {openFaultsCount > 0 && <span className="tt-bus-hero-tag" data-tone="danger">{openFaultsCount} open fault{openFaultsCount === 1 ? "" : "s"}</span>}
             </div>
-            <div>
-              <p className="text-title-sm font-bold">{[vehicle.fleet_number && `No. ${vehicle.fleet_number}`, vehicle.plate_number].filter(Boolean).join(" · ") || vehicle.name}</p>
-              <p className="text-body-sm text-muted-foreground">{vehicle.company_name}</p>
-            </div>
+            <h2 id="tt-bus-name" className="tt-bus-hero-name">{vehicle.name}</h2>
+            <p className="tt-bus-hero-sub">{[[vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(" "), vehicle.company_name].filter(Boolean).join(", ") || "No make or company recorded yet."}</p>
           </div>
-          <div className="flex gap-2">
-            <StatusChip tone={vehicle.in_service === false ? "warning" : "success"}>
-              {vehicle.in_service === false ? "Out of service" : "In service"}
-            </StatusChip>
-            {openFaultsCount > 0 && (
-              <StatusChip tone="danger">{openFaultsCount} open fault{openFaultsCount === 1 ? "" : "s"}</StatusChip>
-            )}
-          </div>
-        </div>
-        <div
-          className="relative -mx-5 mt-2 h-28 overflow-hidden"
-          style={{ background: "radial-gradient(80% 100% at 50% 100%, hsl(var(--primary) / 0.18), transparent 70%)" }}
-        >
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-1">
-            <AnimatedBus mode="arrive" width={220} />
-          </div>
-        </div>
-        </div>
+          <dl className="tt-bus-hero-chips">
+            <div><dt>Fleet number</dt><dd>{vehicle.fleet_number || "—"}</dd></div>
+            <div><dt>Plate</dt><dd>{vehicle.plate_number || "—"}</dd></div>
+            <div><dt>Odometer</dt><dd>{(vehicle.current_odometer || 0).toLocaleString()} km</dd></div>
+            <div><dt>Last inspection</dt><dd>{vehicle.last_inspection_date || "Never"}</dd></div>
+          </dl>
+        </section>
 
         <Card>
           <CardHeader><CardTitle className="text-base">Vehicle information</CardTitle></CardHeader>
