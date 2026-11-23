@@ -1,4 +1,4 @@
-// One search box for the whole Workshop: vehicles, parts (and their
+// One search box for the whole Workshop: vehicles, jobs, parts (and their
 // replacement numbers), torque values, specs & service, the maker's
 // diagrams and the parts in them, and manuals. Everything is already loaded
 // in the Workshop, so this runs on the tablet with no extra requests.
@@ -6,6 +6,7 @@ import { documentKindLabel, documentText, factText, guideTitle, matchesSearch, s
 import { partKey } from "@/lib/partsCatalogue";
 import { searchCatalogue } from "@/lib/makerCatalogue";
 import { groupMatches, modelCodeFor, nmText, systemLabel, torqueText, visibleParts } from "@/lib/workshop";
+import { isOpen, jobText, jobWhen, partsOnJob, sortJobs } from "@/lib/workshopJobs";
 
 export const MIN_QUERY = 2;
 export const PER_GROUP = 8;
@@ -24,7 +25,7 @@ const cap = (hits) => ({ hits: hits.slice(0, PER_GROUP), more: Math.max(0, hits.
 export function workshopSearch(data = {}, query = "") {
   const q = String(query ?? "").trim();
   if (q.length < MIN_QUERY) return [];
-  const { vehicles = [], parts = [], interchanges = [], specs = [], facts = [], groups = [], documents = [], guides = [] } = data;
+  const { vehicles = [], parts = [], interchanges = [], specs = [], facts = [], groups = [], documents = [], guides = [], jobs = [], jobParts = [] } = data;
   const pageName = (guideId) => guideTitle(guides.find((g) => g.id === guideId));
   const onVehicle = (guideId, section, preferredId) => {
     const v = vehicleFor(vehicles, guideId, preferredId);
@@ -44,6 +45,13 @@ export function workshopSearch(data = {}, query = "") {
     subtitle: [v.model !== v.name ? v.model : "", v.engine].filter(Boolean).join(" · ") || (v.kind === "car" ? "Car" : "Bus"),
   }));
   if (vehicleHits.length) out.push({ id: "vehicles", label: "Vehicles", ...cap(vehicleHits) });
+
+  // Jobs: what was done and wrong, the fault codes, what fixed it, and the parts used.
+  const jobHits = sortJobs(jobs).filter((j) => matchesSearch(q, ...jobText(j, partsOnJob(jobParts, j.id)))).map((j) => ({
+    key: `job:${j.id}`, title: j.title || "Job", to: `/workshop/jobs/${j.id}`, open: isOpen(j),
+    subtitle: [j.vehicle_name, jobWhen(j), j.fault_codes].filter(Boolean).join(" · "),
+  }));
+  if (jobHits.length) out.push({ id: "jobs", label: "Jobs", ...cap(jobHits) });
 
   const partHits = visibleParts(parts, interchanges, { query: q }).map((part) => ({
     key: `part:${part.id}`, title: part.part_name || "Part", to: `/workshop/parts/${part.id}`, part,

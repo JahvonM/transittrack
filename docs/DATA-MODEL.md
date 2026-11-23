@@ -50,7 +50,7 @@ Changing records through entityAccess:
 
 - **admin**: any record (except invoices, made only in billing, and app errors, which can only be marked fixed).
 - **company**: records of the kinds it can read, for its own company; it can't make a new `Company`.
-- **mechanic**: maintenance records (`Vehicle`, `Fault`, `Inspection`, `InspectionResult`, `InspectionTemplate`, `Part`, `MaintenanceSchedule`, `MaintenanceSettings`, `VehicleGuide`, `GuideFact`, `GuideDocument`, `PartDiagram`, `PartInterchange`, `CatalogueGroup`, `TorqueSpec`, `WorkshopVehicle`) and the mechanic chat;
+- **mechanic**: maintenance records (`Vehicle`, `Fault`, `Inspection`, `InspectionResult`, `InspectionTemplate`, `Part`, `MaintenanceSchedule`, `MaintenanceSettings`, `VehicleGuide`, `GuideFact`, `GuideDocument`, `PartDiagram`, `PartInterchange`, `CatalogueGroup`, `TorqueSpec`, `WorkshopVehicle`, `WorkshopJob`, `WorkshopJobPart`) and the mechanic chat;
   on `Vehicle` only odometer, hours, status and inspection fields. Deleting maintenance records is admin-only.
 - **staff / passenger**: their own profile fields, their own staff-chat messages and lost-item reports.
 
@@ -125,6 +125,8 @@ Changing records through entityAccess:
 | [VerificationAttempt](#verificationattempt) | `verification_attempt` | server only | — | — | — | — | through other functions |
 | [VerificationGrant](#verificationgrant) | `verification_grant` | server only | — | — | — | — | through other functions |
 | [Workplace](#workplace) | `workplace` | entityAccess | — | own company | own company | — | all |
+| [WorkshopJob](#workshopjob) | `workshop_job` | entityAccess | — | — | — | all companies | all |
+| [WorkshopJobPart](#workshopjobpart) | `workshop_job_part` | entityAccess | — | — | — | all companies | all |
 | [WorkshopVehicle](#workshopvehicle) | `workshop_vehicle` | entityAccess | — | — | — | all companies | all |
 
 "Server only": no screen reads these through entityAccess; only server functions use them
@@ -559,6 +561,8 @@ Table `driving_event` · belongs to a company through `vehicle_id`, then `compan
 Table `fault` · belongs to a company through `vehicle_id`, then `company_id` · read and changed through entityAccess.
 
 **Links to:** [Vehicle](#vehicle) (`vehicle_id`), [Company](#company) (`company_id`), [Inspection](#inspection) (`inspection_id`).
+
+**Linked from:** [WorkshopJob](#workshopjob).fault_id.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -1032,6 +1036,8 @@ A screen asking to be paired as an office display: a short-lived, single-use cod
 Table `part` · belongs to a company through `company_id` · read and changed through entityAccess.
 
 **Links to:** [Company](#company) (`company_id`).
+
+**Linked from:** [WorkshopJobPart](#workshopjobpart).part_id.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -1570,7 +1576,7 @@ Table `vehicle` · belongs to a company through `driver_id`, then `company_id` �
 
 **Links to:** [Driver](#driver) (`driver_id`), [Company](#company) (`company_id`), [Route](#route) (`route_id`).
 
-**Linked from:** [Broadcast](#broadcast).vehicle_id, [CatalogueGroup](#cataloguegroup).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PassengerCase](#passengercase).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [RideException](#rideexception).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id.
+**Linked from:** [Broadcast](#broadcast).vehicle_id, [CatalogueGroup](#cataloguegroup).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PassengerCase](#passengercase).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [RideException](#rideexception).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id, [WorkshopJob](#workshopjob).vehicle_id.
 
 **Everyone except admins, company managers and mechanics gets only:** `name`, `type`, `company_id`, `company_name`, `capacity`, `route_id`, `current_lat`, `current_lng`, `speed`, `heading`, `status`, `driver_name`, `image_url`, `model_3d`, `tracking_active`, `last_location_update`, `trail`, `trip_direction`, `return_pickup_state`, `road_next_stop`.
 
@@ -1685,6 +1691,49 @@ Table `workplace` · belongs to a company through `company_id` · read and chang
 | `company_name` | text |  |
 | `lat` | double precision |  |
 | `lng` | double precision |  |
+
+### WorkshopJob
+
+Table `workshop_job` · read and changed through entityAccess.
+
+Workshop: one piece of work on a bus or workshop car (a repair or a service): what was wrong, the steps, the parts used (WorkshopJobPart) and what fixed it. Done jobs become the model's past fixes in Troubleshooting. Fleet-wide: administrators and mechanics only.
+
+**Links to:** [Vehicle](#vehicle) (`vehicle_id`), [Fault](#fault) (`fault_id`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `vehicle_kind` | text | bus: a fleet Vehicle; car: a WorkshopVehicle. One of: `bus`, `car`. Required. |
+| `vehicle_id` | text | → Vehicle. The Vehicle or WorkshopVehicle the work is on. It cannot change. Required. |
+| `vehicle_name` | text | The vehicle's name when the job was started (set by the server). |
+| `guide_id` | text | The VehicleGuide (model page) the vehicle used, so the fix shows for the same model. |
+| `title` | text | What's being done, e.g. Front brake pads. Required. |
+| `symptom` | text | What was wrong, in the driver's or mechanic's words. |
+| `fault_codes` | text | Codes read from the vehicle, e.g. P0401, P2002. |
+| `fault_id` | text | → Fault. The bus's Fault this job fixes, if any. |
+| `status` | text | One of: `open`, `done`. Default `"open"`. |
+| `steps` | jsonb (list) | The checklist, in order. |
+| `fix` | text | What fixed it. |
+| `notes` | text |  |
+| `odometer` | double precision | Odometer reading in km when the work was done. |
+| `done_at` | timestamptz | When it was marked done (set by the server). |
+| `done_by` | text | Who marked it done (set by the server). |
+
+### WorkshopJobPart
+
+Table `workshop_job_part` · read and changed through entityAccess.
+
+Workshop: a part used on a WorkshopJob. One from the shelf comes off the Part's stock in the database as it is saved (and goes back when removed); one bought for the job leaves the stock alone and can be written in without being on the parts list. Fleet-wide: administrators and mechanics only.
+
+**Links to:** [Part](#part) (`part_id`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `job_id` | text | The WorkshopJob. It cannot change. Required. |
+| `part_id` | text | → Part. The Part on the shelves; empty for a part bought for the job that is not on the list. It cannot change. |
+| `part_name` | text | The part's name (copied from the Part by the server). Required. |
+| `part_number` | text | Its number (copied from the Part by the server). |
+| `qty` | double precision | How many were used. Required. |
+| `from_stock` | boolean | true: taken from the shelf (stock goes down); false: bought for this job. Default `true`. |
 
 ### WorkshopVehicle
 

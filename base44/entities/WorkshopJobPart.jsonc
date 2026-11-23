@@ -1,0 +1,59 @@
+{
+  "name": "WorkshopJobPart",
+  "type": "object",
+  "description": "Workshop: a part used on a WorkshopJob. One from the shelf comes off the Part's stock in the database as it is saved (and goes back when removed); one bought for the job leaves the stock alone and can be written in without being on the parts list. Fleet-wide: administrators and mechanics only.",
+  "required": [
+    "job_id",
+    "part_name",
+    "qty"
+  ],
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "description": "The WorkshopJob. It cannot change."
+    },
+    "part_id": {
+      "type": "string",
+      "description": "The Part on the shelves; empty for a part bought for the job that is not on the list. It cannot change."
+    },
+    "part_name": {
+      "type": "string",
+      "description": "The part's name (copied from the Part by the server)."
+    },
+    "part_number": {
+      "type": "string",
+      "description": "Its number (copied from the Part by the server)."
+    },
+    "qty": {
+      "type": "number",
+      "description": "How many were used."
+    },
+    "from_stock": {
+      "type": "boolean",
+      "default": true,
+      "description": "true: taken from the shelf (stock goes down); false: bought for this job."
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

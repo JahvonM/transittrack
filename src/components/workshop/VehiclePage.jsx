@@ -19,7 +19,9 @@ import ManualsSection from "@/components/workshop/ManualsSection";
 import ModelPartsSection from "@/components/workshop/ModelParts";
 import PhotosSection, { Thumb } from "@/components/workshop/Pictures";
 import { CarSheet } from "@/components/workshop/Models";
-import { BookOpen, ClipboardList, ClipboardPaste, Copy, FileText, Link2, MapPin, Package, Pencil, Search, Wrench } from "lucide-react";
+import { JobsSection, TroubleshootingSection } from "@/components/workshop/JobSections";
+import { jobsFor, knownProblems, openFaultsFor, pastFixes } from "@/lib/workshopJobs";
+import { BookOpen, ClipboardList, ClipboardPaste, Copy, FileText, Hammer, Link2, MapPin, Package, Pencil, Search, Stethoscope, Wrench } from "lucide-react";
 
 // A vehicle's page, laid out like a parts catalogue: the vehicle's details
 // at the top; down the side its sections (torque values, specs & service,
@@ -236,9 +238,39 @@ function CategorySection({ name, groups, base }) {
   );
 }
 
+// A vehicle's Jobs and Troubleshooting, with or without a model page.
+function workItems({ vehicle, guide, base, jobs, jobParts, faults, facts }) {
+  const mine = jobsFor(jobs, vehicle);
+  const open = mine.filter((j) => j.status !== "done").length;
+  const faulty = openFaultsFor(faults, vehicle).length;
+  const known = knownProblems(facts, guide?.id).length + pastFixes(jobs, jobParts, { guideId: guide?.id || "", vehicle }).length;
+  return [
+    { key: "jobs", label: "Jobs", count: mine.length, to: `${base}/jobs`, icon: Hammer, hint: [open ? `${open} open` : "", faulty ? pluralize(faulty, "open fault") : ""].filter(Boolean).join(" · ") || "Work done and the parts used" },
+    { key: "troubleshooting", label: "Troubleshooting", count: known, to: `${base}/troubleshooting`, icon: Stethoscope, hint: "Known problems and past fixes" },
+  ];
+}
+
+function SectionLinks({ items }) {
+  return (
+    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {items.map((item) => (
+        <li key={item.key}>
+          <Link to={item.to} className="flex h-full min-h-[5.5rem] items-start gap-3 rounded-lg border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><item.icon className="h-5 w-5" aria-hidden="true" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-body font-semibold text-primary">{item.label} <span className="font-normal tabular-nums text-muted-foreground">({item.count})</span></span>
+              <span className="block text-body-sm text-muted-foreground">{item.hint}</span>
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function VehiclePage({ section }) {
   const { category: slug } = useParams();
-  const { vehicle, guide, base, kind, specs, diagrams, groups, facts, documents, parts, isAdmin } = useVehicleRoute();
+  const { vehicle, guide, base, kind, specs, diagrams, groups, facts, documents, parts, jobs, jobParts, faults, isAdmin } = useVehicleRoute();
   const [pasting, setPasting] = useState(false);
   const mine = useMemo(() => (guide ? groups.filter((g) => g.guide_id === guide.id) : []), [groups, guide]);
   const categories = useMemo(() => catalogueCategories(mine), [mine]);
@@ -247,11 +279,23 @@ export default function VehiclePage({ section }) {
   const modelCode = modelCodeFor(vehicle, mine);
   const warnings = kind === "bus" ? busRecordWarnings(vehicle.record) : [];
 
+  // Jobs and past fixes belong to the vehicle, so they work without a model page.
+  const work = workItems({ vehicle, guide, base, jobs, jobParts, faults, facts });
   if (!guide) {
+    const job = work.find((i) => i.key === section);
+    if (job) {
+      return (
+        <>
+          <ScreenBar crumbs={[{ to: "/workshop", label: "Workshop" }, { to: base, label: vehicle.name }, { label: job.label }]} title={vehicle.name} subtitle={vehicle.model} />
+          {section === "jobs" ? <JobsSection vehicle={vehicle} /> : <TroubleshootingSection vehicle={vehicle} guide={null} base={base} />}
+        </>
+      );
+    }
     return (
       <>
         <ScreenBar crumbs={[{ to: "/workshop", label: "Workshop" }, { label: vehicle.name }]} title={vehicle.name} subtitle={vehicle.model} />
         <VehicleInfo vehicle={vehicle} guide={null} modelCode="" />
+        <div className="mb-4"><SectionLinks items={work} /></div>
         <Notice tone="warning" action={isAdmin ? <Button asChild variant="outline" className="h-12 rounded-lg bg-card"><Link to="/workshop/models">Models</Link></Button> : null}>
           <p className="font-semibold">No model page covers this {kind} yet.</p>
           <p className="text-muted-foreground">
@@ -274,6 +318,7 @@ export default function VehiclePage({ section }) {
     { key: "parts", label: "Parts that fit", count: fitting.total, to: `${base}/parts`, icon: Package, hint: fitting.low ? `${fitting.low} low or out` : "From your shelves" },
     { key: "maps", label: "Photos & bolt maps", count: pictures, to: `${base}/maps`, icon: MapPin, hint: "Numbered pins on your own photos" },
     { key: "manuals", label: "Manuals", count: manuals, to: `${base}/manuals`, icon: FileText, hint: "Owner's and workshop manuals" },
+    ...work,
     ...[...categories].map(([name, list]) => ({ key: `c:${categorySlug(name)}`, name, label: name, count: list.length, to: `${base}/c/${categorySlug(name)}`, icon: BookOpen, hint: `Maker's diagrams · parts pasted for ${progress(list).done}` })),
   ];
   const current = section === "category" ? items.find((i) => i.key === `c:${slug}`) : items.find((i) => i.key === section);
@@ -297,19 +342,7 @@ export default function VehiclePage({ section }) {
         <div className="min-w-0">
           {!current && (
             <section aria-label="Sections">
-              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {items.map((item) => (
-                  <li key={item.key}>
-                    <Link to={item.to} className="flex h-full min-h-[5.5rem] items-start gap-3 rounded-lg border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary">
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><item.icon className="h-5 w-5" aria-hidden="true" /></span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-body font-semibold text-primary">{item.label} <span className="font-normal tabular-nums text-muted-foreground">({item.count})</span></span>
-                        <span className="block text-body-sm text-muted-foreground">{item.hint}</span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <SectionLinks items={items} />
               {categories.size === 0 && (
                 <p className="mt-4 text-body-sm text-muted-foreground">No maker's diagrams yet: tap Add the maker's diagrams and paste the list from Partsouq.</p>
               )}
@@ -321,6 +354,8 @@ export default function VehiclePage({ section }) {
           {section === "manuals" && <ManualsSection guide={guide} />}
           {section === "maps" && <PhotosSection guide={guide} base={base} />}
           {section === "category" && <CategorySection name={current.name} groups={categories.get(current.name)} base={base} />}
+          {section === "jobs" && <JobsSection vehicle={vehicle} />}
+          {section === "troubleshooting" && <TroubleshootingSection vehicle={vehicle} guide={guide} base={base} />}
         </div>
       </div>
       {pasting && <PasteDiagrams vehicle={vehicle} guide={guide} existing={mine} modelCode={modelCode} onClose={() => setPasting(false)} />}

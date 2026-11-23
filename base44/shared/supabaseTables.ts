@@ -70,5 +70,7 @@ export const SUPABASE_TABLES: Record<string, string> = {
   VerificationAttempt: "verification_attempt",
   VerificationGrant: "verification_grant",
   Workplace: "workplace",
+  WorkshopJob: "workshop_job",
+  WorkshopJobPart: "workshop_job_part",
   WorkshopVehicle: "workshop_vehicle",
 };

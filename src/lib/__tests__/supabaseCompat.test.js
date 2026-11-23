@@ -328,3 +328,13 @@ describe('transactional company cleanup extension',()=>{
   expect(calls).toHaveLength(1);
  });
 });
+
+describe("a database rule's answer reaches the person", () => {
+  it("passes on a PT409 refusal's own words, and keeps other conflicts generic", async () => {
+    const refuse = (code, message) => fake({ rows: (u, init) => (init.method === "POST" ? Response.json({ code, message, details: "private details" }, { status: 409 }) : []) });
+    const shelf = refuse("PT409", "Only 2 left on the shelf");
+    await expect(shelf.client().asServiceRole.entities.Fault.create({ status: "open" })).rejects.toMatchObject({ status: 409, message: "Only 2 left on the shelf" });
+    const twice = refuse("23505", "duplicate key value violates unique constraint \"fault_pkey\"");
+    await expect(twice.client().asServiceRole.entities.Fault.create({ status: "open" })).rejects.toMatchObject({ status: 409, message: "That record already exists" });
+  });
+});

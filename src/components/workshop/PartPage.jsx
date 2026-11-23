@@ -8,6 +8,7 @@ import { PartFields, ReplacementsList, StockChip } from "@/components/admin/part
 import { uploadPhoto } from "@/components/workshop/Pictures";
 import { guideLabel, inStockReplacements, stockLevel } from "@/lib/partsCatalogue";
 import { nextStock, partData, partForm, partProblem } from "@/lib/workshop";
+import { dateText, fromShelf, jobsUsingPart, qtyText } from "@/lib/workshopJobs";
 import { EditSheet, Field, Notice, ScreenBar, useWorkshop } from "@/components/workshop/kit";
 import { Camera, Loader2, Minus, Pencil, Plus, RefreshCw } from "lucide-react";
 
@@ -117,6 +118,35 @@ function PartPhoto({ part }) {
       {busy && <span className="absolute inset-0 grid place-items-center bg-background/70"><Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" /></span>}
       <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={pick} aria-label={`Photo of ${part.part_name}`} disabled={busy} />
     </label>
+  );
+}
+
+// The jobs this part went on, newest first: the shelf count went down by these.
+function UsedOnJobs({ part }) {
+  const { jobs, jobParts, missing } = useWorkshop();
+  const used = jobsUsingPart(jobParts, jobs, part.id);
+  if (missing.jobs || missing.jobParts) return null;
+  return (
+    <section aria-labelledby="part-jobs" className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <h3 id="part-jobs" className="mb-2 text-body-sm font-semibold">Used on jobs</h3>
+      {used.length === 0 ? (
+        <p className="text-body-sm text-muted-foreground">Not used on a job yet.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {used.slice(0, 20).map(({ job, line }) => (
+            <li key={line.id}>
+              <Link to={`/workshop/jobs/${job.id}`} className="flex min-h-[3rem] items-center gap-3 py-2 hover:bg-secondary/60">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium text-primary">{job.title}</span>
+                  <span className="block truncate text-body-sm text-muted-foreground">{[job.vehicle_name, dateText(job.done_at || job.created_date), fromShelf(line) ? "from the shelf" : "bought for the job"].filter(Boolean).join(" · ")}</span>
+                </span>
+                <span className="shrink-0 tabular-nums">× {qtyText(line.qty)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -250,6 +280,8 @@ export default function PartPage() {
               </>
             )}
           </section>
+
+          <UsedOnJobs part={part} />
 
           <section aria-labelledby="part-replacements" className="rounded-xl border border-border bg-card p-4 shadow-sm">
             <h3 id="part-replacements" className="mb-2 text-body-sm font-semibold">Replacements</h3>
