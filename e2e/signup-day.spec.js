@@ -134,7 +134,7 @@ test("helpers can remove a mistaken sign-up entry after confirmation", async ({ 
   await expect(sheet.getByRole("button", { name: "Remove passenger" })).toBeEnabled();
   await sheet.getByRole("button", { name: "Remove passenger" }).click();
   const confirmation = page.getByRole("alertdialog");
-  await confirmation.getByRole("button", { name: "Remove passenger", exact: true }).click();
+  await confirmation.getByRole("button", { name: "Remove and delete login", exact: true }).click();
   await expect(sheet).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Ben Charles/ })).toHaveCount(0);
   expect(server.people.some(p => p.name === "Ben Charles")).toBe(false);
