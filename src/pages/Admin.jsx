@@ -9,7 +9,6 @@ import SupportNumberSetting from "@/components/admin/SupportNumberSetting";
 import BusinessDetailsSetting from "@/components/admin/BusinessDetailsSetting";
 import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
 import { adminPath } from "@/lib/adminMenu";
-import MovedToWorkshop from "@/components/admin/MovedToWorkshop";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { EmbeddedLayout } from "@/components/AppLayout";
@@ -29,8 +28,6 @@ import CompaniesTab from "@/components/admin/CompaniesTab";
 import UsersTab from "@/components/admin/UsersTab";
 import ServiceQueueTab from "@/components/admin/ServiceQueueTab";
 import FaultsTab from "@/components/admin/FaultsTab";
-import PartsTab from "@/components/admin/PartsTab";
-import BusLibraryTab from "@/components/admin/BusLibraryTab";
 import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import MaintenanceCalendarTab from "@/components/admin/MaintenanceCalendarTab";
 import InspectionTemplatesTab from "@/components/admin/InspectionTemplatesTab";
@@ -560,18 +557,6 @@ export default function Admin() {
           />
         )}
         {section === "faults" && <FaultsTab faults={faults} onChange={refresh} />}
-        {section === "parts" && (
-          <>
-            <MovedToWorkshop title="Parts now lives in the Workshop." to="/workshop/parts" />
-            <PartsTab parts={parts} companies={companies} onChange={refresh} />
-          </>
-        )}
-        {section === "library" && (
-          <>
-            <MovedToWorkshop title="The Bus library now lives in the Workshop: each vehicle's specs, service schedule, parts and manuals." to="/workshop" />
-            <BusLibraryTab vehicles={vehicles} canDelete />
-          </>
-        )}
         {section === "schedule" && <MaintenanceScheduleTab schedules={schedules} vehicles={vehicles} onChange={refresh} />}
         {section === "calendar" && <MaintenanceCalendarTab schedules={schedules} vehicles={vehicles} />}
         {section === "templates" && <InspectionTemplatesTab templates={templates} companies={companies} vehicles={vehicles} onChange={refresh} />}

@@ -6,8 +6,8 @@ import { memoryTables } from './helpers/memoryTables.js';
 // Parts page with a page for each part (big − and + for the stock, its
 // shelf, numbers, models and replacements); on each vehicle its specs and
 // service schedule (It's right / It's wrong), the parts that fit, and its
-// manuals. Admin's Parts and Bus library, and the mechanic's tabs, open the
-// Workshop; the old screens stay one tap away for one release.
+// manuals. Admin's Parts and Bus library open the Workshop, and their old
+// addresses (Admin's, and the mechanic's old tabs) lead there too.
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQAY3Y2wAAAAAElFTkSuQmCC', 'base64');
 const PHOTO = 'https://ghqtest.supabase.co/storage/v1/object/public/public/uploads/2026-11/part.png';
@@ -262,46 +262,46 @@ test('Parts that fit a vehicle, and linking one from stock', async ({ page }) =>
   expect(errors).toEqual([]);
 });
 
-test("Admin's Parts and Bus library open the Workshop; the old screens stay one tap away", async ({ page }) => {
+test("Admin's Parts and Bus library open the Workshop, and so do their old addresses", async ({ page }) => {
   const { errors } = await open(page, '/admin', { role: 'admin', width: 1440, height: 900 });
   const nav = page.getByRole('navigation', { name: 'Admin', exact: true });
   await nav.getByRole('button', { name: 'Maintenance', exact: true }).click();
   await nav.getByRole('button', { name: 'Parts', exact: true }).click();
   await expect(page).toHaveURL(/\/workshop\/parts$/);
-  await expect(page.getByRole('link', { name: 'Old view of Parts' })).toHaveAttribute('href', '/admin/parts');
-  await page.getByRole('link', { name: 'Old view of Parts' }).click();
-  await expect(page).toHaveURL(/\/admin\/parts$/);
-  await expect(page.getByRole('note')).toContainText('Parts now lives in the Workshop.');
-  await expect(page.getByRole('textbox', { name: 'Search parts' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Parts' })).toBeVisible();
+  // The old screens are gone, and so are the links to them.
+  await expect(page.getByRole('link', { name: /Old view/ })).toHaveCount(0);
 
   await page.goto('/admin');
   await nav.getByRole('button', { name: 'Maintenance', exact: true }).click();
   await nav.getByRole('button', { name: 'Bus library', exact: true }).click();
   await expect(page).toHaveURL(/\/workshop$/);
-  await page.getByRole('link', { name: 'Bus library (old view)' }).click();
-  await expect(page).toHaveURL(/\/admin\/library$/);
-  await expect(page.getByRole('note')).toContainText('The Bus library now lives in the Workshop');
-  await page.getByRole('note').getByRole('link', { name: 'Open in the Workshop' }).click();
+  await expect(page.getByRole('link', { name: /old view/i })).toHaveCount(0);
+
+  // Saved links and bookmarks to the old screens open their new places.
+  await page.goto('/admin/parts');
+  await expect(page).toHaveURL(/\/workshop\/parts$/);
+  await expect(page.getByRole('list', { name: 'Parts' })).toBeVisible();
+  await page.goto('/admin/library');
   await expect(page).toHaveURL(/\/workshop$/);
+  await expect(page.getByRole('heading', { name: 'Workshop', level: 1 })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test("a mechanic's Parts and Library tabs say they moved; Old view shows the old screen, on a phone", async ({ page }) => {
+test("a mechanic's screen has no Parts or Library tab, and their old links open the Workshop, on a phone", async ({ page }) => {
   const { errors } = await open(page, '/mechanic', { width: 390, height: 844 });
-  await page.getByRole('tab', { name: 'Parts' }).click();
-  const note = page.getByRole('note');
-  await expect(note).toContainText('Parts now lives in the Workshop.');
-  await expect(note.getByRole('link', { name: 'Open in the Workshop' })).toHaveAttribute('href', '/workshop/parts');
-  await expect(page.getByRole('textbox', { name: 'Search parts' })).toHaveCount(0);
-  await note.getByRole('button', { name: 'Old view' }).click();
-  await expect(page.getByRole('textbox', { name: 'Search parts' })).toBeVisible();
+  for (const name of ['Faults', 'Schedule', 'Calendar', 'Inspections']) await expect(page.getByRole('tab', { name, exact: true })).toBeVisible();
+  for (const name of ['Parts', 'Library']) await expect(page.getByRole('tab', { name, exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /Workshop/ }).first()).toBeVisible();
 
-  // The Workshop's Old view link opens that tab with its old view showing.
-  await page.goto('/workshop/parts');
-  await page.getByRole('link', { name: 'Old view of Parts' }).click();
-  await expect(page).toHaveURL(/\/mechanic\?tab=parts&old=1$/);
-  await expect(page.getByRole('tab', { name: 'Parts' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('textbox', { name: 'Search parts' })).toBeVisible();
+  for (const [link, to] of [['/mechanic?tab=parts', /\/workshop\/parts$/], ['/mechanic?tab=parts&old=1', /\/workshop\/parts$/], ['/mechanic?tab=library', /\/workshop$/]]) {
+    await page.goto(link);
+    await expect(page, link).toHaveURL(to);
+  }
+  await expect(page.getByRole('heading', { name: 'Workshop', level: 1 })).toBeVisible();
+  // Another tab still opens itself.
+  await page.goto('/mechanic?tab=schedule');
+  await expect(page.getByRole('tab', { name: 'Schedule' })).toHaveAttribute('aria-selected', 'true');
 
   // The new pages fit a phone.
   for (const path of ['/workshop/parts', '/workshop/parts/p2', '/workshop/bus/bus-a/specs', '/workshop/bus/bus-a/parts', '/workshop/bus/bus-a/manuals']) {

@@ -156,8 +156,23 @@ function PartSheet({ part, onClose }) {
   const { guides, put, drop, isAdmin } = useWorkshop();
   const [form, setForm] = useState(() => partForm(part));
   const [saving, setSaving] = useState(false);
+  const [unphoto, setUnphoto] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const problem = partProblem(form);
+
+  // Takes the photo off the part (a second tap confirms); a new one can be taken on the page.
+  const removePhoto = async () => {
+    if (!unphoto) { setUnphoto(true); return; }
+    setSaving(true);
+    try {
+      put("parts", await base44.entities.Part.update(part.id, { photo_url: "" }));
+      setUnphoto(false);
+    } catch (e) {
+      toast({ title: "Couldn't remove the photo", description: e?.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -188,6 +203,13 @@ function PartSheet({ part, onClose }) {
       title="Edit part" description={part.part_name}
       onDelete={isAdmin ? remove : undefined} deleteLabel="Delete this part"
     >
+      {part.photo_url && (
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-2">
+          <img src={part.photo_url} alt="" className="h-14 w-14 rounded-lg object-cover" />
+          <span className="flex-1 text-body-sm text-muted-foreground">Photo of this part</span>
+          <Button type="button" variant={unphoto ? "destructive" : "outline"} className="h-12 rounded-lg" onClick={removePhoto}>{unphoto ? "Tap again to remove" : "Remove photo"}</Button>
+        </div>
+      )}
       <PartFields form={form} set={set} guides={guides} idPrefix="ws-part" />
       <Field id="ws-part-unit_price" label="Unit price">
         <Input id="ws-part-unit_price" inputMode="decimal" className="h-12 text-body md:text-body" value={form.unit_price} onChange={(e) => set("unit_price", e.target.value)} />

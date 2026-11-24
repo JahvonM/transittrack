@@ -5,7 +5,7 @@
 // guessed. Numbers only, in our own words: nothing copied from paid manuals.
 //
 // guide_key is the starter_key of the model page the values go on. The bus
-// pages come from the Bus library's own starters; a file with a "page" makes
+// pages come from the starters in src/data/busLibrary; a file with a "page" makes
 // its model page when there isn't one yet (the workshop's own cars).
 import toyotaHiaceH200 from "./toyota-hiace-h200.json";
 import nissanNv350E26 from "./nissan-nv350-e26.json";

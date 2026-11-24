@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StockChip } from "@/components/admin/partsCatalogueKit";
 import QuickAddPart from "@/components/admin/QuickAddPart";
-import { guideLabel } from "@/lib/partsCatalogue";
-import { oldViewLink, stockSummary, visibleParts } from "@/lib/workshop";
+import { guideLabel, inStockReplacements, stockLevel } from "@/lib/partsCatalogue";
+import { stockSummary, visibleParts } from "@/lib/workshop";
 import { Notice, ScreenBar, pluralize, useWorkshop } from "@/components/workshop/kit";
 import { Camera, ClipboardList, MonitorSmartphone, Plus, RefreshCw, ScanLine, Search } from "lucide-react";
 import ScanSheet from "@/components/workshop/ScanSheet";
@@ -19,10 +19,12 @@ const SHOW = [
   { id: "low", label: "Low or out" },
 ];
 
-// One part in a list: photo, name, numbers, models and shelf, and its stock.
-export function PartRow({ part, guides }) {
+// One part in a list: photo, name, numbers, models and shelf, and its stock;
+// when it is low or out, the replacements that are on the shelf.
+export function PartRow({ part, guides, parts = [], interchanges = [] }) {
   const models = (part.guide_ids || []).map((id) => guides.find((g) => g.id === id)).filter(Boolean).map(guideLabel);
   const numbers = [part.oem_number, part.aftermarket_number].filter(Boolean).join(" · ");
+  const spare = stockLevel(part) === "ok" ? [] : inStockReplacements(part, parts, interchanges);
   return (
     <li>
       <Link to={`/workshop/parts/${part.id}`} className="flex min-h-[4.5rem] items-center gap-3 px-4 py-3 transition-colors hover:bg-secondary/60">
@@ -35,6 +37,9 @@ export function PartRow({ part, guides }) {
           {(models.length > 0 || part.bin_location) && (
             <span className="block truncate text-body-sm text-muted-foreground">{[models.join(", "), part.bin_location && `Kept at ${part.bin_location}`].filter(Boolean).join(" · ")}</span>
           )}
+          {spare.length > 0 && (
+            <span className="block truncate text-body-sm font-medium text-foreground">Replacement on the shelf: {spare.map(({ part: other }) => `${other.part_name} (${other.quantity_in_stock})`).join(", ")}</span>
+          )}
         </span>
         <StockChip part={part} className="shrink-0" />
       </Link>
@@ -43,7 +48,7 @@ export function PartRow({ part, guides }) {
 }
 
 export default function PartsPage() {
-  const { parts, interchanges, guides, missing, put, reload, user } = useWorkshop();
+  const { parts, interchanges, guides, missing, put, reload } = useWorkshop();
   const [query, setQuery] = useState("");
   const [show, setShow] = useState("all");
   const [adding, setAdding] = useState(false);
@@ -98,14 +103,9 @@ export default function PartsPage() {
         <p className="py-6 text-center text-body text-muted-foreground">Nothing matches.</p>
       ) : list.length > 0 && (
         <ul aria-label="Parts" className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-          {list.map((part) => <PartRow key={part.id} part={part} guides={guides} />)}
+          {list.map((part) => <PartRow key={part.id} part={part} guides={guides} parts={parts} interchanges={interchanges} />)}
         </ul>
       )}
-
-      <p className="mt-6 text-body-sm text-muted-foreground">
-        Parts used to be in {user?.role === "admin" ? "Admin" : "the mechanic screen"}.{" "}
-        <Link to={oldViewLink(user?.role, "parts")} className="font-medium text-primary underline underline-offset-2">Old view of Parts</Link>
-      </p>
 
       <ScanSheet open={scanning} onOpenChange={setScanning} />
       <QuickAddPart open={adding} onOpenChange={setAdding} parts={parts} guides={guides} onSaved={(saved) => put("parts", saved)} />

@@ -226,6 +226,9 @@ const AuthenticatedApp = () => {
         <Route path="/company" element={<CompanyDashboard />} />
         <Route path="/company/:tab" element={<CompanyDashboard />} />
         <Route path="/admin/workshop" element={<Navigate to="/workshop" replace />} />
+        {/* Parts and the Bus library live in the Workshop now; old links still land there. */}
+        <Route path="/admin/parts" element={<Navigate to="/workshop/parts" replace />} />
+        <Route path="/admin/library" element={<Navigate to="/workshop" replace />} />
         <Route path="/admin/:section?" element={<Admin />} />
         <Route path="/workspace/:section?" element={<RoleWorkspace />} />
       <Route path="/account" element={<Account />} />

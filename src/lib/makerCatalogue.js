@@ -1,4 +1,4 @@
-// The maker's catalogue on a Bus library page: Toyota's or Nissan's own list
+// The maker's catalogue on a vehicle's Workshop page: Toyota's or Nissan's own list
 // of diagrams and the parts on each, pasted in from Partsouq one page at a
 // time (the drawings themselves are theirs and are not kept). These read the
 // copied text: the list of diagrams, and one diagram's parts table.

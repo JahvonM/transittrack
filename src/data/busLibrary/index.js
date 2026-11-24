@@ -1,4 +1,4 @@
-// Starter pages for the bus library (Admin → Bus library → Ready to add).
+// Starter model pages (Workshop › Models › Ready to add).
 // Each is research from public sources, every fact with its source; once
 // added, every fact starts as "Not checked" until a mechanic confirms it.
 // Facts only, in our own words: no text or diagrams copied from paid manuals.

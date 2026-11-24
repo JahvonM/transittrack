@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -9,27 +9,31 @@ import { StockChip } from "@/components/admin/partsCatalogueKit";
 import QuickAddPart from "@/components/admin/QuickAddPart";
 import { groupLabel, parsePartsList, stockFor, stockIndex } from "@/lib/makerCatalogue";
 import { pictureSource } from "@/lib/partDrawings";
-import { nextPinNumber, pinPlace } from "@/lib/partsCatalogue";
+import { inStockReplacements, nextPinNumber, pinPlace, stockLevel } from "@/lib/partsCatalogue";
 import { catalogueName, categorySlug, diagramRows, embeddable, ftLb, linkHost, nmText, pictureForGroup, pinKey, pinLabel } from "@/lib/workshop";
 import { EditSheet, Field, ScreenBar, pluralize, useVehicleRoute } from "@/components/workshop/kit";
 import { PictureSheet, PinSheet, pinSummary, uploadPhoto } from "@/components/workshop/Pictures";
-import { Camera, Check, ClipboardPaste, ExternalLink, Loader2, MapPin, Maximize2, Pencil, Plus, ZoomIn, ZoomOut } from "lucide-react";
+import { Camera, Check, ClipboardPaste, Copy, ExternalLink, Loader2, MapPin, Maximize2, Pencil, Plus, ZoomIn, ZoomOut } from "lucide-react";
 
 // One diagram, laid out like a parts catalogue: the picture with its
 // numbered callouts on one side, the table of parts on the other. Tap a
 // number and its row lights up; tap a row and its number does. A maker's
 // diagram (pasted from Partsouq) lists the maker's parts, with what's on the
-// shelf; the picture is the team's own photo of that area, as the maker's
-// drawing itself is not kept. A catalogue site that allows it (JP-CarParts)
-// shows its own diagram page here, beside the table, under "Maker's
-// diagram"; others open in a new tab.
+// shelf; on a photo, a pinned part opens its page and, when it is low or
+// out, names the replacement on the shelf. The picture is the team's own
+// photo of that area, as the maker's drawing itself is not kept. A catalogue
+// site that allows it (JP-CarParts) shows its own diagram page here, beside
+// the table, under "Maker's diagram"; others open in a new tab.
 
 const ZOOMS = [1, 1.5, 2, 3];
 const isHttps = (link) => /^https:\/\/\S+$/i.test(link);
 
-function PasteParts({ group, onClose }) {
+// The diagram's own sheet: paste its table of parts and its page's address.
+// An administrator can delete the diagram here; a photo linked to it stays,
+// unlinked, under Photos & bolt maps.
+function PasteParts({ group, onClose, onDeleted }) {
   const { toast } = useToast();
-  const { put } = useVehicleRoute();
+  const { put, drop, diagrams, isAdmin } = useVehicleRoute();
   const [text, setText] = useState("");
   const [link, setLink] = useState(group.link || "");
   const [saving, setSaving] = useState(false);
@@ -51,8 +55,27 @@ function PasteParts({ group, onClose }) {
       setSaving(false);
     }
   };
+  const remove = async () => {
+    setSaving(true);
+    try {
+      for (const photo of diagrams.filter((d) => d.catalogue_group_id === group.id)) {
+        put("diagrams", await base44.entities.PartDiagram.update(photo.id, { catalogue_group_id: "" }));
+      }
+      await base44.entities.CatalogueGroup.delete(group.id);
+      drop("groups", group.id);
+      toast({ title: `${groupLabel(group)} deleted` });
+      onClose();
+      onDeleted();
+    } catch (e) {
+      toast({ title: "Couldn't delete the diagram", description: e?.message, variant: "destructive" });
+      setSaving(false);
+    }
+  };
   return (
-    <EditSheet open onClose={onClose} saving={saving} problem={problem} onSave={save} title="Paste parts" description={groupLabel(group)}>
+    <EditSheet
+      open onClose={onClose} saving={saving} problem={problem} onSave={save} title="Paste parts" description={groupLabel(group)}
+      onDelete={isAdmin ? remove : undefined} deleteLabel="Delete this diagram"
+    >
       <p className="text-body-sm text-muted-foreground">On Partsouq or JP-CarParts, open this diagram, select its table of parts, copy it, and paste it here. {(group.parts || []).length ? "It replaces the parts listed now." : ""}</p>
       <Field id="paste-text" label="Copied text">
         <Textarea id="paste-text" rows={8} className="font-mono text-body-sm md:text-body-sm" value={text} onChange={(e) => setText(e.target.value)} placeholder={"No.  Part number  Name  Qty\n15601  90915-YZZD2  ELEMENT KIT, OIL FILTER  1"} />
@@ -85,7 +108,7 @@ function PhotoButton({ onFile, busy, label, variant = "primary", vehicleName, ti
 
 export default function DiagramPage({ mode }) {
   const { diagramId, groupId } = useParams();
-  const { vehicle, guide, base, diagrams, groups, specs, parts, guides, put, reload } = useVehicleRoute();
+  const { vehicle, guide, base, diagrams, groups, specs, parts, interchanges, guides, put, reload } = useVehicleRoute();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [selected, setSelected] = useState(null);
@@ -198,6 +221,15 @@ export default function DiagramPage({ mode }) {
 
   const torqueOf = (row) => row.pins.map((p) => specById.get(p.torque_id)).find(Boolean) || null;
   const zoomIndex = ZOOMS.indexOf(zoom);
+  const vin = String(vehicle.record?.vin || "").trim();
+  const copyVin = async () => {
+    try {
+      await navigator.clipboard.writeText(vin);
+      toast({ title: "Chassis number copied", description: "Paste it into the catalogue's search to find this vehicle's own diagrams." });
+    } catch {
+      toast({ title: "Couldn't copy", description: "Your browser didn't allow copying. The chassis number is on the vehicle's page.", variant: "destructive" });
+    }
+  };
 
   return (
     <>
@@ -217,6 +249,19 @@ export default function DiagramPage({ mode }) {
           </>
         )}
       </ScreenBar>
+
+      {/* The picture's notes: how to find this area's diagram, what to check.
+          The maker's catalogue finds a vehicle by its chassis number. */}
+      {picture?.notes && !editing && (
+        <section aria-label="Notes" className="mb-4 rounded-lg border border-border bg-card px-4 py-3 text-body-sm shadow-sm">
+          <p className="whitespace-pre-line">{picture.notes}</p>
+          {vin && (
+            <Button variant="outline" className="mt-2 h-11 rounded-lg bg-card" onClick={copyVin}>
+              <Copy className="mr-1.5 h-4 w-4" aria-hidden="true" />Copy {vehicle.name}'s chassis number
+            </Button>
+          )}
+        </section>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
         <section aria-label="Picture" className="overflow-hidden rounded-lg border border-border bg-card shadow-sm lg:sticky lg:top-3">
@@ -331,6 +376,7 @@ export default function DiagramPage({ mode }) {
                 const stockPart = group ? null : partById.get(pin?.part_id);
                 const onShelf = group ? stockFor(row.part, shelf) : [];
                 const name = group ? row.part.name || "—" : torque?.item || stockPart?.part_name || pin?.label || "Nothing linked yet";
+                const spare = stockPart && stockLevel(stockPart) !== "ok" ? inStockReplacements(stockPart, parts, interchanges) : [];
                 return (
                   <li key={`${row.key}-${i}`} ref={(el) => { if (el && rows.findIndex((r) => r.key === row.key) === i) rowRefs.current.set(row.key, el); }} className={`grid grid-cols-[minmax(0,1fr)_2.75rem_auto] items-center gap-x-3 px-3 py-2 ${on ? "bg-accent shadow-[inset_4px_0_0_hsl(var(--primary))]" : ""}`}>
                     <button type="button" onClick={() => chooseRow(row)} aria-pressed={on} className="grid min-h-[44px] grid-cols-[4rem_minmax(0,1fr)] gap-x-3 text-left">
@@ -353,6 +399,12 @@ export default function DiagramPage({ mode }) {
                         <span className="text-right leading-tight"><span className="block text-title-sm font-bold tabular-nums">{nmText(torque.nm)} <span className="text-caption font-semibold">N·m</span></span><span className="block text-caption text-muted-foreground">{ftLb(torque.nm)} ft·lb</span></span>
                       ) : stockPart ? <StockChip part={stockPart} /> : null}
                     </span>
+                    {stockPart && (
+                      <p className="col-span-3 flex flex-wrap items-center gap-x-3 gap-y-1 pb-1 pl-[4.75rem] text-caption">
+                        {spare.length > 0 && <span className="font-medium">Replacement on the shelf: {spare.map(({ part: other }) => `${other.part_name} (${[other.quantity_in_stock, other.bin_location].filter(Boolean).join(", ")})`).join("; ")}</span>}
+                        <Link to={`/workshop/parts/${stockPart.id}`} aria-label={`Open the part: ${stockPart.part_name}`} className="inline-flex min-h-[2rem] items-center font-medium text-primary underline underline-offset-2">Open the part</Link>
+                      </p>
+                    )}
                   </li>
                 );
               })}
@@ -370,7 +422,7 @@ export default function DiagramPage({ mode }) {
         />
       )}
       {details && <PictureSheet editing={picture} guide={guide} onClose={() => setDetails(false)} onDeleted={() => navigate(group ? `${base}/group/${group.id}` : `${base}/maps`, { replace: true })} />}
-      {pasting && group && <PasteParts group={group} onClose={() => setPasting(false)} />}
+      {pasting && group && <PasteParts group={group} onClose={() => setPasting(false)} onDeleted={() => navigate(`${base}/c/${categorySlug(category)}`, { replace: true })} />}
       <QuickAddPart open={!!adding} onOpenChange={(o) => !o && setAdding(null)} parts={parts} guides={guides} initial={adding || undefined} onSaved={reload} />
     </>
   );

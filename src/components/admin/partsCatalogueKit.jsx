@@ -10,8 +10,8 @@ import { Check, ExternalLink, Loader2, Plus, Trash2, Undo2, X } from "lucide-rea
 import { FACT_STATUS } from "@/lib/busLibrary";
 import { KIND_LABEL, guideLabel, partsNumbered, replacementsFor, stockLabel } from "@/lib/partsCatalogue";
 
-// Pieces of the parts catalogue shared by Admin → Parts and the part
-// pictures on a Bus library page.
+// Pieces of the parts catalogue shared by the Workshop's parts pages and
+// pictures, the quick add and the parts kiosk.
 
 const SELECT = "h-10 w-full rounded-lg border border-input bg-background px-3 text-body-sm";
 const hostOf = (link) => {
@@ -144,7 +144,7 @@ function AddReplacement({ part, onCancel, onSaved }) {
 
 // Which bus models a part fits, as tick boxes of the library's pages.
 export function ModelChecklist({ guides, value = [], onChange, idPrefix }) {
-  if (!guides.length) return <p className="text-caption text-muted-foreground">Add model pages in the Bus library to link parts to them.</p>;
+  if (!guides.length) return <p className="text-caption text-muted-foreground">Add model pages in Workshop › Models to link parts to them.</p>;
   const toggle = (id) => onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -158,8 +158,7 @@ export function ModelChecklist({ guides, value = [], onChange, idPrefix }) {
   );
 }
 
-// The fields a part has, for adding one and for its Details (Admin › Parts
-// and the Workshop's part page).
+// The fields a part has, for its Details on the Workshop's part page.
 export function PartFields({ form, set, guides, idPrefix }) {
   const id = (k) => `${idPrefix}-${k}`;
   return (

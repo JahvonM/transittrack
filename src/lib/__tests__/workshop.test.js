@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   TORQUE_SYSTEMS, TORQUE_TEXT_LIMITS, MAX_NM, carData, carProblem, catalogueCategories, catalogueName, categorySlug, diagramRows,
   embeddable, ftLb, groupMatches, groupRefs, guideFor, isToyotaDiagram, jpCarPartsLink, jpCarPartsModel, modelCodeFor,
-  pageFromStarter, pictureForGroup, pinKey, pinLabel, readyTorque,
+  guideContents, pageFromStarter, pictureForGroup, pinKey, pinLabel, readyStarters,
   starterTorque, torqueBySystem, torqueData, torqueForm, torqueProblem, visibleTorque, workshopVehicles,
-  blankFact, documentProblem, factData, factForm, factProblem, nextFactOrder, nextStock, oldViewLink, partData, partForm, partProblem,
+  blankFact, documentProblem, factData, factForm, factProblem, nextFactOrder, nextStock, partData, partForm, partProblem,
   partsForGuide, stockSummary, visibleParts,
 } from "../workshop.js";
 import { TORQUE_STARTERS } from "../../data/workshop/torque/index.js";
@@ -136,17 +136,43 @@ describe("starter torque tables", () => {
     ]);
   });
 
-  it("offers each starter until its values are in, and says when a bus page is needed first", () => {
-    const starters = [
-      { key: "bus", guide_key: "bus", torque: [{ system: "engine", item: "A", nm: 1 }] },
-      { key: "car", guide_key: "car", page: { make: "BMW", model: "X3" }, torque: [{ system: "engine", item: "A", nm: 1 }] },
-      { key: "done", guide_key: "done", torque: [{ system: "engine", item: "A", nm: 1 }] },
+  it("offers each model once: a bus page with its researched facts, a car's own page, and torque values a page lacks", () => {
+    const library = [{ key: "bus", make: "Toyota", model: "Hiace", generation: "H200", facts: [{ section: "fluids", label: "Oil" }, { section: "tyres", label: "Tyres" }] }];
+    const torque = [
+      { key: "bus", guide_key: "bus", label: "Toyota Hiace H200", torque: [{ system: "engine", item: "A", nm: 1 }] },
+      { key: "car", guide_key: "car", label: "BMW X3 F25", page: { make: "BMW", model: "X3" }, torque: [{ system: "engine", item: "A", nm: 1 }, { system: "engine", item: "B", nm: 2 }] },
+      { key: "done", guide_key: "done", label: "Done", torque: [{ system: "engine", item: "A", nm: 1 }] },
+      { key: "more", guide_key: "more", label: "More", torque: [{ system: "engine", item: "A", nm: 1 }, { system: "engine", item: "B", nm: 2 }] },
     ];
-    const guides = [{ id: "g-done", starter_key: "done" }];
-    const specs = [{ guide_id: "g-done", system: "engine", item: "A" }];
-    expect(readyTorque(starters, guides, specs).map((r) => [r.starter.key, r.count, r.needsPage, r.blocked])).toEqual([
-      ["bus", 1, false, true], ["car", 1, true, false],
+    const guides = [{ id: "g-done", starter_key: "done" }, { id: "g-more", starter_key: "more", make: "Nissan", model: "NV350" }];
+    const specs = [{ guide_id: "g-done", system: "engine", item: "A" }, { guide_id: "g-more", system: "engine", item: "a " }];
+    const ready = readyStarters(library, torque, guides, specs);
+    expect(ready.map((r) => [r.key, r.label, r.facts, r.torque, !!r.guide])).toEqual([
+      ["bus", "Toyota Hiace H200", 2, 1, false],
+      ["car", "BMW X3 F25", 0, 2, false],
+      ["more", "More", 0, 1, true],
     ]);
+    // A new page is made from the bus starter (with its key, so it's offered once), or from the car's own page.
+    expect(ready[0].page).toMatchObject({ make: "Toyota", model: "Hiace", generation: "H200", starter_key: "bus" });
+    expect(ready[1].page).toMatchObject({ make: "BMW", model: "X3", starter_key: "car" });
+    expect(readyStarters(library, torque, [...guides, { id: "g-bus", starter_key: "bus" }, { id: "g-car", starter_key: "car" }], specs).map((r) => r.key)).toEqual(["bus", "car", "more"]);
+  });
+});
+
+describe("deleting a model page", () => {
+  it("takes its facts, manuals, pictures, torque values and maker's diagrams, and unlinks its parts", () => {
+    const data = {
+      facts: [{ id: "f1", guide_id: "g1" }, { id: "f2", guide_id: "g2" }],
+      documents: [{ id: "d1", guide_id: "g1" }],
+      diagrams: [{ id: "p1", guide_id: "g1" }, { id: "p2", guide_id: "g2" }],
+      specs: [{ id: "t1", guide_id: "g1" }],
+      groups: [{ id: "c1", guide_id: "g1" }, { id: "c2", guide_id: "g2" }],
+      parts: [{ id: "x1", guide_ids: ["g1", "g2"] }, { id: "x2", guide_ids: ["g2"] }, { id: "x3" }],
+    };
+    const own = guideContents("g1", data);
+    expect(Object.fromEntries(Object.entries(own).map(([k, list]) => [k, list.map((r) => r.id)]))).toEqual({
+      facts: ["f1"], documents: ["d1"], pictures: ["p1"], torque: ["t1"], groups: ["c1"], parts: ["x1"],
+    });
   });
 });
 
@@ -280,7 +306,7 @@ describe("parts in the Workshop", () => {
     expect(nextStock("4", -1)).toBe(3);
   });
 
-  it("edits a part's details like Admin › Parts, keeping only models that have a page", () => {
+  it("edits a part's details, keeping only models that have a page", () => {
     const form = partForm({ ...parts[1], bin_location: "Shelf A1", unit_price: 12.5 });
     expect(form).toMatchObject({ part_name: "Oil filter (genuine)", min_stock: "2", unit_price: "12.5", bin_location: "Shelf A1", guide_ids: ["g1", "g2"] });
     const data = partData({ ...form, part_name: "  Oil filter  ", min_stock: "" }, [{ id: "g1" }]);
@@ -350,12 +376,4 @@ describe("manuals in the Workshop", () => {
   });
 });
 
-describe("the old screens, for one release", () => {
-  it("are Admin's for an administrator and the mechanic screen's tab for a mechanic", () => {
-    expect(oldViewLink("admin", "parts")).toBe("/admin/parts");
-    expect(oldViewLink("admin", "library")).toBe("/admin/library");
-    expect(oldViewLink("mechanic", "parts")).toBe("/mechanic?tab=parts&old=1");
-    expect(oldViewLink("mechanic", "library")).toBe("/mechanic?tab=library&old=1");
-  });
-});
 
