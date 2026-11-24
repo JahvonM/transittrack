@@ -84,7 +84,7 @@ export default function HomePage() {
               <span className="mcs-stop" aria-hidden="true">3</span>
               <div>
                 <h3>View live map</h3>
-                <p>Your confirmation has a private link that displays your requested transport’s location on a live map.</p>
+                <p>Your confirmation has a private link that displays your requested transport’s location and estimated time of arrival.</p>
               </div>
             </li>
           </ol>

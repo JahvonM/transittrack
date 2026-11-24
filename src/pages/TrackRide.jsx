@@ -7,10 +7,13 @@ import MapboxMap from "@/components/MapboxMap";
 import { describeRide, nextCheckMs, readTrackToken, rideClosed } from "@/lib/visitorTrack";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 import { isSiteHost } from "@/lib/bookingSite";
+import { etaText } from "@/lib/rideEta";
+import { useRideEta } from "@/lib/useRideEta";
 
 // Public page for a guest following their ride: /track#trip=<key>.
 // No sign-in. Shows only what the visitorTracking function allows for this
-// one ride, and the bus on a map while the ride is under way.
+// one ride, its vehicle on a map while the ride is under way, and about
+// how many minutes until it reaches the guest's next stop.
 
 const when = (iso) => {
   const t = Date.parse(iso || "");
@@ -53,6 +56,7 @@ export default function TrackRide() {
   const [problem, setProblem] = useState(token ? "" : "invalid");
   const [offline, setOffline] = useState(false);
   const timer = useRef(null);
+  const eta = useRideEta(view);
 
   const check = useCallback(async () => {
     clearTimeout(timer.current);
@@ -134,6 +138,16 @@ export default function TrackRide() {
             {ride.note && <p className="mt-1 text-body-sm text-muted-foreground">{ride.note}</p>}
           </div>
         </div>
+
+        {eta && (
+          <div className="mt-4 rounded-xl bg-muted px-4 py-3">
+            <p className="text-title-sm font-bold">{etaText(eta.minutes)}</p>
+            <p className="text-body-sm text-muted-foreground">
+              {eta.to === "pickup" ? "To your pickup" : "To your drop-off"}
+              {Math.round(eta.minutes) >= 1 && <>, arriving around {clock(new Date(Date.now() + eta.minutes * 60_000).toISOString())}</>}. Traffic can change this.
+            </p>
+          </div>
+        )}
 
         {live && (
           <div className="mt-4 overflow-hidden rounded-xl border border-border">
