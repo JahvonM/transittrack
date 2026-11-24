@@ -74,8 +74,19 @@ describe('company and role access boundaries',()=>{
  });
  it('allows own-company writes and refuses changing company assignment',async()=>{
   const client=sdk();
-  expect((await call(client,{entity:'Vehicle',operation:'update',id:'bus-a',data:{name:'Updated'}})).status).toBe(200);
-  expect((await call(client,{entity:'Vehicle',operation:'update',id:'bus-a',data:{company_id:'b'}})).status).toBe(403);
+  expect((await call(client,{entity:'Fault',operation:'create',data:{vehicle_id:'bus-a',company_id:'a',title:'Allowed'}})).status).toBe(200);
+  expect([400,403]).toContain((await call(client,{entity:'Fault',operation:'create',data:{vehicle_id:'bus-a',company_id:'b',title:'Moved'}})).status);
+ });
+ it('shows a company its buses and routes but never lets it change them',async()=>{
+  const client=sdk();
+  expect((await call(client,{entity:'Vehicle',operation:'get',id:'bus-a'})).status).toBe(200);
+  for(const req of [
+   {entity:'Vehicle',operation:'update',id:'bus-a',data:{name:'Updated'}},
+   {entity:'Vehicle',operation:'create',data:{name:'New bus',company_id:'a'}},
+   {entity:'Vehicle',operation:'delete',id:'bus-a'},
+   {entity:'Route',operation:'create',data:{name:'New route',company_id:'a',stops:[]}},
+  ]) expect((await call(client,req)).status).toBe(403);
+  expect(client.writes()).toBe(0);
  });
  it('rejects cross-company related records and mismatched vehicle assignment',async()=>{
   const client=sdk();

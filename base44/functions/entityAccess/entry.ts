@@ -790,6 +790,8 @@ async function prepare(db,ctx,name,input,existing=null) {
    if(name==='Vehicle' && Object.keys(data).some(k=>!['current_odometer','last_inspection_date','in_service','hours','status'].includes(k))) fail(403,'Maintenance vehicle fields only');
   } else if(user.role==='company') {
    if(!COMPANY_READ.has(name) || (name==='Company' && !existing) || COMPANY_NO_HISTORY.has(name)) fail(403,'Forbidden');
+   // A company sees its buses and routes; McSween Transport adds, changes and removes them.
+   if(name==='Vehicle' || name==='Route') fail(403,'Buses and routes are view only. Ask McSween Transport to change them.');
    // Jobs are asked for (bookingRequest company_request); dispatch makes and changes them.
    if(name==='Trip' && (existing?.job_type || data.job_type)) fail(403,'Ask for a job from Jobs → Request a job');
   } else if (name!=='GroupMessage' && name!=='LostItemReport') fail(403,'Forbidden');
