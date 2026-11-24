@@ -73,7 +73,8 @@ jobs:
           if [ "$cert" != "$TABLET_CERT_SHA256" ]; then
             echo "::error::This is not the key the bus tablets were set up with (got $cert). Copy debug.keystore from the office PC again."; exit 1
           fi
-          # Gradle signs debug builds with ANDROID_USER_HOME/debug.keystore.
+          # Gradle signs with ANDROID_USER_HOME/debug.keystore: the debug key is
+          # also the tablet app's release key (android/app/build.gradle, kiosk).
           echo "ANDROID_USER_HOME=$home" >> "$GITHUB_ENV"
           echo "KIOSK_CERT_SHA256=$cert" >> "$GITHUB_ENV"
           echo "Signing certificate SHA-256: $cert"
@@ -91,19 +92,22 @@ jobs:
         run: npm run build:supabase
       - if: steps.key.outputs.ready == 'true'
         run: npx cap sync android
+      # The release build: not debuggable, no backups. Same key as before, so
+      # it installs over the debug builds already on the tablets.
       - name: Run the tablet app's native tests and build the .apk
         if: steps.key.outputs.ready == 'true'
-        run: bash android/gradlew -p android :app:testKioskDebugUnitTest :app:assembleKioskDebug --no-daemon
+        run: bash android/gradlew -p android :app:testKioskDebugUnitTest :app:assembleKioskRelease --no-daemon
       - name: Check the file is signed with the PC key and name it
         id: apk
         if: steps.key.outputs.ready == 'true'
         run: |
           tools="$ANDROID_HOME/build-tools/36.0.0"
-          apk=android/app/build/outputs/apk/kiosk/debug/app-kiosk-debug.apk
+          apk=android/app/build/outputs/apk/kiosk/release/app-kiosk-release.apk
           signer=$("$tools/apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
           if [ "$signer" != "$KIOSK_CERT_SHA256" ]; then
             echo "::error::The .apk is not signed with the office PC key, so the tablets would refuse it."; exit 1
           fi
+          bash tools/kiosk/check-release-apk.sh "$tools" "$apk"
           badging=$("$tools/aapt2" dump badging "$apk" | head -1)
           pkg=$(printf '%s' "$badging" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")
           code=$(printf '%s' "$badging" | sed -n "s/.* versionCode='\([0-9]*\)'.*/\1/p")
@@ -118,7 +122,7 @@ jobs:
           echo "file=$file" >> "$GITHUB_OUTPUT"
           {
             echo "### $file"
-            echo "Version $name / build $code, signed with the office PC key (certificate SHA-256 \`$signer\`)."
+            echo "Version $name / build $code, a release build signed with the office PC key (certificate SHA-256 \`$signer\`)."
             echo "Install it with Admin → Kiosk tablets → Set up a device. Never uninstall the old app to get past an error."
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4

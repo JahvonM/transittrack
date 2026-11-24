@@ -29,6 +29,13 @@ jobs:
       - run: npx cap sync android
       - name: Compile combined kiosk and run native unit tests
         run: bash android/gradlew -p android :app:assembleKioskDebug :app:testKioskDebugUnitTest --no-daemon
+      # The file the buses get is the release build (kiosk-apk.yml): build it
+      # here too, signed with a throwaway debug key, and check it isn't
+      # debuggable and keeps no backups.
+      - name: Build and check the tablet release build
+        run: |
+          bash android/gradlew -p android :app:assembleKioskRelease --no-daemon
+          bash tools/kiosk/check-release-apk.sh "$ANDROID_HOME/build-tools/36.0.0" android/app/build/outputs/apk/kiosk/release/app-kiosk-release.apk
       # The store app (McSween Driver) is built from the same code: make sure
       # a kiosk change never breaks it. Its own checks are in store-app.yml.
       - name: Compile the store app
