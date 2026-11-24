@@ -59,7 +59,7 @@
   .px-experience .px-quick { gap: 10px; }
   .px-experience .px-quick > a { font-size: 16px; }
   .px-experience .px-quick > a:first-child, .px-experience .px-find-btn, .tt-apple-sheet [data-ui=button][data-variant=default] {
-    background: var(--px-tint); color: var(--px-on-tint);
+    background: var(--px-fill); color: var(--px-on-tint);
   }
   .px-experience .px-quick > a:not(:first-child), .px-experience .px-panel [data-ui=button]:is([data-variant=outline], [data-variant=secondary]), .tt-apple-sheet [data-ui=button]:is([data-variant=outline], [data-variant=secondary]) {
     background: var(--px-tint-fill); color: var(--px-tint); border: 0;
@@ -76,7 +76,7 @@
   .px-experience .px-flags > button { min-height: 58px; padding: 10px 14px; border-radius: 20px; }
   .px-experience .px-flags strong { font-size: 15px; font-weight: 600; }
   .px-experience .px-flags small { font-size: 12px; }
-  .px-experience .px-flags > button[aria-pressed=true] { background: var(--px-tint); color: var(--px-on-tint); }
+  .px-experience .px-flags > button[aria-pressed=true] { background: var(--px-fill); color: var(--px-on-tint); }
 
   /* "Need anything? Message us" and other single-row cells. */
   .px-experience .px-message { justify-content: flex-start; min-height: 54px; padding: 12px 16px; font-size: 17px; font-weight: 500; text-align: left; }

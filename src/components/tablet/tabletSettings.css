@@ -3,7 +3,7 @@
    sea-ink ground, rounded panels, big rows, sun yellow for the main action. */
 .ts {
   --ts-ink: #0b1d22; --ts-surface: #13292f; --ts-surface-high: #163a42; --ts-line: #22404a; --ts-border: #2a4a53;
-  --ts-text: #eef6f5; --ts-soft: #b9cfcd; --ts-muted: #9bb6b4; --ts-teal: #5fd0de; --ts-sun: #f7c948;
+  --ts-text: #eef6f5; --ts-soft: #b9cfcd; --ts-muted: #9bb6b4; --ts-teal: #9fd2f0; --ts-sun: #f7c948;
   --ts-good: #4fd18b; --ts-bad: #ff9b94;
   background: var(--ts-ink); color: var(--ts-text);
   display: flex; flex-direction: column; min-height: 100%;

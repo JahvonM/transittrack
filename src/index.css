@@ -457,28 +457,30 @@ html.tt-no-page-zoom, html.tt-no-page-zoom body { touch-action: pan-x pan-y; }
 /* Approved futuristic passenger / driver / boarding presentation.
    Activated only while those screens are mounted. Admin keeps its own theme. */
 html.tt-future {
- --background: 214 65% 5%;
- --foreground: 210 30% 97%;
- --card: 214 49% 9%;
- --card-foreground: 210 30% 97%;
- --popover: 214 46% 10%;
- --popover-foreground: 210 30% 97%;
- --primary: 184 100% 48%;
- --primary-foreground: 216 75% 5%;
- --secondary: 212 40% 14%;
- --secondary-foreground: 210 30% 97%;
- --muted: 213 39% 12%;
- --muted-foreground: 212 26% 74%;
- --accent: 210 40% 16%;
- --accent-foreground: 210 30% 97%;
- --border: 205 38% 24%;
- --input: 209 32% 40%;
- --ring: 184 100% 48%;
- --sidebar-background: 214 65% 5%;
- --sidebar-foreground: 210 30% 97%;
- --sidebar-primary: 184 100% 48%;
- --sidebar-primary-foreground: 216 75% 5%;
- --sidebar-border: 205 38% 24%;
+ /* The website's look (src/site/site.css): deep sea-blue, white highlights
+    with dark text on them, light sky-blue for focus and accents. */
+ --background: 206 61% 11%;
+ --foreground: 200 33% 96%;
+ --card: 206 57% 15%;
+ --card-foreground: 200 33% 96%;
+ --popover: 206 55% 16%;
+ --popover-foreground: 200 33% 96%;
+ --primary: 0 0% 100%;
+ --primary-foreground: 206 61% 11%;
+ --secondary: 206 54% 19%;
+ --secondary-foreground: 200 33% 96%;
+ --muted: 206 48% 18%;
+ --muted-foreground: 206 25% 73%;
+ --accent: 206 50% 22%;
+ --accent-foreground: 200 33% 96%;
+ --border: 206 36% 23%;
+ --input: 206 25% 42%;
+ --ring: 202 72% 78%;
+ --sidebar-background: 206 66% 7%;
+ --sidebar-foreground: 200 33% 96%;
+ --sidebar-primary: 0 0% 100%;
+ --sidebar-primary-foreground: 206 61% 11%;
+ --sidebar-border: 206 40% 13%;
  color-scheme: dark;
 }
 /* Passenger app colours (Account → Appearance). Dark is the approved look;
@@ -487,43 +489,45 @@ html.tt-future {
    card and the boarding pass stay dark in both modes. Declared on <html> so
    sheets (rendered outside the page) get them too. */
 html.tt-passenger-app {
- --background:218 61% 6%;--foreground:205 50% 96%;--card:216 48% 11%;--card-foreground:205 50% 96%;
- --popover:216 48% 11%;--popover-foreground:205 50% 96%;
- --primary:186 95% 50%;--primary-foreground:218 70% 7%;--ring:186 95% 50%;--secondary:215 42% 16%;--secondary-foreground:205 50% 96%;
- --muted:215 35% 15%;--muted-foreground:210 22% 70%;--accent:207 44% 20%;--accent-foreground:205 50% 96%;--border:204 34% 24%;
- --px-page: radial-gradient(ellipse at 90% 0%,#12384d80,transparent 50%),#050d1b; --px-bg:#050d1b;
- --px-text:#edf6ff; --px-text2:#a8bdcf; --px-text3:#6c8294;
- --px-tint:#18d9ed; --px-tint-bright:#18d9ed; --px-tint-soft:#86e7ff; --px-on-tint:#031c29;
- --px-fill:#18d9ed; --px-tint-fill:rgba(24,217,237,.15);
- --px-panel:linear-gradient(135deg,#0b2337,#09182a); --px-panel-border:#294f66; --px-panel-shadow:0 6px 16px #0002;
- --px-card:linear-gradient(145deg,#14263eee,#0c192cee); --px-card-border:#29465b; --px-card-shadow:inset 0 1px 0 #8be7ff0a,0 8px 25px #0002;
- --px-control:#092239; --px-control-quiet:#082033; --px-control-border:#306a8c;
- --px-sep:#294355; --px-hair:rgba(255,255,255,.13);
- --px-cell:#0d1f33; --px-cell-raised:#12283f; --px-sheet:#0b1a2b;
- --px-avatar:#133147; --px-avatar-edge:#46758b; --px-row-icon:var(--px-text2); --px-chevron:#92adc1;
- --px-chip:#20374c; --px-chip-text:#c2d7e7; --px-good:#65ffbb; --px-good-bg:#075948; --px-good-dot:#37eca7;
+ /* The website's look: deep sea-blue, white buttons with dark text, light
+    sky-blue for links, icons and the live line. */
+ --background:206 61% 11%;--foreground:200 33% 96%;--card:206 57% 15%;--card-foreground:200 33% 96%;
+ --popover:206 55% 16%;--popover-foreground:200 33% 96%;
+ --primary:0 0% 100%;--primary-foreground:206 61% 11%;--ring:202 72% 78%;--secondary:206 54% 19%;--secondary-foreground:200 33% 96%;
+ --muted:206 48% 18%;--muted-foreground:206 25% 73%;--accent:206 50% 22%;--accent-foreground:200 33% 96%;--border:206 36% 23%;
+ --px-page:#0b1f2e; --px-bg:#0b1f2e;
+ --px-text:#f2f6f8; --px-text2:#a9bccb; --px-text3:#7c92a4;
+ --px-tint:#9fd2f0; --px-tint-bright:#9fd2f0; --px-tint-soft:#cfe8f7; --px-on-tint:#0b1f2e;
+ --px-fill:#ffffff; --px-tint-fill:rgba(159,210,240,.15);
+ --px-panel:#10283a; --px-panel-border:#22394b; --px-panel-shadow:0 10px 30px -18px #0009;
+ --px-card:#10283a; --px-card-border:#22394b; --px-card-shadow:0 10px 30px -18px #0009;
+ --px-control:#12293b; --px-control-quiet:#0f2536; --px-control-border:#2e4a5f;
+ --px-sep:#1f3647; --px-hair:rgba(255,255,255,.12);
+ --px-cell:#10283a; --px-cell-raised:#143049; --px-sheet:#0e2333;
+ --px-avatar:#16324a; --px-avatar-edge:#3f5e74; --px-row-icon:var(--px-text2); --px-chevron:#8ea6b8;
+ --px-chip:#183247; --px-chip-text:#c9d7e2; --px-good:#65ffbb; --px-good-bg:#075948; --px-good-dot:#37eca7;
  --px-warn:#f5c26b; --px-danger:#ff6488; --px-danger-soft:#ffafbb;
  --px-notice:#182b30; --px-notice-edge:#546445; --px-signout:#0d192d; --px-signout-edge:#3c475f; --px-map-edge:#2a5a73;
- --px-glass:rgba(10,24,40,.72); --px-glass-edge:rgba(255,255,255,.15); --px-press:rgba(255,255,255,.06); --px-press-strong:rgba(255,255,255,.08);
- --px-field:rgba(255,255,255,.08); --px-switch-off:rgba(120,120,128,.36); --px-edge-contrast:#8fb7cf; --px-shadow:rgba(0,0,0,.4);
+ --px-glass:rgba(11,31,46,.72); --px-glass-edge:rgba(255,255,255,.15); --px-press:rgba(255,255,255,.06); --px-press-strong:rgba(255,255,255,.08);
+ --px-field:rgba(255,255,255,.08); --px-switch-off:rgba(120,120,128,.36); --px-edge-contrast:#7f9db3; --px-shadow:rgba(0,0,0,.4);
 }
 html.tt-passenger-app.light, html.tt-admin-app.light.tt-theme-chosen {
- --background:216 20% 96%;--foreground:214 45% 8%;--card:0 0% 100%;--card-foreground:214 45% 8%;
- --popover:0 0% 100%;--popover-foreground:214 45% 8%;
- --primary:192 82% 31%;--primary-foreground:0 0% 100%;--ring:192 82% 31%;--secondary:216 18% 92%;--secondary-foreground:214 45% 8%;
- --muted:216 18% 93%;--muted-foreground:212 14% 38%;--accent:192 50% 93%;--accent-foreground:214 45% 8%;--border:214 18% 86%;--input:214 12% 66%;
+ --background:203 33% 95%;--foreground:206 61% 11%;--card:0 0% 100%;--card-foreground:206 61% 11%;
+ --popover:0 0% 100%;--popover-foreground:206 61% 11%;
+ --primary:206 61% 11%;--primary-foreground:0 0% 100%;--ring:204 66% 33%;--secondary:205 30% 91%;--secondary-foreground:206 61% 11%;
+ --muted:205 30% 92%;--muted-foreground:206 19% 36%;--accent:205 35% 89%;--accent-foreground:206 61% 11%;--border:205 24% 86%;--input:206 15% 60%;
  color-scheme:light;
- --px-page:#f2f4f7; --px-bg:#f2f4f7;
- --px-text:#0b1620; --px-text2:#566676; --px-text3:#8d9aa6;
- --px-tint:#0e7490; --px-tint-soft:#0e7490; --px-on-tint:#ffffff;
- --px-fill:#0e7490; --px-tint-fill:rgba(14,116,144,.1);
- --px-panel:#ffffff; --px-panel-border:#e1e7ed; --px-panel-shadow:0 1px 2px rgba(16,24,40,.06);
- --px-card:#ffffff; --px-card-border:#e1e7ed; --px-card-shadow:0 1px 2px rgba(16,24,40,.06);
- --px-control:#ffffff; --px-control-quiet:#ffffff; --px-control-border:#d5dde4;
- --px-sep:#e3e8ee; --px-hair:rgba(60,60,67,.16);
- --px-cell:#ffffff; --px-cell-raised:#ffffff; --px-sheet:#f2f4f7;
- --px-avatar:#dcedf2; --px-avatar-edge:#b9d4dd; --px-row-icon:var(--px-text2); --px-chevron:#a3afba;
- --px-chip:#e8edf2; --px-chip-text:#3b4a58; --px-good:#0f7a4f; --px-good-bg:#d6f3e6; --px-good-dot:#16a36a;
+ --px-page:#eef3f6; --px-bg:#eef3f6;
+ --px-text:#0b1f2e; --px-text2:#4e6272; --px-text3:#8193a2;
+ --px-tint:#1c5d8a; --px-tint-soft:#1c5d8a; --px-on-tint:#ffffff;
+ --px-fill:#0b1f2e; --px-tint-fill:rgba(28,93,138,.1);
+ --px-panel:#ffffff; --px-panel-border:#d6e0e7; --px-panel-shadow:0 1px 2px rgba(11,31,46,.06);
+ --px-card:#ffffff; --px-card-border:#d6e0e7; --px-card-shadow:0 1px 2px rgba(11,31,46,.06);
+ --px-control:#ffffff; --px-control-quiet:#ffffff; --px-control-border:#cfdbe3;
+ --px-sep:#e1e8ee; --px-hair:rgba(11,31,46,.14);
+ --px-cell:#ffffff; --px-cell-raised:#ffffff; --px-sheet:#eef3f6;
+ --px-avatar:#dde9f1; --px-avatar-edge:#b8cdda; --px-row-icon:var(--px-text2); --px-chevron:#a0b0bd;
+ --px-chip:#e6eef3; --px-chip-text:#33495a; --px-good:#0f7a4f; --px-good-bg:#d6f3e6; --px-good-dot:#16a36a;
  --px-warn:#9a5b00; --px-danger:#c8254d; --px-danger-soft:#b4233f;
  --px-notice:#fff8e6; --px-notice-edge:#efdcab; --px-signout:#ffffff; --px-signout-edge:#e1e7ed; --px-map-edge:#dfe5eb;
  --px-glass:rgba(255,255,255,.78); --px-glass-edge:rgba(0,0,0,.08); --px-press:rgba(0,0,0,.05); --px-press-strong:rgba(0,0,0,.06);
@@ -558,11 +562,11 @@ html:is(.tt-passenger-app.light,.tt-admin-app.light.tt-theme-chosen)[data-accent
 html.tt-admin-app { --sidebar-primary:var(--primary); --sidebar-ring:var(--ring);
  --ad-page:radial-gradient(ellipse at 35% 0%,#0b2c3c66,transparent 50%),hsl(var(--background));
  --ad-sidebar:linear-gradient(180deg,#081b2a,#040f1c); --ad-header:#071624ed;
- --ad-card-image:linear-gradient(135deg,#0e273950,#06111e90); --ad-card-shadow:inset 0 1px 0 #bcf6ff08,0 8px 24px #0002;
- --ad-nav-text:#a9c6da; --ad-nav-hover-bg:#102d4155; --ad-nav-hover-text:#ecfaff; --ad-nav-current-text:#40d9ee; --ad-nav-current-bg:#0c344444;
+ --ad-card-image:linear-gradient(135deg,#0e273950,#06111e90); --ad-card-shadow:inset 0 1px 0 #d4ebf808,0 8px 24px #0002;
+ --ad-nav-text:#a9c6da; --ad-nav-hover-bg:#102d4155; --ad-nav-hover-text:#d4ebf8; --ad-nav-current-text:#9fd2f0; --ad-nav-current-bg:#0c344444;
  --ad-nav-line:#274153; --ad-nav-sep:#244052; --ad-nav-active-bg:#ffffff0f; --ad-nav-active-edge:#ffffff14; --ad-nav-active-text:#f1f8fc;
- --ad-row-bg:#102a3c55; --ad-row-hover-edge:#29b9d066; --ad-row-hover-bg:#12324777; --ad-icon-text:#a2c5d9; --ad-icon-bg:#ffffff08;
- --ad-action-text:#a6e4f2; --ad-action-edge:#356278; --ad-th-text:#9fb7c9; --ad-tr-hover:#183c4d22; --ad-focus:#3ee0f5;
+ --ad-row-bg:#102a3c55; --ad-row-hover-edge:#9fd2f066; --ad-row-hover-bg:#12324777; --ad-icon-text:#a2c5d9; --ad-icon-bg:#ffffff08;
+ --ad-action-text:#9fd2f0; --ad-action-edge:#356278; --ad-th-text:#9fb7c9; --ad-tr-hover:#183c4d22; --ad-focus:#9fd2f0;
 }
 html.tt-admin-app[data-accent] { --ad-nav-current-text:hsl(var(--primary)); --ad-action-text:hsl(var(--primary)); --ad-focus:hsl(var(--primary)); }
 html.tt-admin-app.light.tt-theme-chosen {
@@ -584,10 +588,10 @@ html.tt-passenger-app.light :is([aria-label="Open passenger chat"],button[aria-l
 html.tt-passenger-app.light .tt-bus-filters { background:#ffffff; border-color:var(--px-control-border); }
 html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="true"] { background:var(--px-fill); color:var(--px-on-tint); box-shadow:none; }
 .tt-future body {
- background: radial-gradient(ellipse at 20% 0%,hsl(197 85% 16% / .45),transparent 48%),hsl(var(--background));
+ background: hsl(var(--background));
 }
 .tt-future :is(.tt-app-shell,.tt-phone-future,.tt-driver-shell,.tt-boarding-future) {
- background: radial-gradient(ellipse at 15% 0%,hsl(198 85% 18% / .3),transparent 55%),hsl(var(--background));
+ background: hsl(var(--background));
 }
 .tt-future :is(.tt-app-shell,.tt-phone-future,.tt-driver-shell) :is(section.rounded-2xl,div.rounded-2xl.border) {
  background-image: linear-gradient(135deg,hsl(207 48% 16% / .55),hsl(215 56% 7% / .65));
@@ -635,7 +639,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-future .tt-boarding-future :is(.bg-card\/80,.bg-card\/70) {
  background-color: #081a2bec;
  border-color: #214a63;
- box-shadow: inset 0 1px 0 #a4f4ff12,0 12px 24px #0004;
+ box-shadow: inset 0 1px 0 #d4ebf812,0 12px 24px #0004;
 }
 .tt-future .tt-boarding-future .font-heading { letter-spacing: -.035em; }
 @media (max-height:700px) and (min-width:768px) {
@@ -665,29 +669,29 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-journey-loading-full { min-height:100dvh; }
 .tt-journey-loading-inline { min-height:70dvh; border-radius:24px; }
 .tt-loading-contours { position:absolute; z-index:-1; inset:0; opacity:.14;
- background-image:repeating-radial-gradient(ellipse at 18% 20%,transparent 0 32px,#32c9ee 33px 34px,transparent 35px 62px);
+ background-image:repeating-radial-gradient(ellipse at 18% 20%,transparent 0 32px,#9fd2f0 33px 34px,transparent 35px 62px);
  mask-image:linear-gradient(#000,transparent 80%);
 }
 .tt-loading-header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
 .tt-loading-brand { display:flex; align-items:center; gap:10px; font-size:clamp(20px,2vw,28px); font-weight:600; letter-spacing:-.04em; }
-.tt-loading-accent { color:#46d9ef; }
+.tt-loading-accent { color:#9fd2f0; }
 .tt-loading-context { color:#99b5ce; font-size:13px; text-align:right; }
 .tt-loading-body { flex:1; width:100%; max-width:900px; margin:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px 0 26px; text-align:center; }
-.tt-loading-company { display:flex; align-items:center; gap:10px; max-width:100%; padding:10px 20px; border:1px solid #32c9ee60; border-radius:999px; background:#051522aa; font-size:14px; font-weight:600; }
+.tt-loading-company { display:flex; align-items:center; gap:10px; max-width:100%; padding:10px 20px; border:1px solid #9fd2f060; border-radius:999px; background:#051522aa; font-size:14px; font-weight:600; }
 .tt-loading-company span { overflow-wrap:anywhere; }
 .tt-loading-company img { width:30px; height:30px; border-radius:50%; object-fit:contain; }
-.tt-loading-company svg { flex-shrink:0; color:#42daf3; }
+.tt-loading-company svg { flex-shrink:0; color:#9fd2f0; }
 .tt-loading-scene { position:relative; width:min(100%,640px); height:clamp(190px,32vh,340px); display:grid; place-items:center; margin:8px 0 16px; }
 .tt-loading-halo { display:none; }
-.tt-loading-road { position:absolute; bottom:0; width:100%; height:42%; color:#31d8f6; }
+.tt-loading-road { position:absolute; bottom:0; width:100%; height:42%; color:#9fd2f0; }
 .tt-loading-route-light { stroke-dashoffset:0; animation:tt-loading-route 5s linear infinite; }
 .tt-loading-bus { position:absolute; inset:0; margin:auto; z-index:1; width:min(86%,520px); height:100%; max-height:100%; filter:drop-shadow(0 16px 22px #000a); }
 .tt-loading-body h1 { margin:0; max-width:720px; font-weight:600; font-size:clamp(25px,3.1vw,42px); line-height:1.18; letter-spacing:-.035em; text-wrap:balance; }
 .tt-loading-status { color:#abcce3; font-size:clamp(15px,1.7vw,20px); line-height:1.5; margin:14px 0 20px; }
 .tt-loading-progress { width:min(100%,460px); height:6px; border-radius:999px; overflow:hidden; background:#153d55; }
-.tt-loading-progress span { display:block; width:36%; height:100%; border-radius:inherit; background:#25d5f8; animation:tt-loading-shimmer 1.8s ease-in-out infinite; }
+.tt-loading-progress span { display:block; width:36%; height:100%; border-radius:inherit; background:#9fd2f0; animation:tt-loading-shimmer 1.8s ease-in-out infinite; }
 .tt-loading-slow { margin-top:20px; color:#abcce3; font-size:14px; max-width:400px; }
-.tt-loading-slow button { display:block; margin:12px auto 0; min-height:48px; padding:10px 24px; border:1px solid #47cbe0; border-radius:12px; color:#e7fbff; background:#10354a; font-weight:600; }
+.tt-loading-slow button { display:block; margin:12px auto 0; min-height:48px; padding:10px 24px; border:1px solid #9fd2f0; border-radius:12px; color:#d4ebf8; background:#10354a; font-weight:600; }
 .tt-loading-slow button:focus-visible { outline:3px solid #fff; outline-offset:4px; }
 .tt-loading-footer { color:#7599b3; font-size:12px; text-align:center; }
 @keyframes tt-loading-route { to { stroke-dashoffset:-1320; } }
@@ -809,19 +813,19 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-admin-shell div.rounded-2xl.border,
 .tt-admin-stats > button {
  background-image:var(--ad-card-image,linear-gradient(135deg,#0e273950,#06111e90));
- box-shadow:var(--ad-card-shadow,inset 0 1px 0 #bcf6ff08,0 8px 24px #0002);
+ box-shadow:var(--ad-card-shadow,inset 0 1px 0 #d4ebf808,0 8px 24px #0002);
 }
 .tt-admin-group-toggle {
  display:flex; align-items:center; gap:12px; width:100%; min-height:48px; padding:10px 12px;
  text-align:left; border-radius:12px; color:var(--ad-nav-text,#a9c6da); font-size:14px; font-weight:500;
 }
 .tt-admin-group-toggle span { flex:1; }
-.tt-admin-group-toggle:hover { background:var(--ad-nav-hover-bg,#102d4155); color:var(--ad-nav-hover-text,#ecfaff); }
-.tt-admin-group-current { color:var(--ad-nav-current-text,#40d9ee); background:var(--ad-nav-current-bg,#0c344444); }
+.tt-admin-group-toggle:hover { background:var(--ad-nav-hover-bg,#102d4155); color:var(--ad-nav-hover-text,#d4ebf8); }
+.tt-admin-group-current { color:var(--ad-nav-current-text,#9fd2f0); background:var(--ad-nav-current-bg,#0c344444); }
 .tt-admin-group-items { margin:4px 0 10px 20px; padding-left:8px; border-left:1px solid var(--ad-nav-line,#274153); }
 .tt-admin-nav-secondary { border-top:1px solid var(--ad-nav-sep,#244052); margin-top:18px; padding-top:16px; }
 .tt-admin-shell nav [aria-current="page"] { background:var(--ad-nav-active-bg,#ffffff0f); border:1px solid var(--ad-nav-active-edge,#ffffff14); color:var(--ad-nav-active-text,#f1f8fc); }
-.tt-admin-shell nav :is(button,a):focus-visible { outline:2px solid var(--ad-focus,#3ee0f5); outline-offset:2px; }
+.tt-admin-shell nav :is(button,a):focus-visible { outline:2px solid var(--ad-focus,#9fd2f0); outline-offset:2px; }
 /* The admin sidebar sits closer together, so more of it fits without scrolling. */
 .tt-admin-nav .tt-admin-group-toggle { min-height:40px; padding:8px 12px; }
 .tt-admin-nav .tt-admin-group-items { margin:2px 0 6px 20px; }
@@ -842,9 +846,9 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
  display:flex; flex-wrap:wrap; align-items:center; gap:12px; width:100%; min-height:86px; padding:14px;
  border:1px solid hsl(var(--border)); border-radius:14px; background:var(--ad-row-bg,#102a3c55); text-align:left;
 }
-.tt-admin-attention-row:hover { border-color:var(--ad-row-hover-edge,#29b9d066); background:var(--ad-row-hover-bg,#12324777); }
+.tt-admin-attention-row:hover { border-color:var(--ad-row-hover-edge,#9fd2f066); background:var(--ad-row-hover-bg,#12324777); }
 .tt-admin-attention-icon { display:grid; place-items:center; width:52px; height:52px; flex-shrink:0; border-radius:12px; color:var(--ad-icon-text,#a2c5d9); background:var(--ad-icon-bg,#ffffff08); }
-.tt-admin-attention-action { display:inline-flex; align-items:center; gap:6px; flex-shrink:0; padding:7px 10px; font-size:12px; color:var(--ad-action-text,#a6e4f2); border:1px solid var(--ad-action-edge,#356278); border-radius:9px; }
+.tt-admin-attention-action { display:inline-flex; align-items:center; gap:6px; flex-shrink:0; padding:7px 10px; font-size:12px; color:var(--ad-action-text,#9fd2f0); border:1px solid var(--ad-action-edge,#356278); border-radius:9px; }
 .tt-admin-status-table { width:100%; min-width:520px; border-collapse:collapse; font-size:13px; }
 .tt-admin-status-table th { text-align:left; padding:13px 16px; font-size:12px; font-weight:500; color:var(--ad-th-text,#9fb7c9); border-bottom:1px solid hsl(var(--border)); }
 .tt-admin-status-table td { padding:12px 16px; border-bottom:1px solid hsl(var(--border)); vertical-align:middle; }
@@ -891,7 +895,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-passenger-reference button,.tt-driver-reference button,.tt-driver-phone-reference button { border-radius:14px; }
 .tt-passenger-reference button:focus-visible,.tt-driver-reference button:focus-visible,.tt-driver-phone-reference button:focus-visible{outline:2px solid hsl(var(--primary));outline-offset:3px}
 .tt-passenger-reference :is(.bg-card,.tt-bus-card),.tt-driver-phone-reference section,.tt-driver-reference :is(.bg-card,.bg-secondary) {
-  background:linear-gradient(145deg,#14263eee,#0c192cee);border-color:#29465b;box-shadow:inset 0 1px 0 #8be7ff0a,0 8px 25px #0002;
+  background:linear-gradient(145deg,#14263eee,#0c192cee);border-color:#29465b;box-shadow:inset 0 1px 0 #9fd2f00a,0 8px 25px #0002;
 }
 .tt-passenger-reference {color:hsl(var(--foreground));background:var(--px-page)}
 .tt-passenger-reference :is(.bg-card,.tt-bus-card) {background:var(--px-card);border-color:var(--px-card-border);box-shadow:var(--px-card-shadow)}
@@ -924,7 +928,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 /* Frosted like an iOS tab bar: the page scrolls under it, softly blurred, with
    a light top edge. Solid when the phone asks for less transparency. */
 .tt-passenger-reference-tabs {background:var(--px-glass,#071222c2)!important;border-color:var(--px-glass-edge,#ffffff1c)!important;color:var(--px-text2,#a5bbc9);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%)}
-.tt-passenger-reference-tabs [aria-current="page"] {color:var(--px-tint,#25e1ef)}
+.tt-passenger-reference-tabs [aria-current="page"] {color:var(--px-tint,#9fd2f0)}
 html.tt-passenger-app:is(.light,[data-accent]) .tt-passenger-reference-tabs [aria-current="page"] {text-shadow:none}
 @media (prefers-reduced-transparency: reduce) { .tt-passenger-reference-tabs {background:var(--px-bg,#071222)!important;-webkit-backdrop-filter:none;backdrop-filter:none} }
 @media (prefers-contrast: more) { .tt-passenger-reference-tabs {background:var(--px-bg,#071222)!important;border-color:var(--px-edge-contrast,#8fb7cf)!important} }
@@ -941,7 +945,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-passenger-reference-tabs [ari
 @media (max-width: 767px) and (prefers-contrast: more) { .tt-passenger-reference-tabs {background:var(--px-cell,#0a1828)!important;border:1px solid var(--px-edge-contrast,#8fb7cf)!important} }
 .tt-driver-phone-reference .tt-driver-vehicle-hero{position:relative;overflow:hidden;background:linear-gradient(180deg,#0b1d3580,#0a172cf5),url('/images/boarding-coast.webp') center top/cover!important}
 .tt-driver-phone-reference .tt-driver-vehicle-hero>.tt-bus-artwork {filter:drop-shadow(0 16px 10px #0008);height:150px}
-.tt-driver-phone-reference .tt-phone-quick-actions>button {display:flex;align-items:center;gap:12px;min-height:66px;padding:14px 16px;background:linear-gradient(125deg,#16324b,#0f2036);border:1px solid #34566e;box-shadow:inset 0 1px 0 rgb(255 255 255 / .06);color:#e4f6fc;text-align:left;font-weight:600}
+.tt-driver-phone-reference .tt-phone-quick-actions>button {display:flex;align-items:center;gap:12px;min-height:66px;padding:14px 16px;background:linear-gradient(125deg,#16324b,#0f2036);border:1px solid #34566e;box-shadow:inset 0 1px 0 rgb(255 255 255 / .06);color:#d4ebf8;text-align:left;font-weight:600}
 .tt-phone-quick-actions svg{width:23px;height:23px;color:#9db6c9}
 .tt-phone-trip-summary section {padding:16px}
 .tt-phone-trip-summary h2 {font-size:14px;color:#9db6c9}
@@ -1041,13 +1045,13 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-pickup-sheet .tt-pickup-finde
 @media (prefers-reduced-motion: reduce) { .tt-pick-choice[aria-pressed="true"], .tt-pickup-sheet .tt-pickup-finder .tt-pick-choice[aria-pressed="true"] { animation: none; } }
 @media (max-width: 360px) { .tt-pick-tag { display: none; } }
 .tt-map-picked-anchor { background: none; border: 0; }
-.tt-map-picked-anchor .tt-map-picked { position: absolute; left: 0; bottom: 22px; transform: translateX(-50%); white-space: nowrap; pointer-events: none; background: #04121c; color: #fff; border: 2px solid var(--tt-pick, #00d7e8); border-radius: 999px; padding: 3px 10px; font: 600 12px/1.2 system-ui, sans-serif; box-shadow: 0 2px 10px rgba(0,0,0,.45); }
+.tt-map-picked-anchor .tt-map-picked { position: absolute; left: 0; bottom: 22px; transform: translateX(-50%); white-space: nowrap; pointer-events: none; background: #04121c; color: #fff; border: 2px solid var(--tt-pick, #9fd2f0); border-radius: 999px; padding: 3px 10px; font: 600 12px/1.2 system-ui, sans-serif; box-shadow: 0 2px 10px rgba(0,0,0,.45); }
 /* Numbered nearby pickup spots: the same number in the list and on the map. */
 .tt-spot-num { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; font: 600 15px/1 system-ui, sans-serif; color: var(--tt-pick, hsl(var(--primary))); border: 2px solid var(--tt-pick, hsl(var(--primary))); }
 .tt-pick-choice[aria-pressed="true"] .tt-spot-num { background: var(--tt-pick, hsl(var(--primary))); color: var(--tt-pick-ink, hsl(var(--primary-foreground))); }
 .tt-map-num-anchor { background: none; border: 0; }
-.tt-map-num { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--tt-pick, #00d7e8); color: var(--tt-pick-ink, #04121c); border: 2px solid #0b0b0d; font: 600 13px/1 system-ui, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,.45); cursor: pointer; }
-.tt-map-num.picked { width: 34px; height: 34px; font-size: 16px; border: 3px solid #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--tt-pick, #00d7e8) 45%, transparent), 0 2px 10px rgba(0,0,0,.5); }
+.tt-map-num { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--tt-pick, #9fd2f0); color: var(--tt-pick-ink, #04121c); border: 2px solid #0b0b0d; font: 600 13px/1 system-ui, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,.45); cursor: pointer; }
+.tt-map-num.picked { width: 34px; height: 34px; font-size: 16px; border: 3px solid #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--tt-pick, #9fd2f0) 45%, transparent), 0 2px 10px rgba(0,0,0,.5); }
 
 /* Office displays (/display): bus names on the wall map. Sized in rem, so
    they follow the screen's own text size. */

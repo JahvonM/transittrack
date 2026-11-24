@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap');
+
+/* The passenger app, the driver phone and tablet, the boarding tablet and
+   sign-in in the website's look (src/site/site.css), like Admin
+   (components/admin/adminSea.css). The colours are set in index.css
+   (html.tt-future and html.tt-passenger-app); this adds the type and shapes:
+   Archivo, wide capitals for titles, pill buttons and flat sea-blue cards.
+   Applies only while those screens are open (html.tt-future). */
+html.tt-future {
+  --font-heading: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Buttons: pills, as on the website. */
+html.tt-future :is(button, a).inline-flex.whitespace-nowrap:is(.rounded-md, .rounded-lg, .rounded-xl) { border-radius: 999px; }
+
+/* Cards: the website's flat sea-blue with a fine edge, instead of glows. */
+.tt-future :is(.tt-app-shell, .tt-phone-future, .tt-driver-shell) :is(section.rounded-2xl, div.rounded-2xl.border) {
+  background-image: none; box-shadow: 0 12px 30px -20px rgba(0, 0, 0, .6);
+}
+
+/* ---- Passenger app ---- */
+/* Page titles in wide capitals, sized to fit a 320 px phone. */
+html.tt-future .px-experience :is(.px-greeting, .px-page-title h1) {
+  font-stretch: 125%; font-weight: 850; text-transform: uppercase; letter-spacing: -.01em; line-height: .95;
+  font-size: clamp(26px, 8.4vw, 34px);
+}
+/* Card titles: small wide capitals. */
+html.tt-future .px-experience .px-panel > h2:not(.px-list-title) {
+  font-stretch: 125%; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; font-size: 13px !important; line-height: 1.3 !important;
+}
+/* The next bus: the sunset sea behind it, the time in wide numbers. */
+.px-experience .px-hero {
+  background: linear-gradient(90deg, rgba(6, 19, 29, .9) 0%, rgba(6, 19, 29, .62) 55%, rgba(6, 19, 29, .35) 100%), url('/images/van-side.webp') 0% 40% / 300% auto no-repeat, #0b1f2e;
+  border-color: rgba(255, 255, 255, .16); box-shadow: 0 14px 34px -18px rgba(0, 0, 0, .7);
+}
+html.tt-future .px-experience .px-hero-copy > h2 { font-stretch: 125%; font-weight: 800; letter-spacing: -.02em; text-transform: uppercase; }
+/* The boarding pass card: the website's deep sea. */
+.px-experience .px-digital-card { background: linear-gradient(160deg, #143049, #0b1f2e); border-color: rgba(255, 255, 255, .16); }
+/* The tab bar's chosen tab: white, like the website. */
+html.tt-future .tt-passenger-reference-tabs [aria-current="page"] { color: var(--px-fill); }
+
+/* ---- Driver phone and tablet ---- */
+/* Titles in wide capitals. */
+html.tt-future :is(.tt-driver-shell, .tt-phone-future, .tt-driver-reference) :is(h1:not(.sr-only), h2.text-title, h2.text-title-sm) {
+  font-stretch: 125%; font-weight: 800; text-transform: uppercase; letter-spacing: 0;
+}
+html.tt-future .dl-brand { font-stretch: 125%; font-weight: 800; text-transform: uppercase; letter-spacing: .01em; font-size: clamp(17px, 1.7vw, 22px); }
+html.tt-future .dl-brand > span > span { color: inherit; font-weight: 400; }

@@ -2,6 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
 import '@/index.css'
+// The website's look for the phone and tablet apps (passenger, driver, boarding).
+import '@/appSea.css'
 import { installGlobalErrorReporting } from '@/lib/reportError'
 import { installOfflineRunners } from '@/lib/offlineRunners'
 import { captureInstallPrompt } from '@/lib/appInstall'
