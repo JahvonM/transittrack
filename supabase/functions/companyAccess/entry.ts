@@ -3,6 +3,7 @@ import { retry429 } from '../_shared/retry429.ts';
 // Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt } from '../_shared/atomicOps.ts';
 import { readSignupInvite } from '../_shared/signupInvites.ts';
+import { assignedBusId } from '../_shared/assignedBus.ts';
 
 async function hashSecret(value) {
  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
@@ -82,21 +83,8 @@ async function companyFromMembership(base44, user) {
 // company when there is one, otherwise their app membership. Only the
 // caller's own assignment, and only a bus of this company. null = no bus.
 async function assignedBus(base44, user, companyId) {
- if (!companyId || !['staff','passenger'].includes(user.role)) return null;
  const db = base44.asServiceRole.entities;
- const email = String(user.email || '').trim();
- const lower = email.toLowerCase();
- let vehicleId = '';
- const cards = [];
- for (const value of [...new Set([email, lower])].filter(Boolean)) {
-  cards.push(...await retry429(async ()=>db.Contact.filter({ company_id: companyId, email: value }, '-updated_date', 10)));
- }
- const card = cards.find(c => c.company_id === companyId && String(c.email || '').trim().toLowerCase() === lower && (!c.type || ['staff','passenger'].includes(c.type)));
- if (card) vehicleId = card.vehicle_id || '';
- else {
-  const rows = await retry429(async ()=>db.CompanyMembership.filter({ user_id: user.id, company_id: companyId, scope: 'passenger', active: true }, '-updated_date', 100));
-  vehicleId = rows.find(r => r.company_id === companyId && r.vehicle_id)?.vehicle_id || '';
- }
+ const vehicleId = await assignedBusId(db, user, companyId);
  if (!vehicleId) return null;
  const bus = await retry429(async ()=>db.Vehicle.get(vehicleId)).catch(() => null);
  return bus && bus.company_id === companyId ? { id: bus.id, name: bus.name || 'Bus' } : null;
