@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, CircleDot, Hammer, OctagonAlert, RotateCcw, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState, Kpi, KpiRow, PageIntro, Segmented, StatusChip } from "@/components/admin/kit";
+import { RemoveMenu, useHiddenRows } from "@/components/admin/RemoveMenu";
 
 const SEVERITY_BAR = { low: "bg-offline", medium: "bg-warning", high: "bg-danger", critical: "bg-danger" };
 const STATUS_LABEL = { open: "Open", in_progress: "In progress", resolved: "Resolved" };
@@ -15,11 +16,13 @@ const STATUS_LABEL = { open: "Open", in_progress: "In progress", resolved: "Reso
 // severity, a real status workflow, and a link back to the inspection that
 // raised them (see driverSession's submit_inspection, which auto-creates one
 // on a failed pre-trip check unless the company turned that off).
-export default function FaultsTab({ faults = [], onChange }) {
+export default function FaultsTab({ faults: allFaults = [], onChange }) {
   const { toast } = useToast();
   const { user } = useAuth();
   // A fault can become a job in the Workshop (administrators and mechanics).
   const workshop = ["admin", "mechanic"].includes(user?.role);
+  const admin = user?.role === "admin";
+  const { visible: faults, toggle: hiddenToggle } = useHiddenRows(allFaults, admin);
   const [statusFilter, setStatusFilter] = useState("open");
   const [busy, setBusy] = useState(null);
 
@@ -60,6 +63,7 @@ export default function FaultsTab({ faults = [], onChange }) {
         { value: "resolved", label: "Resolved", count: count("resolved") },
         { value: "all", label: "All", count: faults.length },
       ]} />
+      {admin && hiddenToggle && <div className="mb-3">{hiddenToggle}</div>}
       {sorted.length === 0 ? (
         <EmptyState icon={CheckCircle2} title="Nothing here">No faults with this status.</EmptyState>
       ) : (
@@ -73,6 +77,7 @@ export default function FaultsTab({ faults = [], onChange }) {
                     <h2 className="text-title-sm font-bold">{f.title}</h2>
                     <StatusChip status={f.severity}>{f.severity ? `${f.severity.charAt(0).toUpperCase()}${f.severity.slice(1)} severity` : "No severity"}</StatusChip>
                     <StatusChip status={f.status}>{STATUS_LABEL[f.status] || f.status}</StatusChip>
+                    {f.hidden_at && <StatusChip tone="neutral" dot={false}>Hidden</StatusChip>}
                   </div>
                   <p className="mt-1 text-body-sm text-muted-foreground">
                     {[f.vehicle_name, f.company_name, f.source === "inspection" && "From inspection", when(f.created_date)].filter(Boolean).join(" · ")}
@@ -101,6 +106,7 @@ export default function FaultsTab({ faults = [], onChange }) {
                       <RotateCcw className="h-4 w-4" /> Reopen
                     </Button>
                   )}
+                  {admin && <RemoveMenu entity="Fault" record={f} label="this fault" onChanged={onChange} />}
                 </div>
               </div>
             </li>

@@ -2,6 +2,11 @@
   "name": "LostItemReport",
   "type": "object",
   "properties": {
+    "hidden_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When an administrator hid this from the admin lists (the record is kept). Empty: shown."
+    },
     "company_id": {
       "type": "string"
     },

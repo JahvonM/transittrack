@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusChip } from "@/components/admin/kit";
 import { Button } from "@/components/ui/button";
 import { Inbox, RefreshCw } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
+import { RemoveMenu, useHiddenRows } from "@/components/admin/RemoveMenu";
 
 export default function BroadcastInbox() {
   const [items, setItems] = useState([]);
@@ -30,7 +32,8 @@ export default function BroadcastInbox() {
     return unsub;
   }, []);
 
-  const replies = items.filter((b) => b.is_reply);
+  const admin = useAuth().user?.role === "admin";
+  const { visible: replies, toggle: hiddenToggle } = useHiddenRows(items.filter((b) => b.is_reply), admin);
 
   return (
     <Card>
@@ -45,6 +48,7 @@ export default function BroadcastInbox() {
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
+        {admin && hiddenToggle}
         {replies.length === 0 && (
           <p className="text-sm text-muted-foreground">No driver requests or replies yet.</p>
         )}
@@ -52,7 +56,11 @@ export default function BroadcastInbox() {
           <div key={b.id} className="rounded-lg border p-3 space-y-1">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium">{b.driver_name || b.driver_email}</span>
-              <StatusChip tone="neutral" dot={false}>{b.vehicle_name}</StatusChip>
+              <span className="flex items-center gap-1">
+                {b.hidden_at && <StatusChip tone="neutral" dot={false}>Hidden</StatusChip>}
+                <StatusChip tone="neutral" dot={false}>{b.vehicle_name}</StatusChip>
+                {admin && <RemoveMenu entity="Broadcast" record={b} label="this message" onChanged={load} />}
+              </span>
             </div>
             <p className="text-sm text-muted-foreground">{b.message}</p>
           </div>

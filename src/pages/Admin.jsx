@@ -560,7 +560,7 @@ export default function Admin() {
         {section === "schedule" && <MaintenanceScheduleTab schedules={schedules} vehicles={vehicles} onChange={refresh} />}
         {section === "calendar" && <MaintenanceCalendarTab schedules={schedules} vehicles={vehicles} />}
         {section === "templates" && <InspectionTemplatesTab templates={templates} companies={companies} vehicles={vehicles} onChange={refresh} />}
-        {section === "inspection-history" && <InspectionHistoryTab results={inspectionResults} vehicles={vehicles} />}
+        {section === "inspection-history" && <InspectionHistoryTab results={inspectionResults} vehicles={vehicles} onChange={refresh} />}
         {section === "drivers" && (
           <DriversTab drivers={drivers} vehicles={vehicles} companies={companies} routes={routes} onChange={refresh} />
         )}

@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { useAuth } from "@/lib/AuthContext";
+import { RemoveMenu, useHiddenRows } from "@/components/admin/RemoveMenu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ClipboardCheck, ChevronDown, Download, ListChecks, OctagonAlert, TriangleAlert } from "lucide-react";
@@ -17,7 +19,9 @@ const Condition = ({ c }) => {
 // export). Groups InspectionResult rows back into the session that created
 // them (same vehicle + template + inspection_date), since results are
 // stored as one flat row per item rather than a session record.
-export default function InspectionHistoryTab({ results = [], vehicles = [] }) {
+export default function InspectionHistoryTab({ results: allResults = [], vehicles = [], onChange }) {
+  const admin = useAuth().user?.role === "admin";
+  const { visible: results, toggle: hiddenToggle } = useHiddenRows(allResults, admin);
   const [vehicleFilter, setVehicleFilter] = useState("__all__");
   const [expandedKey, setExpandedKey] = useState(null);
 
@@ -82,6 +86,7 @@ export default function InspectionHistoryTab({ results = [], vehicles = [] }) {
           </SelectContent>
         </Select>
       </div>
+      {admin && hiddenToggle && <div className="mb-3">{hiddenToggle}</div>}
       <KpiRow className="xl:grid-cols-3">
         <Kpi label="Inspections" value={sessions.length} icon={ListChecks} />
         <Kpi label="With failed items" value={withFail} icon={OctagonAlert} tone={withFail ? "danger" : undefined} />
@@ -120,12 +125,14 @@ export default function InspectionHistoryTab({ results = [], vehicles = [] }) {
                       {failed > 0 && <StatusChip tone="danger">{failed} failed</StatusChip>}
                       {warning > 0 && <StatusChip tone="warning">{warning} warning</StatusChip>}
                       {failed === 0 && warning === 0 && <StatusChip tone="success">All good</StatusChip>}
+                      {items.every((i) => i.hidden_at) && <StatusChip tone="neutral" dot={false}>Hidden</StatusChip>}
                     </span>
                     <ChevronDown className={cn("h-5 w-5 shrink-0 text-muted-foreground transition-transform", expanded && "rotate-180")} aria-hidden="true" />
                   </button>
                   <Button variant="ghost" size="icon" onClick={() => exportSessionPDF(first, items)} aria-label={`Export ${first.vehicle_name} ${first.inspection_name} as PDF`} title="Export PDF">
                     <Download className="h-4 w-4" />
                   </Button>
+                  {admin && <RemoveMenu entity="InspectionResult" records={items} label="this inspection" onChanged={onChange} deleteNote={`All ${items.length} checked items are deleted.`} />}
                 </div>
                 {expanded && (
                   <div id={panelId} className="space-y-4 border-t border-border px-4 py-4">

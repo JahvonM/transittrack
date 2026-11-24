@@ -219,3 +219,29 @@ describe('company and role access boundaries',()=>{
  });
 
 });
+
+// Admin lists: Remove → Hide from this list (kept, hidden_at set) or Delete.
+describe('hiding and deleting from the admin lists',()=>{
+ const seed=client=>Object.assign(client.tables,{
+  Incident:[{id:'inc-a',company_id:'a',vehicle_id:'bus-a',title:'Incident A'}],
+  Trip:[{id:'trip-a',company_id:'a',vehicle_id:'bus-a',status:'completed'}],
+  InspectionResult:[{id:'ins-a',company_id:'a',vehicle_id:'bus-a'}],
+  Broadcast:[{id:'msg-a',company_id:'a',title:'Hello'}],
+  LostItemReport:[{id:'lost-a',company_id:'a',description:'Umbrella'}],
+ });
+ const ROWS=[['Fault','fault-a'],['Incident','inc-a'],['Trip','trip-a'],['InspectionResult','ins-a'],['Broadcast','msg-a'],['LostItemReport','lost-a']];
+ it.each(ROWS)('an administrator can hide a %s and show it again, and delete it',async(entity,id)=>{
+  const client=sdk('admin');seed(client);
+  const at='2026-11-24T10:00:00.000Z';
+  expect((await call(client,{entity,operation:'update',id,data:{hidden_at:at}})).status).toBe(200);
+  expect(client.tables[entity].find(r=>r.id===id).hidden_at).toBe(at);
+  expect((await call(client,{entity,operation:'update',id,data:{hidden_at:null}})).status).toBe(200);
+  expect((await call(client,{entity,operation:'delete',id})).status).toBe(200);
+  expect(client.tables[entity].find(r=>r.id===id)).toBeUndefined();
+ });
+ it('only an administrator can hide records',async()=>{
+  const client=sdk('company');seed(client);
+  expect((await call(client,{entity:'Fault',operation:'update',id:'fault-a',data:{hidden_at:'2026-11-24T10:00:00.000Z'}})).status).toBe(403);
+  expect(client.tables.Fault.find(r=>r.id==='fault-a').hidden_at).toBeUndefined();
+ });
+});

@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { AlertTriangle, Siren, CheckCircle2, Wrench } from "lucide-react";
 import BusLoader from "@/components/BusLoader";
+import { useAuth } from "@/lib/AuthContext";
+import { RemoveMenu, useFeedHidden } from "@/components/admin/RemoveMenu";
 
 function timeAgo(iso) {
   if (!iso) return "";
@@ -30,6 +32,8 @@ export default function RecentActivityFeed({ onNavigate }) {
   const [incidents, setIncidents] = useState([]);
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const admin = useAuth().user?.role === "admin";
+  const feedHidden = useFeedHidden("recent_activity");
 
   const load = () => {
     Promise.all([
@@ -72,6 +76,7 @@ export default function RecentActivityFeed({ onNavigate }) {
         title: f.title || "Fault reported",
         subtitle: [f.vehicle_name, f.severity].filter(Boolean).join(" · "),
         nav: "faults",
+        entity: "Fault", record: f, label: "this fault",
       })),
       ...incidents.map((i) => ({
         key: `incident-${i.id}`,
@@ -80,6 +85,7 @@ export default function RecentActivityFeed({ onNavigate }) {
         title: i.type === "emergency" ? "SOS triggered" : `${i.type} reported`,
         subtitle: [i.vehicle_name, i.driver_name].filter(Boolean).join(" · "),
         nav: "fleet",
+        entity: "Incident", record: i, label: "this incident report",
       })),
       ...trips.map((t) => ({
         key: `trip-${t.id}`,
@@ -88,17 +94,21 @@ export default function RecentActivityFeed({ onNavigate }) {
         title: "Trip completed",
         subtitle: [t.vehicle_name, t.dropoff_name].filter(Boolean).join(" · "),
         nav: "billing",
+        entity: "Trip", record: t, label: "this job", note: t.invoice_number ? `It is on invoice ${t.invoice_number}, which will no longer list it.` : "It leaves billing and reports.",
       })),
     ];
     return items
-      .filter((e) => e.time)
+      .filter((e) => e.time && !feedHidden.isHidden(e.key))
       .sort((a, b) => new Date(b.time) - new Date(a.time))
       .slice(0, 12);
-  }, [faults, incidents, trips]);
+  }, [faults, incidents, trips, feedHidden]);
 
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-border bg-card" aria-label="Recent activity">
-      <h2 className="px-5 pb-2 pt-4 text-title-sm font-bold">Recent activity</h2>
+      <div className="flex items-center justify-between gap-2 px-5 pb-2 pt-4">
+        <h2 className="text-title-sm font-bold">Recent activity</h2>
+        {admin && feedHidden.count > 0 && <button type="button" onClick={feedHidden.showAll} className="text-caption font-semibold text-muted-foreground hover:text-foreground">Show hidden ({feedHidden.count})</button>}
+      </div>
       <div className="max-h-[392px] space-y-1 overflow-y-auto px-2 pb-3">
         {loading && <BusLoader className="py-8" />}
         {!loading && events.length === 0 && (
@@ -108,11 +118,11 @@ export default function RecentActivityFeed({ onNavigate }) {
           const meta = EVENT_META[e.type] || EVENT_META.fault;
           const Icon = meta.icon;
           return (
+            <div key={e.key} className="flex items-center gap-1 rounded-lg transition-colors hover:bg-accent/60">
             <button
-              key={e.key}
               type="button"
               onClick={() => onNavigate(e.nav)}
-              className="flex min-h-[52px] w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-accent/60"
+              className="flex min-h-[52px] min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2 text-left"
             >
               <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${meta.bgClass}`} aria-hidden="true">
                 <Icon className={`h-4 w-4 ${meta.iconClass}`} />
@@ -123,6 +133,8 @@ export default function RecentActivityFeed({ onNavigate }) {
               </span>
               <span className="shrink-0 text-body-sm tabular-nums text-muted-foreground">{timeAgo(e.time)}</span>
             </button>
+            {admin && <RemoveMenu entity={e.entity} record={e.record} label={e.label} deleteNote={e.note} onHide={() => feedHidden.hide(e.key)} onChanged={load} />}
+            </div>
           );
         })}
       </div>

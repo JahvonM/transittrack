@@ -6,6 +6,8 @@ import { useToast } from "@/components/ui/use-toast";
 import BusLoader from "@/components/BusLoader";
 import EmptyState from "@/components/EmptyState";
 import { loadFailed } from "@/lib/loadFailed";
+import { useAuth } from "@/lib/AuthContext";
+import { RemoveMenu, useHiddenRows } from "@/components/admin/RemoveMenu";
 
 const STATUSES = [
   { value: "open", label: "Looking for it" },
@@ -22,6 +24,8 @@ export default function LostItemsTab() {
   const { toast } = useToast();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const admin = useAuth().user?.role === "admin";
+  const { visible, toggle: hiddenToggle } = useHiddenRows(rows, admin);
 
   const load = async () => {
     try {
@@ -50,11 +54,12 @@ export default function LostItemsTab() {
   return (
     <div className="space-y-4">
       <PageIntro>{open} still being looked for. Only admins, the company and the person who reported it can see these.</PageIntro>
-      {!rows.length ? (
+      {admin && hiddenToggle}
+      {!visible.length ? (
         <EmptyState text="No lost-item reports yet." />
       ) : (
         <div className="rounded-2xl border border-border divide-y divide-border bg-card">
-          {rows.map((r) => (
+          {visible.map((r) => (
             <div key={r.id} className="p-4 flex flex-wrap gap-3 items-start">
               <div className="flex-1 min-w-[220px]">
                 <div className="font-medium">{r.description}</div>
@@ -69,6 +74,8 @@ export default function LostItemsTab() {
                 </div>
               </div>
               <MobileSelect value={r.status || "open"} onValueChange={(v) => setStatus(r, v)} options={STATUSES} triggerClassName="w-44" />
+              {r.hidden_at && <StatusChip tone="neutral" dot={false}>Hidden</StatusChip>}
+              {admin && <RemoveMenu entity="LostItemReport" record={r} label="this report" onChanged={load} />}
             </div>
           ))}
         </div>

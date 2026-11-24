@@ -9,6 +9,8 @@ import { AlertOctagon, Image as ImageIcon, Loader2, Smartphone } from "lucide-re
 import { useToast } from "@/components/ui/use-toast";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
+import { useAuth } from "@/lib/AuthContext";
+import { RemoveMenu, useHiddenRows } from "@/components/admin/RemoveMenu";
 
 const STATUSES = ["open", "investigating", "resolved"];
 
@@ -57,6 +59,8 @@ export default function IncidentReports() {
   const { toast } = useToast();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const admin = useAuth().user?.role === "admin";
+  const { visible, toggle: hiddenToggle } = useHiddenRows(items, admin);
 
   const load = async () => {
     try {
@@ -85,16 +89,21 @@ export default function IncidentReports() {
   return (
     <AppLayout title="Incident reports">
       <PullToRefresh onRefresh={load}>
-      {loading ? <BusLoader className="py-8" /> : items.length === 0 ? (
+      {admin && hiddenToggle && <div className="mb-3">{hiddenToggle}</div>}
+      {loading ? <BusLoader className="py-8" /> : visible.length === 0 ? (
         <Card><CardContent className="py-10 text-center text-muted-foreground">No incidents logged.</CardContent></Card>
       ) : (
         <div className="grid gap-3">
-          {items.map((i) => (
+          {visible.map((i) => (
             <Card key={i.id}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center justify-between">
                   <span className="flex items-center gap-2"><AlertOctagon className="w-4 h-4 text-danger" /> {i.vehicle_name || "Vehicle"} · {i.type}</span>
-                  <StatusChip status={i.status || "open"} />
+                  <span className="flex items-center gap-1">
+                    {i.hidden_at && <StatusChip tone="neutral" dot={false}>Hidden</StatusChip>}
+                    <StatusChip status={i.status || "open"} />
+                    {admin && <RemoveMenu entity="Incident" record={i} label="this incident report" onChanged={load} />}
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm space-y-2">
