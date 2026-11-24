@@ -189,6 +189,9 @@ export default function StaffPortal() {
       const { data } = await withRateLimitRetry(() => base44.functions.invoke('companyAccess', { action: 'context', grant, restore: !hasLeftCompany() }));
       if (attempt !== companyAttempt.current) return;
       if (data.grant) localStorage.setItem('tt_company_access_grant', data.grant);
+      // The pickup spot set for them on a sign-up day was just copied to
+      // their account: reload it so the home shows it instead of "Choose".
+      if (data.pickup_updated) checkAuthRef.current?.();
       setCompany(data.company);
       setCompanyPhone(data.company.phone || '');
       setMyBus(data.my_bus || null);

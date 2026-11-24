@@ -82,3 +82,42 @@ describe("the passenger home with no bus assigned", () => {
     expect(passengerTripState({ stop, approaching: null, eta: null, myVehicle: { id: "bus-a", name: "Bus A" }, busAssigned: true }).kind).toBe("not_started");
   });
 });
+
+// A pickup spot set on a sign-up day before the person joined is saved on
+// their directory card; it reaches their account (which the app reads).
+describe("a sign-up day pickup reaches the passenger's app", () => {
+  const card = { pickup_name: "St. Paul's", pickup_lat: 17.3, pickup_lng: -62.8 };
+  it("copies the card's pickup to the account when they join", async () => {
+    const sdk = mock("passenger");
+    Object.assign(sdk.tables.Contact[0], card);
+    const joined = await join(sdk);
+    expect(joined.body.pickup_updated).toBe(true);
+    const me = sdk.tables.User.find((u) => u.email === "caller@test.invalid");
+    expect(me).toMatchObject(card);
+  });
+  it("copies it for someone who had already joined, the next time the app opens", async () => {
+    const sdk = mock("passenger");
+    const joined = await join(sdk);
+    expect(joined.body.pickup_updated).toBeUndefined();
+    Object.assign(sdk.tables.Contact[0], card);
+    const again = await call(sdk, "companyAccess", { action: "context", grant: joined.body.grant });
+    expect(again.body.pickup_updated).toBe(true);
+    expect(sdk.tables.User.find((u) => u.email === "caller@test.invalid")).toMatchObject(card);
+  });
+  it("never replaces a pickup the person chose themselves", async () => {
+    const sdk = mock("passenger");
+    const me = sdk.tables.User.find((u) => u.email === "caller@test.invalid");
+    Object.assign(me, { pickup_name: "My corner", pickup_lat: 17.1, pickup_lng: -62.6 });
+    Object.assign(sdk.tables.Contact[0], card);
+    const joined = await join(sdk);
+    expect(joined.body.pickup_updated).toBeUndefined();
+    expect(me).toMatchObject({ pickup_name: "My corner", pickup_lat: 17.1 });
+  });
+  it("never copies another person's card", async () => {
+    const sdk = mock("passenger");
+    sdk.tables.Contact = [{ id: "other", type: "staff", company_id: "a", email: "someone@test.invalid", ...card }];
+    const joined = await join(sdk);
+    expect(joined.body.pickup_updated).toBeUndefined();
+    expect(sdk.tables.User.find((u) => u.email === "caller@test.invalid").pickup_lat ?? null).toBeNull();
+  });
+});
