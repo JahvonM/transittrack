@@ -36,6 +36,7 @@ import useStopEtas from "@/components/passenger/useStopEtas";
 import { drawnRoad } from "@/lib/routeRoad";
 import { pickupMissesBus, pickupOnAssignedRoad } from "@/lib/pickupOnBus";
 import { Button } from "@/components/ui/button";
+import { keepHomeScreenCode } from "@/lib/homeScreenSignIn";
 
 // The live 3D map (mapbox-gl + three.js) loads after the page around it.
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
@@ -98,6 +99,12 @@ export default function StaffPortal() {
   const pickupRef = useRef("");
   const statusRef = useRef(Object.fromEntries((snapshot?.result?.trips || []).map((x) => [x.id, x.status])));
   const [company, setCompany] = useState(knownCompany);
+  // iPhone Safari: the Home Screen app this person adds opens signed in.
+  const joined = !!company;
+  useEffect(() => {
+    if (!joined || !user?.id) return undefined;
+    return keepHomeScreenCode({ win: window, role: user.role, userId: user.id, issue: async () => (await base44.functions.invoke("homeScreenSignIn", { action: "issue" })).data });
+  }, [joined, user?.id, user?.role, pathname]);
   const [companiesLoaded, setCompaniesLoaded] = useState(!!knownCompany);
   // The bus the company put this passenger on (Admin → Passengers): { id, name } or null.
   const [myBus, setMyBus] = useState(() => snapshot?.myBus || null);

@@ -236,7 +236,7 @@ export default function SignupPersonSheet({ person, company, buses = [], call, o
             status={person.app === "alerts" ? "The app is on their phone with alerts on." : person.app === "ticked" ? "Ticked: the app is on their phone." : "Not yet."}>
             {!steps.app && (
               <p className="text-body-sm text-muted-foreground">
-                iPhone: after signing in, Safari shows how to add the app to the Home Screen. Then they open it from there, sign in again and tap Allow all.
+                iPhone: after signing in, Safari shows how to add the app to the Home Screen. Then they open it from there straight away (it opens signed in and joined) and tap Allow all.
                 Android: they tap Install the app, then Allow all.
               </p>
             )}
