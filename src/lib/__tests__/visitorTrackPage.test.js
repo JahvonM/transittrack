@@ -42,7 +42,7 @@ describe("visitor tracking page", () => {
   });
 
   it("says plainly what is happening", () => {
-    expect(describeRide({ status: "on_the_way", location_status: "live" }).title).toBe("Your bus is on the way");
+    expect(describeRide({ status: "on_the_way", location_status: "live" }).title).toBe("Your ride is on the way");
     expect(describeRide({ status: "on_the_way", location_status: "stale" }).note).toMatch(/latest position/);
     expect(describeRide({ status: "scheduled" }).note).toMatch(/once your ride starts/);
     expect(describeRide({ status: "cancelled" }).title).toMatch(/cancelled/);

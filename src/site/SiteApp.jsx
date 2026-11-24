@@ -43,7 +43,7 @@ function Footer() {
       <div className="mcs-wrap">
         <div>
           <p className="mcs-footer-brand"><img src={LOGO_URL} alt="" width="34" height="34" loading="lazy" /><strong>McSween Transport</strong></p>
-          <p className="mcs-footer-note">McSween's Transport and Reside Co., Grenada. Times on this site are Grenada time.</p>
+          <p className="mcs-footer-note">McSween's Transport and Reside Co., Grenada. Times on this site are Atlantic Standard Time (GMT-4).</p>
         </div>
         <nav aria-label="More">
           <Link to={to("/book")}>Request a ride</Link>

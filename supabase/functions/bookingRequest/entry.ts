@@ -278,7 +278,7 @@ export default async function (req: Request) {
           heading: 'Your ride is confirmed',
           footer: fromCompany ? COMPANY_FOOTER : WEBSITE_FOOTER,
           lines: [
-            link ? 'You can follow your bus on the way with the button below.' : 'We will email your tracking link once your bus is assigned.',
+            link ? 'You can follow your ride on the way with the button below.' : 'We will email your tracking link once your ride is assigned.',
             ...(fromCompany ? ['It is also in your company portal under Jobs, with the bus on the map while it is on the way.'] : []),
           ],
           rows: [
@@ -358,8 +358,8 @@ export default async function (req: Request) {
       const link = await issueVisitorLink(db, trip);
       if (!link) fail(409, 'Give the job a bus first');
       await send(base44, row.email, 'Track your ride', emailHtml({
-        heading: 'Follow your bus',
-        lines: ['Use the button below to see where your bus is on the way to you.'],
+        heading: 'Follow your ride',
+        lines: ['Use the button below to see where your ride is on the way to you.'],
         rows: [['When', grenadaTime(trip.scheduled_time)], ['Pickup', trip.pickup_name], ['Bus', [trip.vehicle_name, trip.plate_number].filter(Boolean).join(', ')]],
         button: { label: 'Track my ride', url: link.url },
       }));

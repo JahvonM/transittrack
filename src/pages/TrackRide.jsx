@@ -87,7 +87,7 @@ export default function TrackRide() {
   if (!token) {
     return (
       <Shell>
-        <Notice icon={MapPin} title="Open your tracking link" text="Your tracking link is in the email that confirmed your ride. Tap Track my ride in that email to see your bus here. The link works until a day after the ride." />
+        <Notice icon={MapPin} title="Open your tracking link" text="Your tracking link is in the email that confirmed your ride. Tap Track my ride in that email to see your ride here. The link works until a day after the ride." />
         <p className="mt-4 text-center text-body-sm"><a className="font-semibold text-primary underline-offset-2 hover:underline" href={isSiteHost(window.location.hostname) ? "/book" : "/site/book"}>Request a ride</a></p>
       </Shell>
     );
@@ -138,7 +138,7 @@ export default function TrackRide() {
         {live && (
           <div className="mt-4 overflow-hidden rounded-xl border border-border">
             <MapboxMap
-              vehicles={[{ id: "your-bus", name: view.vehicle_name || "Your bus", type: "bus", status: "on_trip", current_lat: view.location.lat, current_lng: view.location.lng }]}
+              vehicles={[{ id: "your-bus", name: view.vehicle_name || "Your ride", type: "bus", status: "on_trip", current_lat: view.location.lat, current_lng: view.location.lng }]}
               center={[view.location.lng, view.location.lat]}
               height="260px"
               autoLocate={false}
@@ -146,7 +146,7 @@ export default function TrackRide() {
           </div>
         )}
         {live && view.location.updated_at && (
-          <p className="mt-2 text-xs text-muted-foreground">Bus position from {clock(view.location.updated_at)}</p>
+          <p className="mt-2 text-xs text-muted-foreground">Position from {clock(view.location.updated_at)}</p>
         )}
 
         <dl className="mt-5 space-y-3 text-body-sm">
@@ -171,7 +171,7 @@ export default function TrackRide() {
           {(view.vehicle_name || view.plate_number) && (
             <div className="flex gap-3">
               <Bus className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-              <div><dt className="text-muted-foreground">Bus</dt><dd className="font-medium">{[view.vehicle_name, view.plate_number].filter(Boolean).join(" · ")}</dd></div>
+              <div><dt className="text-muted-foreground">Vehicle</dt><dd className="font-medium">{[view.vehicle_name, view.plate_number].filter(Boolean).join(" · ")}</dd></div>
             </div>
           )}
         </dl>

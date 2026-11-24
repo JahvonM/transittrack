@@ -9,7 +9,7 @@ import {
 } from "@/lib/bookingSite";
 import { routeNumber, sitePath, usePageTitle, useSiteBase, useWhatsApp, whatsappTo } from "@/site/siteKit";
 
-const DESCRIPTION = "Request an airport pickup, drop-off, transfer, island tour or staff run in Grenada. We confirm the price and your bus by email.";
+const DESCRIPTION = "Request an airport pickup, drop-off, transfer, island tour or staff run in Grenada. We confirm the price and your ride by email.";
 const START = { service: "airport_pickup", when: "", flight_number: "", pickup: "", dropoff: "", guests: "2", luggage: "", name: "", phone: "", email: "", notes: "", website: "" };
 
 function Field({ id, label, hint, error, children }) {
@@ -242,8 +242,8 @@ export default function BookPage() {
             <h2 id="next-title">What happens next</h2>
             <ol>
               <li>We email you a copy of your request.</li>
-              <li>We check a bus is free and email you the price. Nothing is booked until then.</li>
-              <li>Before the ride, you get a private link to watch your bus on a map.</li>
+              <li>After confirming availability of the transport requested, we email you the price for confirmation.</li>
+              <li>Before the ride, you get a private link to watch your ride on a map.</li>
             </ol>
             {whatsapp && <p className="mcs-hint">Need a ride in the next hour? <a href={whatsappTo(whatsapp, "Hi McSween Transport, I need a ride soon. ")} target="_blank" rel="noreferrer">Message us on WhatsApp</a>.</p>}
           </div>

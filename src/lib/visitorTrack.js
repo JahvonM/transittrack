@@ -28,10 +28,10 @@ export function describeRide(view) {
       return { title: "Your ride is booked", note: "The bus's location appears here once your ride starts.", tone: "info" };
     case "on_the_way":
       return view.location_status === "live"
-        ? { title: "Your bus is on the way", note: "The map moves as the bus does.", tone: "live" }
-        : { title: "Your bus is on the way", note: view.location_status === "stale" ? "Waiting for the bus's latest position…" : "The bus's position isn't available right now.", tone: "info" };
+        ? { title: "Your ride is on the way", note: "The map moves as your ride does.", tone: "live" }
+        : { title: "Your ride is on the way", note: view.location_status === "stale" ? "Waiting for your ride's latest position…" : "Your ride's position isn't available right now.", tone: "info" };
     case "arrived":
-      return { title: "Your bus has arrived", note: "Look out for it at your pickup point.", tone: "live" };
+      return { title: "Your ride has arrived", note: "Look out for it at your pickup point.", tone: "live" };
     case "completed":
       return { title: "This ride is complete", note: "Thank you for riding with McSween Transport.", tone: "done" };
     case "cancelled":
