@@ -26,6 +26,9 @@ html.tt-future .px-experience :is(.px-greeting, .px-page-title h1) {
   font-stretch: 125%; font-weight: 850; text-transform: uppercase; letter-spacing: -.01em; line-height: .95;
   font-size: clamp(26px, 8.4vw, 34px);
 }
+/* The name at the top, as on the website: wide capitals, "Transport" lighter. */
+html.tt-future .px-experience .px-top > p { font-stretch: 125%; font-weight: 800; text-transform: uppercase; letter-spacing: .01em; font-size: 16px; }
+html.tt-future .px-experience .px-top > p > span { color: inherit; font-weight: 400; }
 /* Card titles: small wide capitals. */
 html.tt-future .px-experience .px-panel > h2:not(.px-list-title) {
   font-stretch: 125%; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; font-size: 13px !important; line-height: 1.3 !important;

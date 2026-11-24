@@ -1,5 +1,5 @@
 /* Scoped to the driver tablet; driver phone and boarding kiosk retain their UI. */
-.tt-driver-reference.tt-driver-portrait{display:flex!important;flex-direction:column!important;background:#04121f!important;color:#f3f7ff;--background:211 65% 7%;--foreground:213 60% 96%;--card:211 62% 11%;--card-foreground:213 60% 96%;--secondary:211 52% 15%;--muted:211 44% 17%;--muted-foreground:211 27% 72%;--border:205 43% 30%;--primary:186 95% 48%;--primary-foreground:212 80% 8%;--accent:211 52% 17%;--accent-foreground:213 60% 96%}
+.tt-driver-reference.tt-driver-portrait{display:flex!important;flex-direction:column!important;background:#0b1f2e!important;color:#f2f6f8;--background:206 61% 11%;--foreground:200 33% 96%;--card:206 57% 15%;--card-foreground:200 33% 96%;--secondary:206 54% 19%;--muted:206 48% 18%;--muted-foreground:206 25% 73%;--border:206 36% 23%;--primary:0 0% 100%;--primary-foreground:206 61% 11%;--accent:206 50% 22%;--accent-foreground:200 33% 96%;--ring:202 72% 78%}
 .tt-driver-portrait>main{grid-column:auto!important;grid-row:auto!important;min-width:0;width:100%}
 .dk-header{flex-shrink:0!important;grid-column:auto!important;grid-row:auto!important;border-bottom:1px solid #264b65}
 .dk-brand-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 22px;background:#051728}

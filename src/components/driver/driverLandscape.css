@@ -1,6 +1,6 @@
 /* The approved 10.1-inch landscape cockpit. Portrait and driver phone stay scoped separately. */
 @media (min-width:960px) and (orientation:landscape) {
- .tt-driver-reference.tt-driver-portrait{background:#04121f!important}
+ .tt-driver-reference.tt-driver-portrait{background:#0b1f2e!important}
  .dl-header{display:flex;align-items:center;gap:22px;min-height:64px;flex-shrink:0;padding:10px 22px;border-bottom:1px solid #29465d;background:linear-gradient(110deg,#0c2134,#061421);color:#eef6ff}
  .dl-brand{display:flex;align-items:center;gap:12px;white-space:nowrap;font-size:clamp(23px,2.5vw,32px);letter-spacing:-.04em;line-height:1}
  .dl-brand>svg{width:34px;height:34px}.dl-brand>span>span{color:hsl(var(--primary))}
@@ -27,7 +27,7 @@
  .dl-panel-scroll>[aria-label="Trip direction"]{padding:0;border:0;background:none}
  .dl-panel-scroll [aria-label="Choose trip direction"]{gap:0;border:1px solid #40617a;border-radius:14px;overflow:hidden;background:#14293c}
  .dl-panel-scroll [aria-label="Choose trip direction"]>button{border:0;border-radius:12px;min-height:54px;font-size:18px;color:#accae3}
- .dl-panel-scroll [aria-label="Choose trip direction"]>[aria-pressed="true"]{background:linear-gradient(115deg,#9fd2f0,#9fd2f0);color:#001d2c}
+ .dl-panel-scroll [aria-label="Choose trip direction"]>[aria-pressed="true"]{background:#ffffff;color:#0b1f2e}
  .dl-panel-scroll>[aria-label="Trip direction"]>p:not([role="alert"]){position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
  .dl-next{background:linear-gradient(120deg,#0a1e2e,#091928);border:1px solid #29485f;border-radius:17px;padding:18px 18px 12px;min-width:0}
  .dl-next-label{display:flex;align-items:center;justify-content:space-between;gap:10px}.dl-next-label small{font-size:13px;color:#a1bdd6;font-weight:600;letter-spacing:.02em}.dl-next-label svg{width:28px;height:28px;color:#9fd2f0}
@@ -37,7 +37,7 @@
  .dl-stop-progress{border-top:1px solid #34536b;color:#b0cce3;margin-top:16px;padding-top:10px;font-size:15px}
  .dl-next-actions{display:grid;grid-template-columns:1.25fr 1fr;gap:10px;margin-top:10px}
  .dl-next-actions>button{min-height:55px;height:auto;padding:10px 12px;border-radius:12px;font-size:17px;gap:8px;white-space:normal;line-height:1.2}
- .dl-next-actions>button:first-child{background:linear-gradient(110deg,#9fd2f0,#9fd2f0);color:#001b2a;font-size:20px;font-weight:600}
+ .dl-next-actions>button:first-child{background:#ffffff;color:#0b1f2e;font-size:20px;font-weight:600}
  .dl-next-actions>button:first-child svg{width:25px;height:25px;fill:currentColor}.dl-next-actions>button:last-child{background:#0c2032;border:1px solid #6b94b3}
  .dl-stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}.dl-stats>button{display:flex;align-items:center;gap:14px;min-height:88px;padding:12px 17px;border:1px solid #34536d;border-radius:15px;background:linear-gradient(110deg,#102639,#081a29);text-align:left}
  .dl-stats>button>svg{width:29px;height:29px;color:#9fd2f0;flex-shrink:0}.dl-stats strong{font-size:32px;line-height:1.1;display:block;font-variant-numeric:tabular-nums}.dl-stats strong small{font-size:24px;color:#e6f4ff}.dl-stats>button>span>span{display:block;color:#b1cbe2;font-size:15px;margin-top:3px}
@@ -53,7 +53,7 @@
  .dl-control-dock>div:last-child>button>span{flex-direction:row;align-items:center;gap:12px}.dl-control-dock>div:last-child>button>span>span:last-child{font-size:11px}
  .tt-driver-portrait>nav[aria-label="Driver sections"]{grid-template-columns:repeat(5,minmax(0,1fr))!important;border:1px solid #26475d!important;border-radius:18px;margin:0 10px 9px!important;width:calc(100% - 20px);padding:5px!important;gap:5px;background:linear-gradient(100deg,#0a2032,#061624)!important}
  .tt-driver-portrait>nav[aria-label="Driver sections"]>button{height:65px!important;min-height:65px!important;border-radius:13px!important;gap:3px;font-size:16px!important}
- .tt-driver-portrait>nav[aria-label="Driver sections"]>[aria-current="page"]{background:linear-gradient(115deg,#9fd2f0,#9fd2f0)!important;box-shadow:none!important;color:#001d2b!important}
+ .tt-driver-portrait>nav[aria-label="Driver sections"]>[aria-current="page"]{background:#ffffff!important;box-shadow:none!important;color:#0b1f2e!important}
  .tt-driver-portrait>nav[aria-label="Driver sections"]>button>span[aria-hidden="true"]{display:none}
  .tt-driver-portrait>nav[aria-label="Driver sections"]>button>svg{width:27px;height:27px}
  .tt-driver-portrait .dk-stop-sheet-backdrop{position:absolute;inset:0;z-index:900;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
