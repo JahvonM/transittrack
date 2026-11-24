@@ -5,7 +5,7 @@ import { SITE_SERVICES } from "@/lib/bookingSite";
 import RideStory, { OpeningStill } from "@/site/RideStory";
 import { routeNumber, showPhone, sitePath, usePageTitle, useSiteBase, useWhatsApp, whatsappTo } from "@/site/siteKit";
 
-const DESCRIPTION = "McSween Transport: airport pickups and drop-offs, transfers, island tours and staff transport in Grenada. Request a ride online and track your bus.";
+const DESCRIPTION = "McSween Transport: airport pickups and drop-offs, transfers, island tours and staff transport in Grenada. Request a ride online and track your ride.";
 
 const prefersStill = () => {
   try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
@@ -64,7 +64,7 @@ export default function HomePage() {
 
       <section className="mcs-section mcs-paper" id="how" aria-labelledby="how-title">
         <div className="mcs-wrap">
-          <h2 id="how-title">How booking works</h2>
+          <h2 id="how-title">How to book</h2>
           <ol className="mcs-stops" data-reveal>
             <li>
               <span className="mcs-stop" aria-hidden="true">1</span>
@@ -77,14 +77,14 @@ export default function HomePage() {
               <span className="mcs-stop" aria-hidden="true">2</span>
               <div>
                 <h3>We confirm by email</h3>
-                <p>We check a bus is free and email you the price. Nothing is booked until you get that email.</p>
+                <p>After confirming availability of the transport requested, an email is sent with the price for confirmation.</p>
               </div>
             </li>
             <li>
               <span className="mcs-stop" aria-hidden="true">3</span>
               <div>
-                <h3>Watch your bus come</h3>
-                <p>Your confirmation has a private link that shows your bus on a map. Only you can see it, and it stops working a day after the ride.</p>
+                <h3>View live map</h3>
+                <p>Your confirmation has a private link that displays your requested transport’s location on a live map.</p>
               </div>
             </li>
           </ol>
@@ -96,7 +96,7 @@ export default function HomePage() {
         <div className="mcs-wrap mcs-contact">
           <div>
             <h2 id="contact-title">Talk to us</h2>
-            <p className="mcs-lede">For a ride in the next hour, a question about a booking, or a group we should plan for, message us.</p>
+            <p className="mcs-lede">For inquiries regarding bookings, tour arrangements, or transportation for special events, please feel free to contact us on WhatsApp. We’ll be happy to assist you.</p>
           </div>
           <div className="mcs-contact-list">
             {whatsapp ? (

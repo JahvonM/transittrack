@@ -19,7 +19,7 @@ const SHOTS = [
     // Front: the van at sunset on the coast road.
     img: "/images/van-front.webp", w: 1672, h: 941,
     title: ["Airport", "to", "anywhere"], level: 1,
-    text: "Airport pickups, transfers and island tours in Grenada. Tell us where and when, and we email you the price and your bus.",
+    text: "Airport pickups, transfers and island tours in Grenada. Tell us where and when, and we email you the price and your ride.",
     // No card on the first two shots: it would sit on the van.
     card: null,
   },
@@ -33,8 +33,8 @@ const SHOTS = [
   {
     // From above: the van on the road by the sea.
     img: "/images/van-top.webp", w: 1672, h: 941,
-    title: ["Watch", "your bus", "arrive"], level: 2,
-    text: "Your confirmation has a private link that shows your bus on a map. Only you can see it.",
+    title: ["Watch", "your ride", "arrive"], level: 2,
+    text: "Your confirmation has a private link that shows your ride on a map. Only you can see it.",
     card: { label: "Tracking link", value: "Live", note: "Private to you. It stops working a day after the ride.", to: "/track", go: "Open ride tracking" },
   },
 ];

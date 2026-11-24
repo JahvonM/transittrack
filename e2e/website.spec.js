@@ -47,7 +47,7 @@ test('scrolling moves the opening through its shots, and its numbers jump to eac
   // The numbers on the side go straight to a shot.
   await page.getByRole('navigation', { name: 'Story' }).getByRole('button', { name: 'Go to Track' }).click();
   await expect(story).toHaveAttribute('data-scene', '2');
-  await expect(page.getByRole('heading', { name: 'Watch your bus arrive' })).toBeInViewport();
+  await expect(page.getByRole('heading', { name: 'Watch your ride arrive' })).toBeInViewport();
   await expect(page.getByRole('link', { name: 'Open ride tracking' })).toBeVisible();
   // Words and links of shots that are off screen can't be reached with Tab.
   expect(await page.evaluate(() => document.querySelector('.mcs-open-copy[data-i="0"]').inert)).toBe(true);
