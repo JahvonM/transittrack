@@ -1,17 +1,21 @@
-import React, { useState } from "react";
-import Map, { Marker } from "react-map-gl";
+import React, { useEffect, useRef, useState } from "react";
+import Map, { Marker, NavigationControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN, declutterStyle, mapStyleFor } from "@/lib/mapbox";
 import { useIsDark } from "@/lib/useTheme";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { LocateFixed } from "lucide-react";
+import { Crosshair, LocateFixed, Maximize2, Minimize2 } from "lucide-react";
 import PlaceSearch from "@/components/PlaceSearch";
 
 /**
  * Tap-to-place / draggable-marker map for picking a GPS coordinate.
  * props: { lat, lng, onChange(lat, lng) }
+ * Views: the street map, or satellite with street names (easier to find a
+ * gate or a roadside spot). Zoom buttons, and a bigger map on request.
  */
+const SATELLITE_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
+const VIEWS = [["map", "Map"], ["satellite", "Satellite"]];
 export default function LocationPicker({ lat, lng, onChange, onPlace, showCoordinates = true }) {
   const isDark = useIsDark();
   const [viewport, setViewport] = useState({
@@ -20,7 +24,18 @@ export default function LocationPicker({ lat, lng, onChange, onPlace, showCoordi
     zoom: 13,
   });
 
-  const hasPoint = lat != null && lng != null;
+  const [view, setView] = useState("map");
+  const mapRef = useRef(null);
+  // Switching views swaps the whole style, and onLoad only fires once.
+  useEffect(() => {
+    const map = mapRef.current?.getMap?.();
+    if (!map || view === "satellite") return;
+    if (map.isStyleLoaded()) declutterStyle(map);
+    else map.once("styledata", () => declutterStyle(map));
+  }, [view, isDark]);
+  const [big, setBig] = useState(false);
+  const hasPoint = lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng);
+  const showPin = () => { if (hasPoint) setViewport((v) => ({ ...v, longitude: lng, latitude: lat, zoom: Math.max(v.zoom, 16) })); };
 
   const setPoint = (latitude, longitude) => onChange(latitude, longitude);
 
@@ -47,10 +62,24 @@ export default function LocationPicker({ lat, lng, onChange, onPlace, showCoordi
   return (
     <div className="space-y-2">
       <PlaceSearch onSelect={choosePlace} proximity={hasPoint ? { lat, lng } : null} placeholder="Search a place by name" />
-      <div data-vaul-no-drag className="rounded-lg overflow-hidden border border-border" style={{ height: 200 }}>
+      <div className="flex flex-wrap items-center gap-2">
+        <div role="group" aria-label="Map view" className="inline-flex rounded-lg border border-border p-0.5">
+          {VIEWS.map(([id, label]) => (
+            <button key={id} type="button" aria-pressed={view === id} onClick={() => setView(id)}
+              className={`rounded-md px-3 py-1 text-sm font-medium ${view === id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{label}</button>
+          ))}
+        </div>
+        {hasPoint && <Button type="button" variant="outline" size="sm" onClick={showPin}><Crosshair className="w-4 h-4 mr-1" aria-hidden="true" />Show the pin</Button>}
+        <Button type="button" variant="outline" size="sm" onClick={() => setBig((b) => !b)} aria-pressed={big}>
+          {big ? <Minimize2 className="w-4 h-4 mr-1" aria-hidden="true" /> : <Maximize2 className="w-4 h-4 mr-1" aria-hidden="true" />}{big ? "Smaller map" : "Bigger map"}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">{hasPoint ? "Drag the pin, or tap the map to move it." : "Tap the map where they get picked up."}</p>
+      <div data-vaul-no-drag className="rounded-lg overflow-hidden border border-border" style={{ height: big ? "min(65vh, 560px)" : 280 }}>
         <Map
+          ref={mapRef}
           mapboxAccessToken={MAPBOX_TOKEN}
-          mapStyle={mapStyleFor(isDark)}
+          mapStyle={view === "satellite" ? SATELLITE_STYLE : mapStyleFor(isDark)}
           {...viewport}
           onMove={(e) => setViewport(e.viewState)}
           onClick={(e) => setPoint(e.lngLat.lat, e.lngLat.lng)}
@@ -58,6 +87,7 @@ export default function LocationPicker({ lat, lng, onChange, onPlace, showCoordi
           attributionControl={false}
           onLoad={(e) => declutterStyle(e.target)}
         >
+          <NavigationControl position="top-right" showCompass={false} />
           {hasPoint && (
             <Marker
               longitude={lng}
