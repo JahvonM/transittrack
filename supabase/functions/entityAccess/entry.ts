@@ -3,6 +3,7 @@ import { ADMIN_READ_SPECS } from '../_shared/adminReadSpecs.ts';
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
 import { assignedAccessRole } from '../_shared/accessRoles.ts';
 import { retry429 } from '../_shared/retry429.ts';
+import { assignedBusId } from '../_shared/assignedBus.ts';
 import { stopSharingLeftBus } from '../_shared/busLeft.ts';
 const ENTITY_FIELDS = {"Company": ["name", "logo_url", "phone", "access_code", "service_types", "description", "boss_phone", "secretary_phone"], "AuditLog": ["actor_email", "actor_name", "actor_role", "action", "entity", "record_id", "summary", "changes", "page", "card_uid", "status"], "Vehicle": ["capacity", "company_id", "company_name", "current_lat", "current_lng", "current_odometer", "driver_email", "driver_name", "driver_pin", "entry_code", "heading", "image_url", "last_location_update", "last_ping_logged_at", "name", "near_stop_id", "plate_number", "remote_tracking_lock", "route_id", "speed", "status", "tracking_active", "trail", "type", "wired_gps_connected", "fleet_number", "make", "model", "year", "vin", "engine", "transmission", "hours", "fuel_type", "last_inspection_date", "in_service", "model_3d", "trip_direction", "return_pickup_state"], "Trip": ["vehicle_id", "vehicle_name", "plate_number", "route_id", "route_name", "company_id", "company_name", "driver_email", "driver_name", "passenger_name", "passenger_phone", "pickup_name", "pickup_lat", "pickup_lng", "dropoff_name", "dropoff_lat", "dropoff_lng", "scheduled_time", "status", "started_at", "arrived_at", "completed_at", "pickup_signature_url", "pickup_signed_by", "pickup_signed_at", "dropoff_signature_url", "dropoff_signed_by", "dropoff_signed_at"], "InspectionResult": ["vehicle_id", "vehicle_name", "company_id", "company_name", "inspection_name", "section_name", "inspection_item", "condition", "fault_found", "fault_description", "photo_url", "repair_required", "notes", "inspector_id", "inspector_name", "inspection_date"], "GroupMessage": ["vehicle_id", "vehicle_name", "company_id", "company_name", "channel", "sender_role", "sender_name", "text", "message_type", "media_url", "edited"], "MaintenanceSettings": ["auto_create_faults", "maintenance_reminder_days", "enable_photo_attachments", "inspection_reminder_days"], "Advertisement": ["title", "message", "image_url", "link", "active", "order"], "PushToken": ["token", "email", "device_id", "role", "company_id"], "LocationPing": ["company_id", "lat", "lng", "recorded_at", "speed", "vehicle_id"], "FrontDeskSignIns": ["full_name", "company_name", "reason", "signature_url", "signed_at"], "ClientError": ["message", "stack", "url", "user_email", "user_role", "user_agent", "source", "device_id", "emailed"], "Driver": ["full_name", "email", "phone", "photo_url", "company_id", "company_name", "employee_id", "nfc_card_uid"], "DriverShift": ["vehicle_id", "vehicle_name", "company_id", "company_name", "driver_name", "driver_email", "device_id", "started_at", "ended_at", "duration_minutes", "notes"], "NfcCard": ["card_uid", "card_type", "holder_type", "holder_source", "holder_id", "holder_name", "employee_id", "role", "assigned_vehicle", "company_id", "company_name", "access_level", "issue_date", "expiry_date", "issued_by", "is_active", "revoked_at", "revoked_by", "revoke_reason"], "Broadcast": ["type", "title", "message", "vehicle_name", "company_id", "company_name", "driver_name", "driver_email", "is_reply", "vehicle_id", "return_pickup"], "KioskDevice": ["company_id", "company_name", "device_info", "update_requested_at", "directory_sent_at", "app_health", "helper_health", "native_tracking_health", "kiosk_type", "label", "last_seen", "paired", "pairing_code", "status", "vehicle_id", "vehicle_name", "pairing_expires_at"], "Route": ["company_id", "company_name", "name", "type", "stops", "active", "path", "path_via", "pickup_merge_m"], "Inspection": ["driver_name", "driver_email", "vehicle_id", "vehicle_name", "company_id", "company_name", "date", "status", "checklist", "odometer_reading", "fuel_level", "needs_service", "service_notes", "template_id", "template_name", "trigger", "results"], "RouteTravelTimes": ["route_id", "route_name", "company_id", "legs", "dwells", "leg_samples", "pings_used", "vehicles_used", "days", "learned_at"], "Fault": ["vehicle_id", "vehicle_name", "company_id", "company_name", "title", "description", "source", "inspection_id", "severity", "status", "photo_url", "repair_required", "reported_by", "resolved_date"], "StaffCheckIn": ["staff_name", "staff_picture_url", "card_tag", "status", "boarded_at", "company_id", "company_name", "vehicle_id", "vehicle_name", "check_in_method"], "CardHolder": ["full_name", "employee_id", "role", "assigned_vehicle", "company_id", "company_name", "notes"], "DrivingEvent": ["company_id", "company_name", "driver_email", "driver_name", "lat", "lng", "occurred_at", "speed_after_kmh", "speed_before_kmh", "type", "vehicle_id", "vehicle_name"], "DriverDocument": ["driver_id", "driver_name", "company_id", "kind", "file_uri", "file_name", "document_number", "expiry_date", "notes"], "Part": ["company_id", "company_name", "part_name", "oem_number", "aftermarket_number", "vehicle_compatibility", "category", "quantity_in_stock", "unit_price", "supplier", "photo_url"], "User": ["role", "company_id", "display_name", "phone", "photo_url", "home_lat", "home_lng", "home_address", "pickup_lat", "pickup_lng", "pickup_name", "pickup_route_id", "pickup_moved", "work_lat", "work_lng", "nfc_tag_id", "access_code", "one_time_code", "one_time_code_expires_at", "whatsapp_linked", "skip_pickup_today", "skip_pickup_until", "late_snooze_active", "late_until", "favorite_stop", "stop_alerts", "theme_accent", "employee_id"], "Workplace": ["name", "company_id", "company_name", "lat", "lng"], "Incident": ["vehicle_id", "vehicle_name", "company_id", "company_name", "driver_name", "driver_email", "type", "details", "occurred_at", "status"], "Contact": ["name", "phone", "email", "type", "nfc_card_tag", "access_code", "company_id", "company_name", "pickup_name", "pickup_lat", "pickup_lng", "dropoff_name", "dropoff_lat", "dropoff_lng", "employee_id", "vehicle_id", "vehicle_name"], "LostItemReport": ["company_id", "company_name", "reporter_name", "reporter_email", "contact", "vehicle_name", "description", "status", "admin_notes"], "InspectionTemplate": ["name", "category", "company_id", "company_name", "frequency_days", "audience", "driver_trigger", "driver_days", "driver_times", "driver_vehicle_ids", "xray_layout", "driver_from_time", "driver_required", "driver_sent_at", "sections"], "MaintenanceSchedule": ["vehicle_id", "vehicle_name", "company_id", "company_name", "service_type", "due_type", "interval_km", "interval_days", "last_service_mileage", "last_service_date", "status", "assigned_mechanic_id", "assigned_mechanic_name", "notes"]};
 function randomAccessCode() {
@@ -559,7 +560,7 @@ function project(ctx,name,row) {
  if (name === 'User') fields=[...META,'email','full_name','role','company_id',...PROFILE_FIELDS];
  if (name === 'Driver' && role !== 'admin') fields=fields.filter(f=>!['username','auth_user_id','must_change_password'].includes(f));
  if (name === 'Company' && !['admin','company'].includes(role)) fields=[...META,'name','phone','logo_url','service_types','description'];
- if (!['admin','company','mechanic'].includes(role) && name === 'Vehicle') fields=[...META,'name','type','company_id','company_name','capacity','route_id','current_lat','current_lng','speed','heading','status','driver_name','image_url','model_3d','tracking_active','last_location_update','trail','trip_direction','return_pickup_state','road_next_stop'];
+ if (!['admin','company','mechanic'].includes(role) && name === 'Vehicle') fields=[...META,'name','type','company_id','company_name','capacity','route_id','current_lat','current_lng','speed','heading','status','driver_name','image_url','model_3d','tracking_active','last_location_update','trip_direction','return_pickup_state','road_next_stop'];
  if (!['admin','company'].includes(role) && name === 'Trip') fields=[...META,'company_id','vehicle_id','vehicle_name','route_id','route_name','pickup_name','dropoff_name','scheduled_time','status','started_at','arrived_at','completed_at'];
  const allowCodes=['admin','company'].includes(role) && ['Company','KioskDevice'].includes(name);
  const out=scrub(pick(row,fields),allowCodes);
@@ -573,6 +574,15 @@ function project(ctx,name,row) {
 const COMPANY_NO_HISTORY=new Set(['LocationPing','DrivingEvent']);
 const BUS_LOCATION_FIELDS=['current_lat','current_lng','trail','speed','heading','last_location_update','last_ping_logged_at','near_stop_id','road_next_stop'];
 const JOB_UNDER_WAY=['on_the_way','arrived'];
+// A shift shares its bus's position only while it is plausibly still being
+// driven: a shift nobody ended (one has been left open for two weeks) would
+// otherwise show where the bus is parked, day and night. 18 hours covers a
+// working day from first pickup to last drop-off.
+const SHIFT_SHARES_MS=18*3600_000;
+function shiftShares(shift,now=Date.now()) {
+ const started=Date.parse(shift?.started_at);
+ return !shift?.ended_at && Number.isFinite(started) && now-started<SHIFT_SHARES_MS && started-now<10*60_000;
+}
 async function busSharing(db,ctx,ids) {
  if(!ctx.busSharing) ctx.busSharing=new Map();
  const missing=[...new Set(ids)].filter(id=>typeof id==='string' && id && !ctx.busSharing.has(id));
@@ -585,12 +595,40 @@ async function busSharing(db,ctx,ids) {
    ]);
    const out=new Map(missing.map(id=>[id,'']));
    for(const job of jobs) if(job.shared_with_company===true && job.job_type && JOB_UNDER_WAY.includes(job.status) && ctx.companies.includes(job.company_id) && out.has(job.vehicle_id)) out.set(job.vehicle_id,'job');
-   for(const shift of shifts) if(!shift.ended_at && out.has(shift.vehicle_id)) out.set(shift.vehicle_id,'shift');
+   const now=Date.now();
+   for(const shift of shifts) if(shiftShares(shift,now) && out.has(shift.vehicle_id)) out.set(shift.vehicle_id,'shift');
    return out;
   })();
   for(const id of missing) ctx.busSharing.set(id,lookup.then(found=>found.get(id)||''));
  }
  return Promise.all(ids.map(id=>ctx.busSharing.get(id) || ''));
+}
+// A passenger sees where a bus is only for their own bus (the one the office
+// set for them, the app's "my bus"), and only while a shift is out on it.
+// Never a bus's path, never where it is parked, never another bus: a bus's
+// moves show where it stopped for other passengers.
+async function ownBuses(db,ctx) {
+ ctx.ownBuses ||= (async()=>{
+  const ids=new Set();
+  for(const companyId of new Set(ctx.companies)) {
+   const id=await assignedBusId(db,ctx.user,companyId);
+   if(id) ids.add(id);
+  }
+  return ids;
+ })();
+ return ctx.ownBuses;
+}
+async function busOnShift(db,ctx,id) {
+ if(!ctx.busOnShift) ctx.busOnShift=new Map();
+ if(!ctx.busOnShift.has(id)) ctx.busOnShift.set(id,retry429(()=>db.DriverShift.filter({vehicle_id:id},'-started_at',20))
+  .then(shifts=>{const now=Date.now();return shifts.some(s=>s.vehicle_id===id && shiftShares(s,now));}));
+ return ctx.busOnShift.get(id);
+}
+async function passengerView(db,ctx,name,row,out) {
+ if(name!=='Vehicle') return out;
+ const shown=(await ownBuses(db,ctx)).has(row.id) && await busOnShift(db,ctx,row.id);
+ if(!shown) for(const field of BUS_LOCATION_FIELDS) if(Object.hasOwn(out,field)) out[field]=null;
+ return out;
 }
 async function companyView(db,ctx,name,row,out) {
  if(name==='Vehicle') {
@@ -641,6 +679,7 @@ async function projectRecord(db,ctx,name,row) {
  const out=project(ctx,name,row);
  if(name==='KioskDevice' && row && ctx.user?.role==='admin') out.pass=await devicePass(db,ctx,row);
  if(ctx.user?.role==='company' && row) await companyView(db,ctx,name,row,out);
+ else if(ctx.user && !['admin','mechanic'].includes(ctx.user.role) && row) await passengerView(db,ctx,name,row,out);
  if(name==='User' && row?.id===ctx.user?.id) out.access_role=await assignedAccessRole(db,ctx.user);
  if(name==='User' && ctx.user?.role==='admin') out.access_role_id=row?.access_role_id || '';
  if(name==='User' && row && ctx.user?.role==='admin') {

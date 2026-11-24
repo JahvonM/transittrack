@@ -412,10 +412,14 @@ export default function StaffPortal() {
 
   // SOS is admin/management-only — never surface the "emergency" status to
   // staff/passengers here (it drives the map pin color and its tooltip text).
+  // The server sends a passenger only their own bus's position, and only while
+  // its shift runs, and never a bus's path. A home saved on the phone before
+  // that change must not draw a path either: it can show where the bus
+  // stopped for other passengers.
   const locatedVehicles = useMemo(
     () => vehicles
       .filter((v) => v.current_lat != null)
-      .map((v) => (v.status === "emergency" ? { ...v, status: "on_trip" } : v)),
+      .map((v) => ({ ...v, trail: undefined, ...(v.status === "emergency" ? { status: "on_trip" } : {}) })),
     [vehicles]
   );
 
