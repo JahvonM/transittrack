@@ -1,4 +1,4 @@
-import { changePassengerCompany } from './passengerCompany.ts';
+import { changePassengerCompany, removePassenger } from './passengerCompany.ts';
 // Sign-up day (Admin → Sign-up day): a team at a hotel helps its staff get
 // the app, sign in, set their pickup spot and get an NFC card. Every helper's
 // phone, tablet or laptop shows the same list; this keeps who is helping whom
@@ -84,11 +84,29 @@ export async function signupDay(base44, user, body, { companyFilter, loadPeople,
     case 'signup_remove': {
       const person = await personFor(body.person_ref);
       if (!person) return Response.json({ error: 'Passenger not found in this company' }, { status: 404 });
-      await changePassengerCompany(sr, person, null, true);
-      await audit(base44, user, { action: 'delete', entity: 'Contact', record_id: person.id, summary: `Removed ${person.name} from ${company.name}'s sign-up list` });
-      const tablets = await sr.KioskDevice.filter({ company_id: companyId, kiosk_type: 'bus_boarding' });
-      for (const tablet of tablets) if (tablet.company_id === companyId) await sr.KioskDevice.update(tablet.id, { directory_sent_at: new Date(now).toISOString() });
-      return Response.json({ ok: true });
+      // Out completely, app login and sign-in included (removePassenger only
+      // ever deletes passenger logins). A hotel's own manager can't reach into
+      // another hotel, so someone who also rides with another company is only
+      // taken off this one.
+      const email = emailOf(person.email);
+      const accounts = email ? (await sr.User.list()).filter((u) => emailOf(u.email) === email && ['staff', 'passenger'].includes(u.role)) : [];
+      const ids = new Set([...accounts.map((u) => u.id), ...(person.source === 'user' ? [person.id] : [])]);
+      const elsewhere =
+        (await sr.CompanyMembership.list('-updated_date', 5000)).some((m) => ids.has(m.user_id) && m.active && m.company_id && m.company_id !== companyId) ||
+        (!!email && (await sr.Contact.list('-updated_date', 5000)).some((c) => emailOf(c.email) === email && c.company_id && c.company_id !== companyId));
+      let companies = [companyId], loginDeleted = false;
+      if (user.role === 'admin' || !elsewhere) {
+        const done = await removePassenger(sr, person);
+        companies = [...new Set([companyId, ...done.companies])];
+        loginDeleted = done.logins > 0;
+      } else await changePassengerCompany(sr, person, null, true);
+      await audit(base44, user, { action: 'delete', entity: person.source === 'user' ? 'User' : 'Contact', record_id: person.id,
+        summary: `Removed ${person.name} from ${company.name}'s sign-up list${loginDeleted ? ', app login deleted' : elsewhere ? ' (still rides with another company)' : ''}` });
+      for (const id of companies) {
+        for (const tablet of await sr.KioskDevice.filter({ company_id: id, kiosk_type: 'bus_boarding' }))
+          if (tablet.company_id === id) await sr.KioskDevice.update(tablet.id, { directory_sent_at: new Date(now).toISOString() });
+      }
+      return Response.json({ ok: true, login_deleted: loginDeleted, kept_for_other_company: !loginDeleted && !!elsewhere && user.role !== 'admin' });
     }
     case 'signup_state': {
       const [staff, rows, tokens, vehicles] = await Promise.all([staffOf(), helps(), sr.PushToken.list('-updated_date', 5000), sr.Vehicle.filter({ company_id: companyId }, 'name', 500)]);

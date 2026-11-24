@@ -2,6 +2,7 @@ import { confirmAction } from "@/components/ConfirmHost";
 import React, { useEffect, useRef, useState } from "react";
 import { Check, Mail, MapPin, Nfc, QrCode, Smartphone, UserCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { toast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -181,9 +182,14 @@ export default function SignupPersonSheet({ person, company, buses = [], call, o
   const first = firstName(person.name);
   const letGo = async () => { await call("signup_claim", { person_ref: ref, release: true }).catch(() => {}); onChanged(); onClose(); };
   const remove = async () => {
-    if (!(await confirmAction({ title: `Remove ${person.name}?`, description: "Remove them from this company's sign-up list and passenger directory, and stop their company access, card and codes. Their login account and past trips are kept.", confirmLabel: "Remove passenger" }))) return;
+    if (!(await confirmAction({ title: `Remove ${person.name}?`, description: "This deletes their app login and sign-in, removes them from the sign-up list, passengers and users, and stops their card and codes. Past trips are kept. This can't be undone. (If they also ride with another company you don't manage, only this company is removed.)", confirmLabel: "Remove and delete login" }))) return;
     setRemoving(true); setError("");
-    try { const data = await call("signup_remove", { person_ref: ref }); if (!data?.ok) throw new Error(data?.error || "Removal failed"); onClose(); await onChanged(); }
+    try {
+      const data = await call("signup_remove", { person_ref: ref });
+      if (!data?.ok) throw new Error(data?.error || "Removal failed");
+      toast({ title: `${person.name} removed`, description: data.login_deleted ? "Their app login was deleted too." : data.kept_for_other_company ? "They also ride with another company, so their login was kept." : "They had no app login." });
+      onClose(); await onChanged();
+    }
     catch (e) { setError(errorText(e, "Couldn't remove this passenger.")); }
     finally { setRemoving(false); }
   };

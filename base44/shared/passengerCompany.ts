@@ -1,3 +1,4 @@
+import { deleteSignIn } from './signInDelete.ts';
 // Move directory membership without moving an old company's bus or credentials.
 // Callers must authorize the operator and resolve the person from their scoped directory.
 export async function changePassengerCompany(db, person, company, remove = false) {
@@ -83,6 +84,8 @@ export async function removePassenger(db, person) {
   for (const u of accounts) {
     for (const e of new Set([u.email, norm(u.email)].filter(Boolean))) for (const t of await db.PushToken.filter({ email: e })) await db.PushToken.delete(t.id);
     await db.User.delete(u.id);
+    // And their sign-in itself, so they can't sign straight back in.
+    if (u.auth_user_id) await deleteSignIn(String(u.auth_user_id));
   }
   return { cards, logins: accounts.length, companies: [...companies] };
 }
