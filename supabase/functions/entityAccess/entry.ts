@@ -455,13 +455,15 @@ function fail(status, message) { throw Object.assign(new Error(message), { statu
 // Photos, voice notes, logos and the like are files uploaded through the app,
 // so anyone but an administrator may only point these fields at the app's own
 // file storage. That stops a chat "photo" that is really a link to another
-// site (which would see who opened it) or a script link.
+// site (which would see who opened it) or a script link. An upload hands back
+// a signed link to the private area; saving it into a field stores the file
+// itself (public fields get a copy in the public area), so that link counts too.
 function appStorageUrl(value) {
  try {
   const url = new URL(value);
   if (url.protocol !== 'https:') return false;
   const host = url.hostname;
-  return host.endsWith('.supabase.co') && url.pathname.startsWith('/storage/v1/object/public/');
+  return host.endsWith('.supabase.co') && (url.pathname.startsWith('/storage/v1/object/public/') || url.pathname.startsWith('/storage/v1/object/sign/private/'));
  } catch { return false; }
 }
 function checkLinks(user, data) {
