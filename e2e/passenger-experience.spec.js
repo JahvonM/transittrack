@@ -403,10 +403,12 @@ test.describe('phone tour',()=>{
   const lum=c=>{const [r,g,b]=c.match(/\d+/g).map(Number);return (r*299+g*587+b*114)/1000;};
   const pageBg=await page.locator('.tt-passenger-reference').evaluate(el=>getComputedStyle(el).backgroundColor);
   expect(lum(pageBg)>180).toBe(light);
+  // The main button: white in dark mode and deep sea-blue in light, as on the
+  // website, unless a colour theme was chosen.
   const button=await rgb('.px-find-btn');
-  const cyanDark='rgb(24, 217, 237)',cyanLight='rgb(14, 116, 144)';
-  if(accent)expect([cyanDark,cyanLight]).not.toContain(button);
-  else expect(button).toBe(light?cyanLight:cyanDark);
+  const whiteDark='rgb(255, 255, 255)',seaLight='rgb(11, 31, 46)';
+  if(accent)expect([whiteDark,seaLight]).not.toContain(button);
+  else expect(button).toBe(light?seaLight:whiteDark);
   await page.route('**/functions/v1/passengerAccount',r=>r.fulfill({json:{card:{issued:true,active:true,status:'Active'},history:[{id:'mine',vehicle_name:'TT-102',status:'boarded',boarded_at:'2026-10-11T10:00:00Z'}]}}));
   await page.route('**/functions/v1/generateBoardingQr',r=>r.fulfill({json:{token:'TEST-QR'}}));
   const dir=process.env.TT_SHOT_DIR;
