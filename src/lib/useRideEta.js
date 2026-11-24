@@ -21,7 +21,7 @@ export function useRideEta(view, { fetchRoute = fetchDrivingRoute, now = () => D
       .then((r) => { if (mounted.current) setRoad({ key, minutes: Number.isFinite(r?.durationMin) ? r.durationMin : null, asked }); })
       .finally(() => { asking.current = false; });
     // Asked again as the ride moves, once the minute is up.
-  }, [key, at?.lat, at?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key, at?.lat, at?.lng]);
 
   if (!key || !at) return null;
   const minutes = road?.key === key && road.minutes != null ? road.minutes : roughMinutes(at, target);
