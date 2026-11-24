@@ -39,6 +39,12 @@ html.tt-future .px-experience .px-panel > h2:not(.px-list-title) {
   border-color: rgba(255, 255, 255, .16); box-shadow: 0 14px 34px -18px rgba(0, 0, 0, .7);
 }
 html.tt-future .px-experience .px-hero-copy > h2 { font-stretch: 125%; font-weight: 800; letter-spacing: -.02em; text-transform: uppercase; }
+/* Wide capitals beside the bus picture: sized from the longest word
+   (--px-word, in letters) so whole words fit ("CHOOSE", not "CHOO / SE").
+   These capitals are up to .93em wide each. Older phones without container
+   units keep the first size. */
+html.tt-future .px-experience .px-hero-copy { container-type: inline-size; }
+html.tt-future .px-experience .px-hero-copy > h2 { font-size: clamp(20px, 7vw, 40px); font-size: min(40px, calc(100cqi / (var(--px-word, 6) * .96))); }
 /* The boarding pass card: the website's deep sea. */
 .px-experience .px-digital-card { background: linear-gradient(160deg, #143049, #0b1f2e); border-color: rgba(255, 255, 255, .16); }
 /* The tab bar's chosen tab: white, like the website. */
