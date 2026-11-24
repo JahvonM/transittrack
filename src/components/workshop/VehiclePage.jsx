@@ -18,10 +18,10 @@ import SpecsSection from "@/components/workshop/SpecsSection";
 import ManualsSection from "@/components/workshop/ManualsSection";
 import ModelPartsSection from "@/components/workshop/ModelParts";
 import PhotosSection, { Thumb } from "@/components/workshop/Pictures";
-import { CarSheet } from "@/components/workshop/Models";
+import { CarSheet, GuideSheet } from "@/components/workshop/Models";
 import { JobsSection, TroubleshootingSection } from "@/components/workshop/JobSections";
 import { jobsFor, knownProblems, openFaultsFor, pastFixes } from "@/lib/workshopJobs";
-import { BookOpen, ClipboardList, ClipboardPaste, Copy, FileText, Hammer, Link2, MapPin, Package, Pencil, Search, Stethoscope, Wrench } from "lucide-react";
+import { BookOpen, ClipboardList, ClipboardPaste, Copy, FileText, Hammer, Link2, MapPin, Package, Pencil, Plus, Search, Stethoscope, Wrench } from "lucide-react";
 
 // A vehicle's page, laid out like a parts catalogue: the vehicle's details
 // at the top; down the side its sections (torque values, specs & service,
@@ -272,6 +272,7 @@ export default function VehiclePage({ section }) {
   const { category: slug } = useParams();
   const { vehicle, guide, base, kind, specs, diagrams, groups, facts, documents, parts, jobs, jobParts, faults, isAdmin } = useVehicleRoute();
   const [pasting, setPasting] = useState(false);
+  const [makingPage, setMakingPage] = useState(false);
   const mine = useMemo(() => (guide ? groups.filter((g) => g.guide_id === guide.id) : []), [groups, guide]);
   const categories = useMemo(() => catalogueCategories(mine), [mine]);
 
@@ -296,13 +297,27 @@ export default function VehiclePage({ section }) {
         <ScreenBar crumbs={[{ to: "/workshop", label: "Workshop" }, { label: vehicle.name }]} title={vehicle.name} subtitle={vehicle.model} />
         <VehicleInfo vehicle={vehicle} guide={null} modelCode="" />
         <div className="mb-4"><SectionLinks items={work} /></div>
-        <Notice tone="warning" action={isAdmin ? <Button asChild variant="outline" className="h-12 rounded-lg bg-card"><Link to="/workshop/models">Models</Link></Button> : null}>
+        <Notice
+          tone="warning"
+          action={isAdmin ? (
+            <span className="flex flex-wrap gap-2">
+              <Button className="h-12 rounded-lg" onClick={() => setMakingPage(true)}><Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />Make its model page</Button>
+              <Button asChild variant="outline" className="h-12 rounded-lg bg-card"><Link to="/workshop/models">Models</Link></Button>
+            </span>
+          ) : null}
+        >
           <p className="font-semibold">No model page covers this {kind} yet.</p>
           <p className="text-muted-foreground">
-            Torque values, photos and the maker's diagrams belong to a model page for its make, model and year ({vehicle.model || "not recorded"}).
-            {isAdmin ? " Add one in Models." : " Ask an administrator to add one."}
+            Specs, torque values, photos and the maker's diagrams belong to a model page for its make, model and year ({vehicle.model || "not recorded"}).
+            {isAdmin ? " Make one here (its make, model and year filled in), or add a researched one in Models." : " Ask an administrator to add one."}
           </p>
         </Notice>
+        {makingPage && (
+          <GuideSheet
+            editing={{ make: vehicle.record?.make || "", model: vehicle.record?.model || "", year_from: vehicle.record?.year ?? "", year_to: vehicle.record?.year ?? "" }}
+            onClose={() => setMakingPage(false)}
+          />
+        )}
       </>
     );
   }

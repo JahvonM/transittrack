@@ -2,7 +2,7 @@
 // buses, and the workshop's own cars), and for each its model page's torque
 // values and bolt maps. These are the app's rules, kept apart from the
 // screens so they can be tested.
-import { DOCUMENT_KINDS, MAX_DOCUMENT_BYTES, SECTION_IDS, checkedCounts, covers, guideFromStarter, matchesSearch } from "@/lib/busLibrary";
+import { DOCUMENT_KINDS, MAX_DOCUMENT_BYTES, SECTION_IDS, checkedCounts, covers, guideFromStarter, guideTitle, matchesSearch } from "@/lib/busLibrary";
 import { numbersOf, partKey, partMatches, replacementsFor, stockLevel } from "@/lib/partsCatalogue";
 
 export const TORQUE_SYSTEMS = [
@@ -153,9 +153,6 @@ export function carProblem(form) {
 const torqueKey = (spec) => `${spec.system}|${String(spec.item || "").trim().toLowerCase()}`;
 const STARTER_FIELDS = ["system", "item", "size", "nm", "stages", "sequence", "new_bolt", "thread_lock", "applies_to", "source_name", "source_link"];
 
-// The page a starter's values go on: the page made from the same starter.
-export const starterGuide = (starter, guides = []) => guides.find((g) => g.starter_key === starter.guide_key) || null;
-
 // A starter's values not on its page yet (the same bolt in the same part of
 // the vehicle counts as there), as records: every one "Not checked".
 export function starterTorque(starter, guideId, existing = []) {
@@ -170,24 +167,42 @@ export function starterTorque(starter, guideId, existing = []) {
     });
 }
 
-// What Models › Ready to add offers: each starter with values still to add.
-// One without a page makes its page first when it has one to make; a bus
-// page comes from the Bus library.
-export function readyTorque(starters = [], guides = [], specs = []) {
+export const pageFromStarter = (starter) => guideFromStarter({ ...starter.page, key: starter.guide_key });
+
+// What Models › Ready to add offers, one line per model. A model with no page
+// yet makes its page (from the bus starters in src/data/busLibrary, with
+// their researched facts, or from a torque file's own page for the
+// workshop's cars), then adds its torque values. A model with a page adds
+// the torque values it doesn't have yet; facts only come with a new page.
+// Pages are matched by starter_key, so each is offered once.
+export function readyStarters(library = [], torque = [], guides = [], specs = []) {
+  const keys = [...new Set([...library.map((s) => s.key), ...torque.map((s) => s.guide_key)])];
   const out = [];
-  for (const starter of starters) {
-    const guide = starterGuide(starter, guides);
+  for (const key of keys) {
+    const page = library.find((s) => s.key === key) || null;
+    const values = torque.find((s) => s.guide_key === key) || null;
+    const label = values?.label || guideTitle(page);
+    const guide = guides.find((g) => g.starter_key === key) || null;
     if (guide) {
-      const count = starterTorque(starter, guide.id, specs).length;
-      if (count) out.push({ starter, guide, count, needsPage: false, blocked: false });
-    } else {
-      out.push({ starter, guide: null, count: (starter.torque || []).length, needsPage: !!starter.page, blocked: !starter.page });
+      const count = values ? starterTorque(values, guide.id, specs).length : 0;
+      if (count) out.push({ key, label, guide, page: null, library: null, values, facts: 0, torque: count });
+      continue;
     }
+    const record = page ? guideFromStarter(page) : values?.page ? pageFromStarter(values) : null;
+    if (record) out.push({ key, label, guide: null, page: record, library: page, values, facts: (page?.facts || []).length, torque: (values?.torque || []).length });
   }
   return out;
 }
 
-export const pageFromStarter = (starter) => guideFromStarter({ ...starter.page, key: starter.guide_key });
+// Everything a model page holds, which goes with it when it's deleted (parts
+// are only unlinked from it). Jobs keep their records.
+export function guideContents(guideId, { facts = [], documents = [], diagrams = [], specs = [], groups = [], parts = [] } = {}) {
+  const on = (list) => list.filter((r) => r.guide_id === guideId);
+  return {
+    facts: on(facts), documents: on(documents), pictures: on(diagrams), torque: on(specs), groups: on(groups),
+    parts: parts.filter((p) => Array.isArray(p.guide_ids) && p.guide_ids.includes(guideId)),
+  };
+}
 
 // ----- the catalogue (a parts catalogue's layout) -----
 
@@ -331,8 +346,8 @@ export const visibleParts = (parts = [], interchanges = [], { query = "", show =
 // The count after some taps on − and +; never below 0.
 export const nextStock = (count, delta) => Math.max(0, (Math.floor(Number(count)) || 0) + (Math.trunc(Number(delta)) || 0));
 
-// A part's details, as the edit sheet shows them, and what saving sends: the
-// same fields as Admin › Parts › Details. Models only from pages that exist.
+// A part's details, as the edit sheet shows them, and what saving sends.
+// Models only from pages that exist.
 const PART_TEXT = ["part_name", "oem_number", "aftermarket_number", "vehicle_compatibility", "category", "supplier", "bin_location"];
 export const partForm = (part = {}) => ({
   ...Object.fromEntries(PART_TEXT.map((k) => [k, String(part[k] ?? "")])),
@@ -423,15 +438,6 @@ export function documentProblem({ title, kind, notes, file }) {
   if (file.size > MAX_DOCUMENT_BYTES) return "That file is over 25 MB. Split a big manual into chapters.";
   if (file.type && !DOCUMENT_TYPES.includes(file.type)) return "Use a PDF or a photo (PNG, JPEG, WebP or HEIC).";
   return "";
-}
-
-// ----- the old screens, kept for one release -----
-
-// Where the old Parts or Bus library screen is for this person: Admin's,
-// or the mechanic screen's tab, opened on the old view.
-export function oldViewLink(role, area) {
-  const which = area === "library" ? "library" : "parts";
-  return role === "admin" ? `/admin/${which}` : `/mechanic?tab=${which}&old=1`;
 }
 
 // ----- scanning a part's barcode -----

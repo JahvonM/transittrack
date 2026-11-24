@@ -320,8 +320,10 @@ test('an administrator adds a car, then its researched model page from Models â€
   await page.getByRole('link', { name: 'Models' }).click();
   const ready = page.getByRole('region', { name: 'Ready to add' });
   await expect(ready.getByRole('listitem').filter({ hasText: 'Toyota Hiace H200' })).toHaveCount(0);
-  await expect(ready.getByRole('listitem').filter({ hasText: 'Nissan NV350 E26' })).toContainText('in the Bus library first');
-  await expect(ready.getByRole('listitem').filter({ hasText: 'Nissan NV350 E26' }).getByRole('button', { name: 'Add' })).toHaveCount(0);
+  // The NV350 has no page yet: adding it makes the page with its researched facts, then its torque value.
+  const nv350 = ready.getByRole('listitem').filter({ hasText: 'Nissan NV350 E26' });
+  await expect(nv350).toContainText(/Makes its model page with \d+ researched facts, then adds 1 torque value\./);
+  await expect(nv350.getByRole('button', { name: 'Add Nissan NV350 E26' })).toBeEnabled();
   for (const car of ['BMW X3 F25', 'Nissan Serena C23']) {
     const row = ready.getByRole('listitem').filter({ hasText: car });
     await expect(row).toContainText('Makes its model page');

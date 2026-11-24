@@ -12,8 +12,9 @@ import { EditSheet, Notice, pluralize, useWorkshop } from "@/components/workshop
 import { Check, Link2, Package, Plus, RefreshCw, Search } from "lucide-react";
 
 // Parts that fit: the parts on the shelves ticked for this vehicle's model
-// page (Admin › Bus library's "Parts for this model", moved here). Each
-// opens its own page; parts already in stock can be linked in one tap.
+// page, each with its stock (and, when low or out, a replacement on the
+// shelf) and opening its own page; parts already in stock can be linked in
+// one tap.
 
 function LinkPartSheet({ guide, onClose }) {
   const { toast } = useToast();
@@ -73,7 +74,7 @@ function LinkPartSheet({ guide, onClose }) {
 }
 
 export default function ModelPartsSection({ kind, guide }) {
-  const { parts, guides, put, missing, reload } = useWorkshop();
+  const { parts, interchanges, guides, put, missing, reload } = useWorkshop();
   const [adding, setAdding] = useState(false);
   const [linking, setLinking] = useState(false);
   const mine = useMemo(() => partsForGuide(parts, guide.id), [parts, guide]);
@@ -103,7 +104,7 @@ export default function ModelPartsSection({ kind, guide }) {
         </Notice>
       ) : mine.length > 0 && (
         <ul aria-label="Parts that fit" className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-          {mine.map((part) => <PartRow key={part.id} part={part} guides={guides} />)}
+          {mine.map((part) => <PartRow key={part.id} part={part} guides={guides} parts={parts} interchanges={interchanges} />)}
         </ul>
       )}
 

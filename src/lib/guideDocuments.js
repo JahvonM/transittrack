@@ -2,7 +2,7 @@ import { base44 } from "@/api/base44Client";
 
 // Manuals on a model page (GuideDocument) are private files: added only by
 // uploading them in the app, and opened through a link that lasts five
-// minutes. Used by the Workshop's Manuals and the Bus library's old view.
+// minutes. Used by the Workshop's Manuals.
 
 export async function uploadGuideDocument({ guideId, title, kind, notes, file }) {
   const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });

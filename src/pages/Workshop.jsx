@@ -9,7 +9,7 @@ import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/admin/kit";
 import { busRecordWarnings } from "@/lib/busLibrary";
-import { modelCodeFor, oldViewLink, stockSummary, torqueCounts, workshopVehicles } from "@/lib/workshop";
+import { modelCodeFor, stockSummary, torqueCounts, workshopVehicles } from "@/lib/workshop";
 import { isOpen, openFaultsFor, openJobsFor } from "@/lib/workshopJobs";
 import { Notice, Tile, WorkshopContext, pluralize, useWorkshop } from "@/components/workshop/kit";
 import VehiclePage from "@/components/workshop/VehiclePage";
@@ -93,7 +93,7 @@ function useWorkshopData() {
 }
 
 function Home() {
-  const { vehicles, specs, diagrams, groups, parts, jobs, faults, missing, isAdmin, user, state } = useWorkshop();
+  const { vehicles, specs, diagrams, groups, parts, jobs, faults, missing, isAdmin, state } = useWorkshop();
   const openJobs = jobs.filter(isOpen).length;
   const stock = stockSummary(parts);
   const navigate = useNavigate();
@@ -181,10 +181,6 @@ function Home() {
           </ul>
         </section>
       )}
-      <p className="mt-6 text-body-sm text-muted-foreground">
-        Moved here from the Bus library: each vehicle's specs, service schedule and manuals.{" "}
-        <Link to={oldViewLink(user?.role, "library")} className="font-medium text-primary underline underline-offset-2">Bus library (old view)</Link>
-      </p>
       {adding && <CarSheet onClose={() => setAdding(false)} />}
     </>
   );

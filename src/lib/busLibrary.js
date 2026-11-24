@@ -1,6 +1,6 @@
-// Bus library (Admin → Bus library): one page per bus model, its facts and
-// manuals. These helpers are the page's rules, kept apart from the screen so
-// they can be tested: which buses a page covers, how facts are grouped and
+// Model pages (the Workshop's specs & service and manuals; once the Bus
+// library): one page per model, its facts and manuals. These helpers are the
+// page's rules, kept apart from the screens so they can be tested: which buses a page covers, how facts are grouped and
 // searched, and how a starter file becomes records.
 
 export const SECTIONS = [
