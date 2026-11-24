@@ -51,3 +51,10 @@ without being set up again.
 Install it the usual way: Admin → **Kiosk tablets** → **Set up a device** → choose the file →
 **Update the app and open it**. Admin then shows the tablet on the new version, so you can see
 which tablets still need it.
+
+## Remote updates (no cable)
+
+Each new build number is also published as a GitHub release (`kiosk-build-<n>`). Once that exact
+file is approved in `base44/shared/nativeRelease.ts`, Admin → Kiosk tablets → Tablet controls can
+send it to a parked, idle tablet. See [native-kiosk-updates.md](native-kiosk-updates.md). A
+release is published once per build number, so raise `versionCode` for every remote update.

@@ -174,7 +174,7 @@ public class TabletControlPlugin extends Plugin {
             if (NativeAppUpdate.pending(getContext())) return "TABLET_BUSY";
             String gate = gateOnMain(device, deadline); if (!gate.isEmpty()) return gate;
             JSONObject release = proof.getJSONObject("release");
-            java.io.File file = NativeAppUpdate.download(getContext(), release, Math.min(deadline, SystemClock.elapsedRealtime() + 60000));
+            java.io.File file = NativeAppUpdate.download(getContext(), release, Math.min(deadline, SystemClock.elapsedRealtime() + NativeAppUpdate.DOWNLOAD_MS));
             session = NativeAppUpdate.prepare(getContext(), file);
             // Re-authorize AFTER download/session preparation: same request, release and current admin.
             long started = SystemClock.elapsedRealtime();

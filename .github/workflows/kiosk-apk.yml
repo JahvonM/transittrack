@@ -11,6 +11,12 @@
 # Runs when tablet code changes on main, or by hand (Actions → Kiosk APK →
 # Run workflow). The file is kept for 30 days under the run's Artifacts.
 # Never runs for pull requests, so the key is never handed to proposed code.
+#
+# Each new build number is also published as a GitHub release, kiosk-build-<n>,
+# for remote updates: the app site hands it to tablets (cloudflare/worker.js).
+# Publishing alone changes nothing on the buses. A tablet installs it only
+# after Admin approves that exact file (base44/shared/nativeRelease.ts) and
+# asks that tablet to update.
 name: Kiosk APK
 on:
   push:
@@ -26,6 +32,11 @@ jobs:
   apk:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    outputs:
+      ready: ${{ steps.key.outputs.ready }}
+      file: ${{ steps.apk.outputs.file }}
+      code: ${{ steps.apk.outputs.code }}
+      name: ${{ steps.apk.outputs.name }}
     env:
       # Certificate of the app already on the bus tablets, read from
       # McSween-Kiosk-2.0-build-11-test.apk (office PC debug key, made 14 Oct 2026).
@@ -112,14 +123,14 @@ jobs:
           pkg=$(printf '%s' "$badging" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")
           code=$(printf '%s' "$badging" | sed -n "s/.* versionCode='\([0-9]*\)'.*/\1/p")
           name=$(printf '%s' "$badging" | sed -n "s/.* versionName='\([^']*\)'.*/\1/p")
-          if [ "$pkg" != "com.transittrack.app" ] || [ -z "$code" ] || [ -z "$name" ]; then
+          if [ "$pkg" != "com.transittrack.app" ] || ! [[ "$code" =~ ^[0-9]{1,9}$ ]] || ! [[ "$name" =~ ^[0-9A-Za-z.+_-]{1,32}$ ]]; then
             echo "::error::Unexpected app in the build: $badging"; exit 1
           fi
           file="McSween-Kiosk-$name-build-$code-$(date -u +%Y%m%d)-${GITHUB_SHA::7}.apk"
           mkdir -p "$RUNNER_TEMP/out"
           cp "$apk" "$RUNNER_TEMP/out/$file"
           (cd "$RUNNER_TEMP/out" && sha256sum "$file" > "$file.sha256.txt")
-          echo "file=$file" >> "$GITHUB_OUTPUT"
+          { echo "file=$file"; echo "code=$code"; echo "name=$name"; } >> "$GITHUB_OUTPUT"
           {
             echo "### $file"
             echo "Version $name / build $code, a release build signed with the office PC key (certificate SHA-256 \`$signer\`)."
@@ -138,3 +149,49 @@ jobs:
           name: kiosk-apk-test-results
           path: android/app/build/reports/tests/
           if-no-files-found: ignore
+
+  # Its own job, so only these few steps can write to the repository.
+  publish:
+    needs: apk
+    if: needs.apk.outputs.ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.apk.outputs.file }}
+          path: ${{ runner.temp }}/out
+      - name: Publish the build for remote updates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FILE: ${{ needs.apk.outputs.file }}
+          CODE: ${{ needs.apk.outputs.code }}
+          NAME: ${{ needs.apk.outputs.name }}
+        run: |
+          set -euo pipefail
+          [[ "$CODE" =~ ^[0-9]{1,9}$ ]] && [[ "$NAME" =~ ^[0-9A-Za-z.+_-]{1,32}$ ]] || { echo "::error::Unexpected version $NAME / $CODE"; exit 1; }
+          tag="kiosk-build-$CODE"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Build $CODE is already published as release \`$tag\`, so this file isn't. Raise versionCode in android/app/build.gradle for the next remote update." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          apk="$RUNNER_TEMP/$tag.apk"
+          cp "$RUNNER_TEMP/out/$FILE" "$apk"
+          bytes=$(stat -c %s "$apk")
+          sha=$(sha256sum "$apk" | cut -d' ' -f1)
+          entry="{ id: '$tag', package_name: 'com.transittrack.app', version_code: $CODE, version_name: '$NAME', bytes: $bytes, sha256: '$sha', url: 'https://app.mcsweenstransport.com/native-releases/$tag.apk' }"
+          {
+            echo "McSween Kiosk $NAME, build $CODE: a release build signed with the office PC key."
+            echo
+            echo "Tablets install it remotely only after this exact file is approved in \`base44/shared/nativeRelease.ts\`:"
+            echo
+            echo '```ts'
+            echo "export const NATIVE_RELEASE: NativeRelease | null = $entry;"
+            echo '```'
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$tag" "$apk" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "McSween Kiosk $NAME (build $CODE)" --notes-file "$RUNNER_TEMP/notes.md"
+          echo "Remote update entry: $entry"
+          cat "$RUNNER_TEMP/notes.md" >> "$GITHUB_STEP_SUMMARY"

@@ -15,6 +15,8 @@ import javax.net.ssl.HttpsURLConnection;
 
 /** No credentials persisted; no arbitrary WebView URLs; no uninstall or data clearing. */
 final class NativeAppUpdate {
+    /** Time allowed to download the update file: a 20-30 MB file over a weak mobile signal. */
+    static final long DOWNLOAD_MS = 10L * 60 * 1000;
     static SharedPreferences prefs(Context c) { return c.getSharedPreferences("tt_native_update", Context.MODE_PRIVATE); }
     static long version(PackageInfo p) { return Build.VERSION.SDK_INT >= 28 ? p.getLongVersionCode() : p.versionCode; }
     static int flags() { return Build.VERSION.SDK_INT >= 28 ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES; }

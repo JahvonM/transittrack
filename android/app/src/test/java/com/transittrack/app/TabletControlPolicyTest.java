@@ -13,6 +13,13 @@ public class TabletControlPolicyTest {
         assertFalse(TabletControlPolicy.proof(id, id, "lock_test", 100, 0));
         assertFalse(TabletControlPolicy.proof(id, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "reboot", 100, 0));
     }
+    @Test public void onlyAnAppUpdateMayLastFifteenMinutes() {
+        assertTrue(TabletControlPolicy.proof(id, id, "app_update", 900000, 0));
+        assertFalse(TabletControlPolicy.proof(id, id, "app_update", 900001, 0));
+        assertFalse(TabletControlPolicy.proof(id, id, "reboot", 900000, 0));
+        assertFalse(TabletControlPolicy.proof(id, id, "kiosk_enable", 900000, 0));
+        assertTrue(NativeAppUpdate.DOWNLOAD_MS < TabletControlPolicy.UPDATE_TTL);
+    }
     @Test public void currentSafetyAndThreeMinuteQuietPeriodRequired() {
         assertTrue(TabletControlPolicy.rebootSafe(true, 200000, 1000, 201000));
         assertFalse(TabletControlPolicy.rebootSafe(false, 200000, 1000, 201000));

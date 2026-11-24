@@ -1,7 +1,13 @@
 import { NATIVE_RELEASE, validNativeRelease } from '../../shared/nativeRelease.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-import { CONTROL_TTL, controlId, currentControl, newControl, strictControlDevice, controlCompletion } from '../../shared/tabletControl.ts';
+import { CONTROL_TTL, UPDATE_TTL, controlId, currentControl, newControl, strictControlDevice, controlCompletion } from '../../shared/tabletControl.ts';
 const reply = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+// A bus counts as tracking only while it still sends positions: a tablet
+// switched off mid-shift leaves its tracking flag on for days.
+const TRACKING_FRESH_MS = 10 * 60_000;
+// A shift nobody ended stops counting 18 hours after it started (as for
+// location sharing in entityAccess): one was left open for two weeks.
+const SHIFT_STALE_MS = 18 * 3600_000;
 export default async function(req) {
   try {
     if (req.method !== 'POST') return reply({ error: 'POST required' }, 405);
@@ -39,7 +45,8 @@ export default async function(req) {
       }
       if (device.status !== 'active' || device.paired !== true) return reply({ error: 'Pair this tablet first' }, 409);
       const prior = device.control_command;
-      if (prior?.action === 'app_update' && device.control_status?.result_code === 'UPDATE_REQUESTED' && now - Date.parse(prior.requested_at) < 600000)
+      const priorSpan = Date.parse(prior?.expires_at) - Date.parse(prior?.requested_at);
+      if (prior?.action === 'app_update' && device.control_status?.result_code === 'UPDATE_REQUESTED' && now - Date.parse(prior.requested_at) < 600000 + (priorSpan === UPDATE_TTL ? UPDATE_TTL : 0))
         return reply({ error: 'Native installation is awaiting confirmation. Wait for tablet status before another command.' }, 409);
       if (currentControl(device, now) && device.control_status?.state === 'waiting') return reply({ error: 'A tablet command is already waiting. Wait for completion or expiry.' }, 409);
       if (!['release', 'kiosk_disable', 'kiosk_maintenance'].includes(input.action) && prior && now - Date.parse(prior.requested_at) < CONTROL_TTL) return reply({ error: 'Wait two minutes between tablet commands.' }, 429);
@@ -85,12 +92,13 @@ export default async function(req) {
       // Server corroborates the local idle/queue gate, including boarding tablets.
       if (!device.vehicle_id) return proof(true);
       const vehicle = await db.Vehicle.get(device.vehicle_id).catch(() => null);
-      if (!vehicle || vehicle.company_id !== device.company_id || vehicle.tracking_active !== false ||
+      const tracking = vehicle?.tracking_active !== false && Date.parse(vehicle?.last_location_update) > now - TRACKING_FRESH_MS;
+      if (!vehicle || vehicle.company_id !== device.company_id || tracking ||
         typeof vehicle.speed !== 'number' || !Number.isFinite(vehicle.speed) || vehicle.speed < 0 || vehicle.speed >= 0.5) return proof(true);
       let exhausted = false;
       for (let page = 0; page < 10; page++) {
         const shifts = await db.DriverShift.filter({ vehicle_id: device.vehicle_id, company_id: device.company_id }, '-started_at', 100, page * 100);
-        if (shifts.some(row => !row.ended_at)) return proof(true);
+        if (shifts.some(row => !row.ended_at && !(Date.parse(row.started_at) <= now - SHIFT_STALE_MS))) return proof(true);
         if (shifts.length < 100) { exhausted = true; break; }
       }
       if (!exhausted) return proof(true);
