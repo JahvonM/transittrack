@@ -71,7 +71,8 @@ export function Tile({ to, onClick, icon: Icon, title, lines = [], badge, classN
       <span className="min-w-0 flex-1">
         <span className="block truncate text-title-sm font-semibold">{title}</span>
         {lines.filter(Boolean).map((line, i) => <span key={i} className="block break-words text-body-sm text-muted-foreground">{line}</span>)}
-        {badge && <span className="mt-2 block">{badge}</span>}
+        {/* Chips stay inside the tile: with very large text one wraps rather than running off it. */}
+        {badge && <span className="mt-2 block [&_*]:max-w-full [&_*]:whitespace-normal">{badge}</span>}
       </span>
       <ChevronRight className="mt-3 h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
     </>

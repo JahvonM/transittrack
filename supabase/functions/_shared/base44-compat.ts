@@ -27,6 +27,7 @@
 
 import { SUPABASE_TABLES } from './supabaseTables.ts';
 import { FILE_COLUMNS } from './supabaseFiles.ts';
+import { stripPhotoMetadata } from './photoMetadata.ts';
 
 type Env = { get(name: string): string | undefined };
 // Records are loosely typed, as they are in the Base44 functions that use them.
@@ -500,10 +501,13 @@ function storagePath(name: string) {
 async function upload(bucket: 'public' | 'private', file: Blob & { name?: string }) {
   if (!file || typeof (file as Blob).arrayBuffer !== 'function') throw httpError(400, 'No file');
   const path = storagePath(file.name || '');
+  // Photos lose the GPS position and other details the phone wrote into them
+  // (photoMetadata.ts); the picture itself is unchanged.
+  const raw = new Uint8Array(await file.arrayBuffer());
   const res = await runtime.fetch(`${supabaseUrl()}/storage/v1/object/${bucket}/${path}`, {
     method: 'POST',
     headers: serverHeaders({ 'Content-Type': file.type || 'application/octet-stream', 'x-upsert': 'false' }),
-    body: file,
+    body: stripPhotoMetadata(raw) ?? raw,
   });
   if (!res.ok) {
     console.error(`[supabase] upload ${bucket}: ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`);
@@ -607,6 +611,18 @@ export function createClientFromRequest(req: Request) {
         throw httpError(503, 'Transactional company cleanup unavailable');
       }
       return res.json();
+    },
+    // TransitTrack-only extension: remove a person's Supabase sign-in, for
+    // deleteAccount. True once it is gone (or already was); false when
+    // Supabase refuses, e.g. a 3D scan still names it as its maker.
+    async deleteSignIn(authUserId: string) {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(authUserId || ''))) return false;
+      const res = await runtime.fetch(`${supabaseUrl()}/auth/v1/admin/users/${authUserId}`, {
+        method: 'DELETE', redirect: 'error', signal: AbortSignal.timeout(30000),
+        headers: serverHeaders(),
+      });
+      await res.body?.cancel().catch(() => {});
+      return res.ok || res.status === 404;
     },
   };
   return {

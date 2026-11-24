@@ -135,18 +135,18 @@ function Home() {
       {buses.length > 0 && (
         <section aria-labelledby="ws-buses" className="mb-6">
           <h2 id="ws-buses" className="mb-2 text-body font-semibold text-muted-foreground">Buses</h2>
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{buses.map(tile)}</ul>
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{buses.map(tile)}</ul>
         </section>
       )}
       {cars.length > 0 && (
         <section aria-labelledby="ws-cars" className="mb-6">
           <h2 id="ws-cars" className="mb-2 text-body font-semibold text-muted-foreground">Cars</h2>
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{cars.map(tile)}</ul>
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{cars.map(tile)}</ul>
         </section>
       )}
       <section aria-labelledby="ws-work" className="mb-6">
         <h2 id="ws-work" className="mb-2 text-body font-semibold text-muted-foreground">Work</h2>
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <li>
             <Tile
               to="/workshop/jobs" icon={Wrench} title="Jobs"
@@ -158,7 +158,7 @@ function Home() {
       </section>
       <section aria-labelledby="ws-stock" className="mb-6">
         <h2 id="ws-stock" className="mb-2 text-body font-semibold text-muted-foreground">Stock</h2>
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <li>
             <Tile
               to="/workshop/parts" icon={Package} title="Parts"
@@ -175,7 +175,7 @@ function Home() {
       {isAdmin && (
         <section aria-labelledby="ws-manage">
           <h2 id="ws-manage" className="mb-2 text-body font-semibold text-muted-foreground">Manage</h2>
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <li><Tile onClick={() => setAdding(true)} icon={Plus} title="Add a car" lines={["Kept out of the fleet views"]} /></li>
             <li><Tile to="/workshop/models" icon={BookOpen} title="Models" lines={["Model pages and researched values"]} /></li>
           </ul>
@@ -202,10 +202,12 @@ export default function Workshop() {
     <WorkshopContext.Provider value={value}>
       <div className="min-h-[100dvh] touch-manipulation bg-background text-foreground">
         <header className="safe-area-top border-b border-border bg-card shadow-sm">
-          <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
-            <Link to="/workshop" className="flex items-center gap-2.5 rounded-lg" aria-label="Workshop home">
-              <Logo className="h-9 w-9" />
-              <span>
+          {/* One row; with very large text the buttons move to a second row
+              instead of running off the screen. */}
+          <div className="mx-auto flex min-h-[4rem] max-w-6xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
+            <Link to="/workshop" className="flex min-w-0 grow basis-[9rem] items-center gap-2.5 rounded-lg" aria-label="Workshop home">
+              <Logo className="h-9 w-9 shrink-0" />
+              <span className="min-w-0">
                 <h1 className="text-title-sm font-bold leading-tight">Workshop</h1>
                 <span className="block text-caption text-muted-foreground">Parts catalogue · torque · photos</span>
               </span>
@@ -226,7 +228,7 @@ export default function Workshop() {
             </Notice>
           )}
           {data.state === "loading" ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading">
               {[0, 1, 2, 3].map((i) => <div key={i} className="h-[7rem] animate-pulse rounded-xl border border-border bg-card" />)}
             </div>
           ) : data.state === "ready" && (
