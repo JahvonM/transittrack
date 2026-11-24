@@ -512,14 +512,15 @@ test('company join QR checks its code after sign-in and keeps it out of the addr
  expect(await page.evaluate(()=>sessionStorage.getItem('tt_pending_company_code'))).toBeNull();
 });
 
-test('company join QR asks a signed-out visitor to sign in first',async({page})=>{
+test('company join QR takes a signed-out visitor straight to making their account',async({page})=>{
  await page.route('**/api/**',withAdminBatch(r=>r.request().url().includes('/public-settings/')
   ? r.fulfill({json:{id:'test-app',public_settings:'public_without_login'}}) // answered even when signed out
   : r.fulfill({status:401,json:{error:'Not signed in'}})));
  await page.goto('/join#code=ABCD2345EFGH');
- await expect(page.getByRole('heading',{name:'Join your bus company'})).toBeVisible();
- expect(new URL(page.url()).hash).toBe('');
- await expect(page.getByRole('link',{name:'Create an account'})).toHaveAttribute('href','/register?returnTo=%2Fjoin');
+ await expect(page.getByRole('heading',{name:'Create your account'})).toBeVisible();
+ await expect(page).toHaveURL(/\/register\?returnTo=%2Fjoin$/);
+ await expect(page.getByText('Company code received.',{exact:false})).toBeVisible();
+ await expect(page.getByRole('link',{name:'Log in'})).toHaveAttribute('href','/login?returnTo=%2Fjoin');
  expect(await page.evaluate(()=>sessionStorage.getItem('tt_pending_company_code'))).toBe('ABCD2345EFGH');
 });
 
