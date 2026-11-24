@@ -7,8 +7,14 @@ const release = { id: "kiosk-2", package_name: "com.transittrack.app", version_c
   bytes: 1024, sha256: "a".repeat(64), url: "https://app.mcsweenstransport.com/native-releases/kiosk-2.apk" };
 afterEach(() => vi.unstubAllGlobals());
 describe("native kiosk release boundary", () => {
-  it("ships without an approved APK and refuses arbitrary URLs or helper identity", () => {
-    expect(NATIVE_RELEASE).toBeNull();
+  it("ships only a release published by the Kiosk APK build, and refuses arbitrary URLs or helper identity", () => {
+    // Empty, or exactly what kiosk-apk.yml prints for kiosk-build-<n>: served by the app site from that release.
+    if (NATIVE_RELEASE !== null) {
+      expect(validNativeRelease(NATIVE_RELEASE)).toBe(true);
+      expect(NATIVE_RELEASE.id).toMatch(/^kiosk-build-[0-9]{1,9}$/);
+      expect(NATIVE_RELEASE.id).toBe("kiosk-build-" + NATIVE_RELEASE.version_code);
+      expect(NATIVE_RELEASE.url).toBe("https://app.mcsweenstransport.com/native-releases/" + NATIVE_RELEASE.id + ".apk");
+    }
     expect(validNativeRelease(release)).toBe(true);
     for (const change of [{ package_name: "com.transittrack.helper" }, { version_code: 1 }, { version_code: 2.5 },
       { bytes: 0 }, { bytes: 151*1024*1024 }, { sha256: "bad" }, { url: "https://evil.test/update.apk" },
@@ -25,7 +31,8 @@ describe("native kiosk release boundary", () => {
   });
   it("admin can inspect readiness but cannot supply a replacement artifact", async () => {
     const c = mock("admin"), run = b => load("tabletControl", c).default(request({ device_id: "tablet", ...b }));
-    expect(await (await run({ operation: "release" })).json()).toEqual({ release: null });
+    const shipped = NATIVE_RELEASE && { id: NATIVE_RELEASE.id, version_name: NATIVE_RELEASE.version_name, version_code: NATIVE_RELEASE.version_code };
+    expect(await (await run({ operation: "release" })).json()).toEqual({ release: shipped });
     expect((await run({ operation: "request", action: "app_update", release_id: release.id, release })).status).toBe(409);
     expect(c.writes).toHaveLength(0);
   });
@@ -56,7 +63,9 @@ import { inlineShared, digest } from "../../../security-tests/helpers.js";
 // Replace only the empty release catalog in an isolated copy, never live config.
 function releasedHandler(c) {
   let source = inlineShared(fs.readFileSync(new URL("../../../base44/functions/tabletControl/entry.ts", import.meta.url), "utf8"));
-  source = source.replace("const NATIVE_RELEASE: NativeRelease | null = null;", "const NATIVE_RELEASE = " + JSON.stringify(release) + ";").replace(/^import .*;\s*$/gm, "");
+  const catalog = /const NATIVE_RELEASE: NativeRelease \| null = [^;]*;/;
+  expect(source).toMatch(catalog);
+  source = source.replace(catalog, "const NATIVE_RELEASE = " + JSON.stringify(release) + ";").replace(/^import .*;\s*$/gm, "");
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {}; new Function("exports", "createClientFromRequest", "crypto", js)(exports, () => c, webcrypto);
   return b => exports.default(request({ device_id: "tablet", ...b }));

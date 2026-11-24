@@ -1,7 +1,8 @@
 // Reviewed combined-kiosk APK only. Never point this at helperRelease.
 // Populate only after signing with the EXISTING combined-app key and acceptance tests.
 export type NativeRelease = { id: string; package_name: string; version_code: number; version_name: string; bytes: number; sha256: string; url: string };
-export const NATIVE_RELEASE: NativeRelease | null = null;
+// McSween Kiosk 2.2 (build 13), GitHub release kiosk-build-13, published by the Kiosk APK run for ce4a3147.
+export const NATIVE_RELEASE: NativeRelease | null = { id: 'kiosk-build-13', package_name: 'com.transittrack.app', version_code: 13, version_name: '2.2', bytes: 21028106, sha256: '92f3252c4bdfdaa93036a16a37cd43fdbb528301ccdd078eccc07c0fc19c283c', url: 'https://app.mcsweenstransport.com/native-releases/kiosk-build-13.apk' };
 export function validNativeRelease(r: NativeRelease | null): r is NativeRelease {
   if (!r || !/^[a-zA-Z0-9_-]{1,64}$/.test(r.id) || r.package_name !== 'com.transittrack.app' ||
       !Number.isSafeInteger(r.version_code) || r.version_code < 2 ||
