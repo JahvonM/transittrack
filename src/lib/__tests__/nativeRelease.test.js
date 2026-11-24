@@ -78,7 +78,7 @@ describe("configured release lifecycle with isolated catalog", () => {
     const id = (await issued.json()).status.id;
     const claim = () => run({ operation: "claim", command_id: id, device_token: token });
     expect(await (await claim()).json()).toMatchObject({ action: "app_update", release });
-    c.tables.Vehicle[0].tracking_active = true;
+    Object.assign(c.tables.Vehicle[0], { tracking_active: true, last_location_update: new Date().toISOString() });
     expect(await (await claim()).json()).toMatchObject({ blocked_code: "TABLET_BUSY" });
     c.tables.Vehicle[0].tracking_active = false; c.tables.User[0].role = "company";
     expect((await claim()).status).toBe(403);

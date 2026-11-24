@@ -1,5 +1,22 @@
 # Combined kiosk native update delivery
 
+## How remote updates work now (24 November 2026)
+
+1. **GitHub publishes each new build number.** Raise `versionCode` in `android/app/build.gradle` and merge. The **Kiosk APK** workflow builds the release file and publishes it as the GitHub release `kiosk-build-<n>`. The run's summary shows the file's exact size and SHA-256.
+2. **The app site hands the file to tablets.** `https://app.mcsweenstransport.com/native-releases/kiosk-build-<n>.apk` passes the release file through as one direct answer (`cloudflare/worker.js`). Tablets refuse redirects.
+3. **You approve that exact file.** Set `NATIVE_RELEASE` in `base44/shared/nativeRelease.ts` to the entry from the run summary, in a pull request. Until then nothing can install it.
+4. **Update a tablet from Admin.** Go to Admin → Kiosk tablets → the tablet → Tablet controls → check for an update → request it. It goes ahead only when all of these hold:
+   - the tablet is managed (device owner) and reported in the last 5 minutes;
+   - its bus isn't moving, and isn't tracking (a tracking flag with no position for 10 minutes doesn't count);
+   - no shift is open on the bus (a shift left open more than 18 hours doesn't count);
+   - nothing is waiting to upload, and nobody has touched the screen for 3 minutes.
+
+   The tablet then checks size, SHA-256, package, a higher version and the same signing key before installing.
+
+**Time limits.** From build 13 (2.2), a tablet gets 15 minutes per update and 10 minutes to download, enough for mobile data. Older builds get 2 minutes and 60 seconds, so update those over good Wi-Fi or LTE, or once by cable.
+
+**Who can download the files.** Releases are public while the repository is public. The file holds nothing secret, and only the approved file installs. If the repository goes private, the worker needs a GitHub token to read releases.
+
 > Current release status: [kiosk-release-status.md](kiosk-release-status.md) (18 October 2026). Earlier checkpoint results below are historical.
 
 Status: implemented, release catalog intentionally empty. No APK was built, signed, installed or published in this stage. At this historical checkpoint package identity remained `com.transittrack.app` with versionCode 1/versionName 1.0. The 18 October finishing update advances the source build to versionCode 2/versionName 1.1; package and signing configuration are retained. Do not use the separate helper APK as a combined-app release.
