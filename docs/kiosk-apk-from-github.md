@@ -41,6 +41,13 @@ without being set up again.
   `McSween-Kiosk-<version>-build-<code>-<date>-<commit>.apk` plus its SHA-256 checksum.
 - The build checks that the file is signed with the PC key, and stops with an error if not.
   Files are kept for 30 days.
+- From version 2.1 (build 12) the file is a **release build**: still signed with the PC key, so it
+  installs over the builds already on the tablets, but not debuggable and with no backups. A
+  laptop on a USB cable can't copy the app's data, the tablet's sign-in key included. The build
+  checks both and stops if either is wrong (`tools/kiosk/check-release-apk.sh`).
+- The office PC script (`tools/kiosk/Prepare-Tablet-Test.ps1`) and Android Studio's **Run** still
+  make debug builds. Use those only on a spare test tablet; the buses get this file.
 
 Install it the usual way: Admin → **Kiosk tablets** → **Set up a device** → choose the file →
-**Update the app and open it**.
+**Update the app and open it**. Admin then shows the tablet on the new version, so you can see
+which tablets still need it.
