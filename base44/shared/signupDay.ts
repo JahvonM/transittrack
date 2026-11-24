@@ -91,7 +91,7 @@ export async function signupDay(base44, user, body, { companyFilter, loadPeople,
       return Response.json({ ok: true });
     }
     case 'signup_state': {
-      const [staff, rows, tokens] = await Promise.all([staffOf(), helps(), sr.PushToken.list('-updated_date', 5000)]);
+      const [staff, rows, tokens, vehicles] = await Promise.all([staffOf(), helps(), sr.PushToken.list('-updated_date', 5000), sr.Vehicle.filter({ company_id: companyId }, 'name', 500)]);
       // A person whose account gets alerts has the app on their phone.
       const alerts = new Set(tokens.map((t) => emailOf(t.email)).filter(Boolean));
       const people = staff.map((p) => {
@@ -105,13 +105,15 @@ export async function signupDay(base44, user, body, { companyFilter, loadPeople,
           pickup: p.pickup_lat != null && p.pickup_lng != null, pickup_name: p.pickup_name || '',
           pickup_lat: p.pickup_lat ?? null, pickup_lng: p.pickup_lng ?? null,
           card: CARD[p.status] || '', card_tail: p.card?.card_uid ? String(p.card.card_uid).slice(-4) : '',
-          bus: p.assigned_vehicle || '',
+          bus: p.assigned_vehicle || '', vehicle_id: p.vehicle_id || '',
           helper: fresh(h) ? { name: h.helper_name || 'Someone', mine: h.helper_id === user.id, since: h.claimed_at } : null,
           invite_sent_at: h?.invite_sent_at || null, invite_sent_by: h?.invite_sent_by || '',
         };
       });
       return Response.json({
         company: { id: company.id, name: company.name || '', join_code: company.access_code || '' },
+        // The hotel's buses, so a helper can put someone on one with their pickup.
+        buses: vehicles.filter((v) => v.company_id === companyId).map((v) => ({ id: v.id, name: v.name || 'Bus' })),
         people, me: helperName, claim_minutes: SIGNUP_CLAIM_MS / 60_000, at: new Date(now).toISOString(),
       });
     }
