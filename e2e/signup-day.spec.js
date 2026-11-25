@@ -188,3 +188,20 @@ test("the pickup step suggests the bus whose route passes the spot, one tap away
   if (process.env.TT_SHOT) await page.screenshot({ path: process.env.TT_SHOT });
   await context.close();
 });
+
+test("the map shows everyone's pickup spots and opens a person from their pin", async ({ browser }) => {
+  const server = hotelServer("Hotel A", "JOIN12345678");
+  server.buses = [{ id: "bus-coast", name: "Bus Coast", route: { id: "r1", name: "Coast road", path: [{ lat: 17.3, lng: -62.8 }, { lat: 17.3, lng: -62.78 }] } }];
+  Object.assign(server.people.find((p) => p.name === "Ana Joseph"), { pickup: true, pickup_name: "Coast stop", pickup_lat: 17.3005, pickup_lng: -62.79, vehicle_id: "", bus: "" });
+  Object.assign(server.people.find((p) => p.name === "Ben Charles"), { pickup: true, pickup_name: "Hill stop", pickup_lat: 17.31, pickup_lng: -62.785, vehicle_id: "bus-coast", bus: "Bus Coast" });
+  const { context, page } = await helperDevice(browser, server, { id: "helper", name: "Helper" }, { width: 390, height: 844 });
+  await page.getByRole("group", { name: "Layout" }).getByRole("button", { name: "Map" }).click();
+  await expect(page.getByRole("button", { name: "Ana Joseph: Coast stop, needs a bus" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ben Charles: Hill stop, rides Bus Coast" })).toBeVisible();
+  await expect(page.getByLabel("Map key")).toContainText("Coast road (Bus Coast)");
+  await expect(page.getByLabel("Map key")).toContainText("Needs a bus (1)");
+  if (process.env.TT_SHOT) { await page.getByLabel("Map key").scrollIntoViewIfNeeded(); await page.screenshot({ path: process.env.TT_SHOT }); }
+  await page.getByRole("button", { name: "Ana Joseph: Coast stop, needs a bus" }).click();
+  await expect(page.getByRole("dialog", { name: "Ana Joseph" })).toBeVisible();
+  await context.close();
+});
