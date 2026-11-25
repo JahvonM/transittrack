@@ -40,7 +40,7 @@ describe("sign-up day", () => {
     expect(byName(body, "Ben Charles")).toMatchObject({ registered: false, app: "", pickup: true, pickup_name: "Grand Anse", card: "issued", card_tail: "CCDD" });
     expect(byName(body, "Cal Noel").ref).toBe("contact:cal");
     // Only this hotel's buses, to put someone on one with their pickup.
-    expect(body.buses).toEqual([{ id: "bus-a", name: "Bus A" }]);
+    expect(body.buses).toEqual([{ id: "bus-a", name: "Bus A", route: null }]);
     // Card numbers stay on the server; only the last four show.
     expect(JSON.stringify(body)).not.toContain("04AABBCCDD");
   });

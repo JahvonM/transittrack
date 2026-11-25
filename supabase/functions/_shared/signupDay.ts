@@ -109,7 +109,8 @@ export async function signupDay(base44, user, body, { companyFilter, loadPeople,
       return Response.json({ ok: true, login_deleted: loginDeleted, kept_for_other_company: !loginDeleted && !!elsewhere && user.role !== 'admin' });
     }
     case 'signup_state': {
-      const [staff, rows, tokens, vehicles] = await Promise.all([staffOf(), helps(), sr.PushToken.list('-updated_date', 5000), sr.Vehicle.filter({ company_id: companyId }, 'name', 500)]);
+      const [staff, rows, tokens, vehicles, routes] = await Promise.all([staffOf(), helps(), sr.PushToken.list('-updated_date', 5000), sr.Vehicle.filter({ company_id: companyId }, 'name', 500), sr.Route.filter({ company_id: companyId }, '-created_date', 200)]);
+      const routeOf = new Map(routes.filter((r) => r.company_id === companyId).map((r) => [r.id, r]));
       // A person whose account gets alerts has the app on their phone.
       const alerts = new Set(tokens.map((t) => emailOf(t.email)).filter(Boolean));
       const people = staff.map((p) => {
@@ -131,7 +132,11 @@ export async function signupDay(base44, user, body, { companyFilter, loadPeople,
       return Response.json({
         company: { id: company.id, name: company.name || '', join_code: company.access_code || '' },
         // The hotel's buses, so a helper can put someone on one with their pickup.
-        buses: vehicles.filter((v) => v.company_id === companyId).map((v) => ({ id: v.id, name: v.name || 'Bus' })),
+        // With the road its route drives, to suggest the bus that passes a pickup spot.
+        buses: vehicles.filter((v) => v.company_id === companyId).map((v) => {
+          const r = routeOf.get(v.route_id);
+          return { id: v.id, name: v.name || 'Bus', route: r ? { id: r.id, name: r.name || 'Route', path: Array.isArray(r.path) ? r.path : [] } : null };
+        }),
         people, me: helperName, claim_minutes: SIGNUP_CLAIM_MS / 60_000, at: new Date(now).toISOString(),
       });
     }

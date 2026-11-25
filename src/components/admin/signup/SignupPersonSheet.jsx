@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import PassengerPickupDialog from "@/components/directory/PassengerPickupDialog";
 import { useCardReader, formatUid, normalizeUid } from "@/lib/cardReader";
-import { inviteText, isReady, stepsOf } from "@/lib/signupDay";
+import { busesForPickup, inviteText, isReady, stepsOf } from "@/lib/signupDay";
 import { JoinQrImage } from "./SignupDialogs";
 
 const errorText = (e, fallback) => e?.response?.data?.error || e?.message || fallback;
@@ -135,8 +135,20 @@ function BusChoice({ person, buses, onChanged }) {
     finally { setBusy(false); }
   };
   if (!buses.length) return <p className="text-body-sm text-muted-foreground">This hotel has no buses yet. Add them in Admin → Vehicles.</p>;
+  // The bus whose route drives past their pickup spot, one tap away.
+  const { passing, currentPasses } = busesForPickup(person, buses);
+  const suggestion = !person.vehicle_id || currentPasses === false ? passing[0] : null;
+  const first = firstName(person.name);
   return (
     <div className="space-y-1.5">
+      {suggestion && (
+        <div className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2" role="status">
+          <p className="text-body-sm">{suggestion.route?.name ? `${suggestion.route.name}` : "A route"} passes {first}'s pickup spot ({Math.round(suggestion.distanceM)} m away).</p>
+          <Button size="sm" onClick={() => change(suggestion.id)} disabled={busy}>Put {first} on {suggestion.name}</Button>
+        </div>
+      )}
+      {currentPasses === false && <p className="text-body-sm text-warning">{person.bus || "Their bus"} doesn't drive past {first}'s pickup spot.{passing.length ? "" : " No bus's route does yet, so check Plan pickups."}</p>}
+      {!person.vehicle_id && person.pickup && !passing.length && <p className="text-body-sm text-muted-foreground">No bus's route passes this pickup spot yet. Choose a bus below, or check Plan pickups.</p>}
       <Select value={person.vehicle_id || NO_BUS} onValueChange={change} disabled={busy}>
         <SelectTrigger aria-label={`${firstName(person.name)}'s bus`}><SelectValue placeholder="Choose their bus" /></SelectTrigger>
         <SelectContent>
