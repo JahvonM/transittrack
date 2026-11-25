@@ -22,13 +22,13 @@ export function jobForm(job = {}) {
   return Object.fromEntries(FORM_FIELDS.map((k) => [k, job[k] == null ? "" : String(job[k])]));
 }
 
-// A new job's form on a vehicle: a bus's odometer fills in, and a fault or a
-// past fix gives its words.
-export function startForm(vehicle, { fault = null, from = null } = {}) {
+// A new job's form on a vehicle: a bus's odometer fills in, and a fault, a
+// past fix or a service (its name) gives its words.
+export function startForm(vehicle, { fault = null, from = null, title = "" } = {}) {
   const odometer = vehicle?.kind === "bus" && Number(vehicle.record?.current_odometer) > 0 ? String(Math.round(vehicle.record.current_odometer)) : "";
   return {
     ...jobForm(),
-    title: fault?.title || from?.title || "",
+    title: fault?.title || from?.title || String(title || "").slice(0, JOB_TEXT_LIMITS.title),
     symptom: fault?.description || from?.symptom || "",
     fault_codes: "",
     odometer,

@@ -21,23 +21,23 @@ export const sitePage = (path) => {
 export const SITE_SERVICES = [
   {
     id: "airport_pickup", name: "Airport pickup",
-    text: "We meet you at Maurice Bishop International Airport and take you to your hotel, villa or home. Add your flight number so the driver knows when you land.",
+    text: "Enjoy a seamless arrival. We’ll meet you at Maurice Bishop International Airport and take you safely to your hotel, villa or home. Please provide your flight number to coordinate your pickup.",
   },
   {
     id: "airport_dropoff", name: "Airport drop-off",
-    text: "We collect you from where you are staying and take you to the airport in good time for your flight.",
+    text: "Enjoy a hassle-free departure with convenient pickup from your accommodation and timely transportation to the airport, ensuring you arrive in time for your flight.",
   },
   {
     id: "transfer", name: "Transfers",
-    text: "From one place to another anywhere on the island: hotels, villas, restaurants and events.",
+    text: "Convenient transportation anywhere on the island, from hotels and villas to restaurants, events and other destinations.",
   },
   {
     id: "hotel_tour", name: "Island tours",
-    text: "A bus and a driver for your group for a day out around Grenada. Tell us what you would like to see.",
+    text: "Enjoy a private ride and driver for a day exploring Grenada with your group. Simply tell us what you’d like to see, and we’ll take care of the journey!",
   },
   {
     id: "staff_run", name: "Staff transport",
-    text: "Regular runs for hotels and businesses that need their staff brought to work and taken home again.",
+    text: "Reliable staff transportation for hotels and businesses, with scheduled pickups and drop-offs to and from work.",
   },
 ];
 export const AIRPORT_NAME = "Maurice Bishop International Airport";

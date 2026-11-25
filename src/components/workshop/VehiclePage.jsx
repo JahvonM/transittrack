@@ -21,7 +21,9 @@ import PhotosSection, { Thumb } from "@/components/workshop/Pictures";
 import { CarSheet, GuideSheet } from "@/components/workshop/Models";
 import { JobsSection, TroubleshootingSection } from "@/components/workshop/JobSections";
 import { jobsFor, knownProblems, openFaultsFor, pastFixes } from "@/lib/workshopJobs";
-import { BookOpen, ClipboardList, ClipboardPaste, Copy, FileText, Hammer, Link2, MapPin, Package, Pencil, Plus, Search, Stethoscope, Wrench } from "lucide-react";
+import { reminderDaysFrom, serviceHint, servicesFor } from "@/lib/serviceDue";
+import ServiceSection from "@/components/workshop/ServiceSection";
+import { BookOpen, CalendarClock, ClipboardList, ClipboardPaste, Copy, FileText, Hammer, Link2, MapPin, Package, Pencil, Plus, Search, Stethoscope, Wrench } from "lucide-react";
 
 // A vehicle's page, laid out like a parts catalogue: the vehicle's details
 // at the top; down the side its sections (torque values, specs & service,
@@ -239,12 +241,18 @@ function CategorySection({ name, groups, base }) {
 }
 
 // A vehicle's Jobs and Troubleshooting, with or without a model page.
-function workItems({ vehicle, guide, base, jobs, jobParts, faults, facts }) {
+function workItems({ vehicle, guide, base, jobs, jobParts, faults, facts, schedules, serviceSettings, missing }) {
   const mine = jobsFor(jobs, vehicle);
   const open = mine.filter((j) => j.status !== "done").length;
   const faulty = openFaultsFor(faults, vehicle).length;
   const known = knownProblems(facts, guide?.id).length + pastFixes(jobs, jobParts, { guideId: guide?.id || "", vehicle }).length;
+  // A bus's services (by its odometer and the date); a car has none here.
+  const services = vehicle.kind === "bus" ? servicesFor(schedules, vehicle, { reminderDays: reminderDaysFrom(serviceSettings) }) : [];
   return [
+    ...(vehicle.kind === "bus" ? [{
+      key: "service", label: "Service", count: services.filter((i) => i.state !== "off").length, to: `${base}/service`, icon: CalendarClock,
+      hint: missing?.schedules ? "Couldn't load the services" : serviceHint(services),
+    }] : []),
     { key: "jobs", label: "Jobs", count: mine.length, to: `${base}/jobs`, icon: Hammer, hint: [open ? `${open} open` : "", faulty ? pluralize(faulty, "open fault") : ""].filter(Boolean).join(" · ") || "Work done and the parts used" },
     { key: "troubleshooting", label: "Troubleshooting", count: known, to: `${base}/troubleshooting`, icon: Stethoscope, hint: "Known problems and past fixes" },
   ];
@@ -270,7 +278,7 @@ function SectionLinks({ items }) {
 
 export default function VehiclePage({ section }) {
   const { category: slug } = useParams();
-  const { vehicle, guide, base, kind, specs, diagrams, groups, facts, documents, parts, jobs, jobParts, faults, isAdmin } = useVehicleRoute();
+  const { vehicle, guide, base, kind, specs, diagrams, groups, facts, documents, parts, jobs, jobParts, faults, schedules, serviceSettings, missing, isAdmin } = useVehicleRoute();
   const [pasting, setPasting] = useState(false);
   const [makingPage, setMakingPage] = useState(false);
   const mine = useMemo(() => (guide ? groups.filter((g) => g.guide_id === guide.id) : []), [groups, guide]);
@@ -281,14 +289,16 @@ export default function VehiclePage({ section }) {
   const warnings = kind === "bus" ? busRecordWarnings(vehicle.record) : [];
 
   // Jobs and past fixes belong to the vehicle, so they work without a model page.
-  const work = workItems({ vehicle, guide, base, jobs, jobParts, faults, facts });
+  const work = workItems({ vehicle, guide, base, jobs, jobParts, faults, facts, schedules, serviceSettings, missing });
+  // Service is for buses: a car's address for it leads to the car.
+  if (section === "service" && kind !== "bus") return <Navigate to={base} replace />;
   if (!guide) {
     const job = work.find((i) => i.key === section);
     if (job) {
       return (
         <>
           <ScreenBar crumbs={[{ to: "/workshop", label: "Workshop" }, { to: base, label: vehicle.name }, { label: job.label }]} title={vehicle.name} subtitle={vehicle.model} />
-          {section === "jobs" ? <JobsSection vehicle={vehicle} /> : <TroubleshootingSection vehicle={vehicle} guide={null} base={base} />}
+          {section === "jobs" ? <JobsSection vehicle={vehicle} /> : section === "service" ? <ServiceSection vehicle={vehicle} guide={null} /> : <TroubleshootingSection vehicle={vehicle} guide={null} base={base} />}
         </>
       );
     }
@@ -371,6 +381,7 @@ export default function VehiclePage({ section }) {
           {section === "category" && <CategorySection name={current.name} groups={categories.get(current.name)} base={base} />}
           {section === "jobs" && <JobsSection vehicle={vehicle} />}
           {section === "troubleshooting" && <TroubleshootingSection vehicle={vehicle} guide={guide} base={base} />}
+          {section === "service" && <ServiceSection vehicle={vehicle} guide={guide} />}
         </div>
       </div>
       {pasting && <PasteDiagrams vehicle={vehicle} guide={guide} existing={mine} modelCode={modelCode} onClose={() => setPasting(false)} />}

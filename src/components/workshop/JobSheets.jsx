@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusChip } from "@/components/admin/kit";
 import { StockChip } from "@/components/admin/partsCatalogueKit";
-import { visibleParts } from "@/lib/workshop";
+import { findVehicle, visibleParts } from "@/lib/workshop";
+import { STATE_LABEL, odometerOf, odometerValue, reminderDaysFrom, servicesFor, ticksForJob, todayIso } from "@/lib/serviceDue";
+import { markServiceDone, raiseOdometer } from "@/components/workshop/serviceSaves";
 import {
   JOB_TEXT_LIMITS, PART_TEXT_LIMITS, faultOpen, fromShelf, isOpen, jobData, jobForm, jobProblem, jobWhen, newJobRecord,
   partLineProblem, partsOnJob, qtyText, shelfChange, shelfProblem, startForm, stepProgress, stockAfter,
@@ -87,14 +89,15 @@ function JobFields({ form, set, withFix = false, withNotes = false }) {
 }
 
 // Start a job: on the vehicle given, or one chosen here. A fault gives its
-// words (and moves to in progress); a past fix gives its words and steps.
-export function NewJobSheet({ onClose, vehicle = null, fault = null, from = null }) {
+// words (and moves to in progress); a past fix gives its words and steps; a
+// service (from a bus's Service section) gives its name.
+export function NewJobSheet({ onClose, vehicle = null, fault = null, from = null, title = "" }) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { vehicles, put } = useWorkshop();
   const [pick, setPick] = useState("");
   const chosen = vehicle || vehicles.find((v) => `${v.kind}:${v.id}` === pick) || null;
-  const [form, setForm] = useState(() => startForm(vehicle, { fault, from }));
+  const [form, setForm] = useState(() => startForm(vehicle, { fault, from, title }));
   const [saving, setSaving] = useState(false);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   const problem = chosen ? jobProblem(form) : "Choose the vehicle.";
@@ -194,35 +197,63 @@ export function JobEditSheet({ job, onClose }) {
   );
 }
 
-// Mark a job done: what fixed it (for Troubleshooting) and the odometer, and
-// the fault it fixes marked resolved too.
+// Mark a job done: what fixed it (for Troubleshooting) and the odometer, the
+// fault it fixes marked resolved too, and on a bus the services it covered
+// ticked off (one started from a service comes with it ticked). A higher
+// odometer reading moves the bus's up.
 export function DoneSheet({ job, onClose }) {
   const { toast } = useToast();
-  const { faults, put } = useWorkshop();
+  const { faults, vehicles, schedules, serviceSettings, missing, put } = useWorkshop();
   const fault = job.fault_id ? faults.find((f) => f.id === job.fault_id) || null : null;
+  const vehicle = job.vehicle_kind === "bus" ? findVehicle(vehicles, "bus", job.vehicle_id) : null;
+  const reminderDays = reminderDaysFrom(serviceSettings);
+  const services = useMemo(() => (vehicle && !missing.schedules ? servicesFor(schedules, vehicle, { reminderDays }) : []), [vehicle, schedules, missing.schedules, reminderDays]);
   const [form, setForm] = useState(() => ({ fix: job.fix || "", odometer: job.odometer != null ? String(job.odometer) : "" }));
   const [resolve, setResolve] = useState(faultOpen(fault));
+  const [ticked, setTicked] = useState(() => new Set(ticksForJob(job, services)));
   const [saving, setSaving] = useState(false);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const tick = (id) => (e) => setTicked((t) => { const next = new Set(t); if (e.target.checked) next.add(id); else next.delete(id); return next; });
   const problem = jobProblem(form);
 
   const save = async () => {
     setSaving(true);
     try {
       put("jobs", await base44.entities.WorkshopJob.update(job.id, { ...jobData(form, job), status: "done" }));
-      if (resolve && fault) {
-        try {
-          const saved = await base44.entities.Fault.update(fault.id, { status: "resolved", resolved_date: today() });
-          put("faults", saved?.id ? saved : { ...fault, status: "resolved" });
-        } catch {
-          toast({ title: "The job is done", description: "Couldn't mark the fault resolved. Change it in Faults." });
-        }
-      }
-      onClose();
     } catch (e) {
       toast({ title: "Couldn't mark the job done", description: e?.message, variant: "destructive" });
       setSaving(false);
+      return;
     }
+    // The job is done; what follows is told apart if it fails.
+    if (resolve && fault) {
+      try {
+        const saved = await base44.entities.Fault.update(fault.id, { status: "resolved", resolved_date: today() });
+        put("faults", saved?.id ? saved : { ...fault, status: "resolved" });
+      } catch {
+        toast({ title: "The job is done", description: "Couldn't mark the fault resolved. Change it in Faults." });
+      }
+    }
+    if (vehicle) {
+      const reading = odometerValue(form.odometer);
+      const odometer = Math.max(reading, odometerOf(vehicle));
+      let failed = 0;
+      for (const item of services.filter((i) => ticked.has(i.schedule.id))) {
+        try {
+          put("schedules", await markServiceDone(item.schedule, { date: todayIso(), odometer: odometer ? String(odometer) : "" }, { odometer, reminderDays }));
+        } catch {
+          failed += 1;
+        }
+      }
+      if (failed) toast({ title: "The job is done", description: `Couldn't mark ${pluralize(failed, "service")} done. Mark ${failed === 1 ? "it" : "them"} in the bus's Service section.` });
+      try {
+        const bus = await raiseOdometer(vehicle, reading);
+        if (bus) put("buses", bus);
+      } catch {
+        // The job keeps its reading; the bus's updates with its next one.
+      }
+    }
+    onClose();
   };
 
   return (
@@ -238,6 +269,21 @@ export function DoneSheet({ job, onClose }) {
           <input type="checkbox" className="h-5 w-5" checked={resolve} onChange={(e) => setResolve(e.target.checked)} />
           <span>Mark the fault “{fault.title}” resolved</span>
         </label>
+      )}
+      {services.length > 0 && (
+        <fieldset className="space-y-2">
+          <legend className="mb-1 text-body-sm font-semibold">Services done on this job</legend>
+          {services.map((item) => (
+            <label key={item.schedule.id} className="flex min-h-[3rem] items-center gap-3 rounded-xl border border-border bg-card px-3 py-2 text-body">
+              <input type="checkbox" className="h-5 w-5" checked={ticked.has(item.schedule.id)} onChange={tick(item.schedule.id)} />
+              <span className="min-w-0 flex-1">
+                <span className="block">{item.schedule.service_type}</span>
+                <span className="block text-caption text-muted-foreground">{STATE_LABEL[item.state]} · {item.text}</span>
+              </span>
+            </label>
+          ))}
+          <p className="text-caption text-muted-foreground">Each one ticked is recorded as done today at this odometer.</p>
+        </fieldset>
       )}
     </EditSheet>
   );
