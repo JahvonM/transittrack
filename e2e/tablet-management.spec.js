@@ -1,29 +1,30 @@
 import { test, expect } from "@playwright/test";
 
-async function setup(page, { managed = true, release = null, supportEnabled = false, kiosk = null } = {}) {
+async function setup(page, { managed = true, release = null, supportEnabled = false, kiosk = null, others = [] } = {}) {
   const controls = [], writes = [], support = [];
   const device = { id: "tablet-managed", label: "Driver tablet test", company_id: "a", kiosk_type: "driver", vehicle_id: "bus-a",
     vehicle_name: "Bus A", status: "active", paired: true, last_seen: new Date().toISOString(),
     helper_health: { reported_at: new Date().toISOString(), support_available: supportEnabled, support_transport: "webrtc", management_available: true, management_owner: managed, management_locked: false, native_app_package: "com.transittrack.app", native_app_version: "1.0", native_app_code: 1, native_update_available: true, cellular_state: "ready", cellular_carrier: "FLOW", cellular_bars: 2, recovery_available: true, recovery_state: "recovered", internet_validated: true, ...(kiosk || {}) } };
-  await page.addInitScript(() => localStorage.setItem("base44_access_token", "isolated-test-session"));
+  await page.addInitScript(() => localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:"isolated-test-session",refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})));
   await page.route("https://api.mapbox.com/**", r => r.fulfill({ status: 404, body: "" }));
   await page.route("**/api/**", r => {
     const url = r.request().url(), b = r.request().postDataJSON() || {};
-    if (url.includes("/functions/tabletSupport")) {
+    if (url.includes("/functions/v1/tabletSupport")) {
       support.push(b);
       if(b.operation==="config")return r.fulfill({json:{enabled:supportEnabled}});
       return r.fulfill({json:{session:{id:"support-session",state:b.operation==="end"?"ended":"waiting_permission",expires_at:new Date(Date.now()+600000).toISOString()}}});
     }
-    if (url.includes("/functions/tabletControl")) {
+    if (url.includes("/functions/v1/tabletControl")) {
       if (b.operation === "release") return r.fulfill({ json: { release } });
       controls.push(b); device.control_status = { id: "a".repeat(32), action: b.action, state: "waiting", requested_at: new Date().toISOString(), expires_at: new Date(Date.now()+120000).toISOString() };
       return r.fulfill({ json: { ok: true, status: device.control_status } });
     }
-    if (url.includes("/functions/entityAccess")) {
+    if (url.includes("/functions/v1/entityAccess")) {
       if (["create", "update", "delete"].includes(b.operation)) writes.push(b);
+      if (b.operation === "update" && b.entity === "KioskDevice" && b.id === device.id) Object.assign(device, b.data);
       if (b.entity === "User") return r.fulfill({ json: { result: { id: "admin", role: "admin", full_name: "Test Admin" } } });
-      if (b.entity === "AdminBootstrap") return r.fulfill({ json: { result: { datasets: Object.fromEntries((b.datasets || []).map(key => [key, key === "kiosks" ? [device] : []])), errors: {} } } });
-      if (b.entity === "KioskDevice") return r.fulfill({ json: { result: [device] } });
+      if (b.entity === "AdminBootstrap") return r.fulfill({ json: { result: { datasets: Object.fromEntries((b.datasets || []).map(key => [key, key === "kiosks" ? [device, ...others] : []])), errors: {} } } });
+      if (b.entity === "KioskDevice") return r.fulfill({ json: { result: [device, ...others] } });
       return r.fulfill({ json: { result: [] } });
     }
     return r.fulfill({ json: { id: "test-app", public_settings: { authentication_required: false } } });
@@ -81,7 +82,7 @@ test("native update has its own deliberate admin request, with no client APK URL
 
 test("remote viewing stays unavailable without service configuration", async ({ page }) => {
  await setup(page);
- await page.route("**/functions/tabletSupport", r=>r.fulfill({json:{enabled:false}}));
+ await page.route("**/functions/v1/tabletSupport", r=>r.fulfill({json:{enabled:false}}));
  await page.goto("/admin/kiosks");
  await page.getByRole("button",{name:"Tablet controls",exact:true}).click();
  await expect(page.getByText("Direct remote viewing is not enabled yet.")).toBeVisible();
@@ -151,3 +152,70 @@ test("older installations cannot issue permanent kiosk commands", async ({ page 
   await expect(page.getByRole("button", { name: "Enable permanent kiosk", exact: true })).toBeDisabled();
   expect(controls).toHaveLength(0);
 });
+
+test("each paired tablet says how its pass stands, and the top line counts the ones to fix", async ({ page }) => {
+  const day = (n) => new Date(Date.now() + n * 86400000).toISOString();
+  const tablet = (id, label, pass) => ({ id, label, company_id: "a", kiosk_type: "bus_boarding", vehicle_id: "bus-a", vehicle_name: "Bus A", status: "active", paired: true, last_seen: new Date().toISOString(), pass });
+  await setup(page, { others: [
+    tablet("moved", "Moved tablet", { state: "moved", expires_at: day(40) }),
+    tablet("soon", "Ending tablet", { state: "expiring", expires_at: day(12) }),
+    tablet("fine", "Fine tablet", { state: "ok", expires_at: day(80) }),
+  ] });
+  await page.goto("/admin/kiosks");
+  await expect(page.getByRole("status").filter({ hasText: "1 tablet needs a new pairing code now · 1 tablet's pass ends within 30 days" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Needs a new pairing code" })).toContainText("Its bus, company or type changed after it was paired");
+  await expect(page.getByText(/^Pass ends /)).toBeVisible();
+  await expect(page.getByText("In 12 days.", { exact: false })).toBeVisible();
+  await expect(page.getByText(/^Pass until /)).toBeVisible();
+});
+
+test("an admin renews a pass in its last 30 days after confirming, and only that tablet offers it", async ({ page }) => {
+  const day = (n) => new Date(Date.now() + n * 86400000).toISOString();
+  const tablet = (id, label, pass) => ({ id, label, company_id: "a", kiosk_type: "bus_boarding", vehicle_id: "bus-a", vehicle_name: "Bus A", status: "active", paired: true, last_seen: new Date().toISOString(), pass });
+  const ending = tablet("soon", "Ending tablet", { state: "expiring", expires_at: day(12) });
+  await setup(page, { others: [
+    tablet("moved", "Moved tablet", { state: "moved", expires_at: day(40) }),
+    ending,
+    tablet("gone", "Ended tablet", { state: "expired", expires_at: day(-2) }),
+    tablet("fine", "Fine tablet", { state: "ok", expires_at: day(80) }),
+  ] });
+  const renewals = [];
+  await page.route("**/functions/v1/manageAccessCodes", (r) => {
+    renewals.push(r.request().postDataJSON());
+    ending.pass = { state: "ok", expires_at: day(90) };
+    return r.fulfill({ json: { ok: true, expires_at: day(90) } });
+  });
+  await page.goto("/admin/kiosks");
+  await expect(page.getByRole("button", { name: /^Renew pass for / })).toHaveCount(1);
+  // Backing out changes nothing.
+  await page.getByRole("button", { name: "Renew pass for Ending tablet" }).click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText("Renew Ending tablet's pass?");
+  await expect(confirm).toContainText("90 more days");
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(confirm).toBeHidden();
+  expect(renewals).toEqual([]);
+  // Confirming renews only that tablet.
+  await page.getByRole("button", { name: "Renew pass for Ending tablet" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Renew pass" }).click();
+  await expect.poll(() => renewals).toEqual([{ action: "renew_pass", device_id: "soon" }]);
+  await expect(page.getByText("Pass renewed", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Renew pass for / })).toHaveCount(0);
+});
+
+test("admin switches a driver tablet between the GPS module and the tablet's own GPS", async ({ page }) => {
+  const { writes, controls } = await setup(page, { kiosk: { gps_source: "usb", gps: "Fix (8 sats)" } });
+  await page.goto("/admin/kiosks");
+  const gps = page.getByRole("radiogroup", { name: "GPS for Driver tablet test" });
+  await expect(gps.getByRole("radio", { name: "Set on the tablet" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByText("Using the GPS module · Fix (8 sats)", { exact: true })).toBeVisible();
+  await gps.getByRole("radio", { name: "Tablet's own GPS" }).click();
+  await expect.poll(() => writes.find(w => w.entity === "KioskDevice" && w.operation === "update")).toMatchObject({ id: "tablet-managed", data: { gps_source: "tablet" } });
+  await expect(gps.getByRole("radio", { name: "Tablet's own GPS" })).toHaveAttribute("aria-checked", "true");
+  // The tablet still says it uses the module until its next check-in.
+  await expect(page.getByText(/Using the GPS module · Fix \(8 sats\)\. Switching/)).toBeVisible();
+  await gps.getByRole("radio", { name: "Set on the tablet" }).click();
+  await expect.poll(() => writes.filter(w => w.entity === "KioskDevice").at(-1)?.data).toEqual({ gps_source: null });
+  expect(controls).toEqual([]);
+});
+

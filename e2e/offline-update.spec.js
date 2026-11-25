@@ -54,3 +54,15 @@ test('a complete update becomes the offline copy and opens with no connection', 
   await page.reload();
   await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
 });
+
+test('every file the app asks devices to save really exists', async ({ request }) => {
+  // A listed file that isn't in the build stops every device from saving a
+  // new version (and some hosts answer it with the app's page, not "not found").
+  const manifest = await (await request.get('/offline-manifest.json')).json();
+  expect(manifest.files.length).toBeGreaterThan(20);
+  for (const file of manifest.files) {
+    const res = await request.get('/' + file);
+    expect(res.status(), file).toBe(200);
+    expect(res.headers()['content-type'] || '', file).not.toContain('text/html');
+  }
+});

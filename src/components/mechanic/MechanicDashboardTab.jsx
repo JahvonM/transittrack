@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Bus, AlertTriangle, Wrench, Package, ClipboardCheck, CalendarClock } from "lucide-react";
 import FaultsTab from "@/components/admin/FaultsTab";
-import PartsTab from "@/components/admin/PartsTab";
 import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import MaintenanceCalendarTab from "@/components/admin/MaintenanceCalendarTab";
 import InspectionHistoryTab from "@/components/admin/InspectionHistoryTab";
@@ -12,6 +12,10 @@ import BusLoader from "@/components/BusLoader";
 import { Kpi, KpiRow, NestedPage } from "@/components/admin/kit";
 
 const TAB = "h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm";
+const TABS = ["faults", "schedule", "calendar", "history"];
+// Parts and the Bus library live in the Workshop now; an old link to their
+// tabs (?tab=parts) opens the Workshop instead.
+const MOVED = { parts: "/workshop/parts", library: "/workshop" };
 
 // Everything ported from FleetPilot that the mechanic team actually needs to
 // see and act on, in one place — reuses the same admin tab components
@@ -19,8 +23,10 @@ const TAB = "h-9 rounded-lg px-3 text-body-sm font-semibold data-[state=active]:
 // MaintenanceSchedule) rather than duplicating their logic. Vehicle
 // creation/editing stays admin-only (dispatch concern, not maintenance).
 export default function MechanicDashboardTab() {
+  const [params] = useSearchParams();
+  const moved = MOVED[params.get("tab")] || "";
+  const startTab = TABS.includes(params.get("tab")) ? params.get("tab") : "faults";
   const [vehicles, setVehicles] = useState([]);
-  const [companies, setCompanies] = useState([]);
   const [faults, setFaults] = useState([]);
   const [parts, setParts] = useState([]);
   const [schedules, setSchedules] = useState([]);
@@ -29,16 +35,14 @@ export default function MechanicDashboardTab() {
 
   const load = async () => {
     try {
-      const [v, c, f, p, s, ir] = await Promise.all([
+      const [v, f, p, s, ir] = await Promise.all([
         base44.entities.Vehicle.list(),
-        base44.entities.Company.list(),
         base44.entities.Fault.list("-created_date", 1000),
         base44.entities.Part.list(),
         base44.entities.MaintenanceSchedule.list(),
         base44.entities.InspectionResult.list("-inspection_date", 500),
       ]);
       setVehicles(v);
-      setCompanies(c);
       setFaults(f);
       setParts(p);
       setSchedules(s);
@@ -51,9 +55,10 @@ export default function MechanicDashboardTab() {
   };
 
   useEffect(() => {
-    load();
-  }, []);
+    if (!moved) load();
+  }, [moved]);
 
+  if (moved) return <Navigate to={moved} replace />;
   if (loading) {
     return <BusLoader className="py-8" />;
   }
@@ -70,12 +75,11 @@ export default function MechanicDashboardTab() {
         <Kpi icon={Package} label="Parts" value={parts.length} />
       </KpiRow>
       <NestedPage>
-      <Tabs defaultValue="faults">
+      <Tabs defaultValue={startTab}>
         <TabsList className="h-auto max-w-full flex-wrap justify-start gap-1 rounded-xl bg-secondary p-1">
           <TabsTrigger value="faults" className={TAB}><AlertTriangle className="w-4 h-4 mr-1.5" />Faults</TabsTrigger>
           <TabsTrigger value="schedule" className={TAB}><Wrench className="w-4 h-4 mr-1.5" />Schedule</TabsTrigger>
           <TabsTrigger value="calendar" className={TAB}><CalendarClock className="w-4 h-4 mr-1.5" />Calendar</TabsTrigger>
-          <TabsTrigger value="parts" className={TAB}><Package className="w-4 h-4 mr-1.5" />Parts</TabsTrigger>
           <TabsTrigger value="history" className={TAB}><ClipboardCheck className="w-4 h-4 mr-1.5" />Inspections</TabsTrigger>
         </TabsList>
         <TabsContent value="faults" className="mt-4">
@@ -86,9 +90,6 @@ export default function MechanicDashboardTab() {
         </TabsContent>
         <TabsContent value="calendar" className="mt-4">
           <MaintenanceCalendarTab schedules={schedules} vehicles={vehicles} />
-        </TabsContent>
-        <TabsContent value="parts" className="mt-4">
-          <PartsTab parts={parts} companies={companies} onChange={load} />
         </TabsContent>
         <TabsContent value="history" className="mt-4">
           <InspectionHistoryTab results={inspectionResults} vehicles={vehicles} />

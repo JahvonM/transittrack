@@ -1,0 +1,109 @@
+{
+  "name": "GuideFact",
+  "type": "object",
+  "description": "Bus library: one fact on a model's page (an oil capacity, a service interval, a known problem), with where it came from and whether a mechanic has checked it.",
+  "required": [
+    "guide_id",
+    "section",
+    "label"
+  ],
+  "properties": {
+    "guide_id": {
+      "type": "string",
+      "description": "The VehicleGuide this fact is on."
+    },
+    "section": {
+      "type": "string",
+      "enum": [
+        "specs",
+        "fluids",
+        "service",
+        "tyres",
+        "electrical",
+        "filters",
+        "torque",
+        "problems",
+        "recalls",
+        "notes"
+      ],
+      "description": "Where it shows: specs, fluids (oils and capacities), service (schedule), tyres, electrical, filters (filters, belts and part numbers), torque, problems (known problems and fixes), recalls, notes."
+    },
+    "label": {
+      "type": "string",
+      "description": "What it is, e.g. Engine oil with filter."
+    },
+    "value": {
+      "type": "string",
+      "description": "The answer, e.g. 7.0 litres."
+    },
+    "detail": {
+      "type": "string",
+      "description": "More: how to fix a known problem, what a service item involves."
+    },
+    "applies_to": {
+      "type": "string",
+      "description": "When it only applies to some buses, e.g. 2KD-FTV diesel only."
+    },
+    "interval_km": {
+      "type": "number",
+      "description": "Service items: every so many km."
+    },
+    "interval_months": {
+      "type": "number",
+      "description": "Service items: every so many months."
+    },
+    "source_name": {
+      "type": "string",
+      "description": "Where it came from, e.g. Toyota owner's manual or an owners' forum."
+    },
+    "source_link": {
+      "type": "string",
+      "description": "Web address of the source (https)."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "unchecked",
+        "checked",
+        "wrong"
+      ],
+      "default": "unchecked",
+      "description": "unchecked until a mechanic confirms it on a bus or in a manual; wrong keeps it visible as a warning."
+    },
+    "checked_by": {
+      "type": "string",
+      "description": "Who marked it checked or wrong (set by the server)."
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it was marked checked or wrong (set by the server)."
+    },
+    "sort_order": {
+      "type": "number",
+      "description": "Order within its section."
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

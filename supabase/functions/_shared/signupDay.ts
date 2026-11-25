@@ -1,3 +1,4 @@
+import { changePassengerCompany } from './passengerCompany.ts';
 // Sign-up day (Admin → Sign-up day): a team at a hotel helps its staff get
 // the app, sign in, set their pickup spot and get an NFC card. Every helper's
 // phone, tablet or laptop shows the same list; this keeps who is helping whom
@@ -80,6 +81,15 @@ export async function signupDay(base44, user, body, { companyFilter, loadPeople,
   const noJoinCode = () => Response.json({ error: 'This hotel has no join code yet. Make one in Admin → Companies first.', code: 'no_join_code' }, { status: 409 });
 
   switch (body.action) {
+    case 'signup_remove': {
+      const person = await personFor(body.person_ref);
+      if (!person) return Response.json({ error: 'Passenger not found in this company' }, { status: 404 });
+      await changePassengerCompany(sr, person, null, true);
+      await audit(base44, user, { action: 'delete', entity: 'Contact', record_id: person.id, summary: `Removed ${person.name} from ${company.name}'s sign-up list` });
+      const tablets = await sr.KioskDevice.filter({ company_id: companyId, kiosk_type: 'bus_boarding' });
+      for (const tablet of tablets) if (tablet.company_id === companyId) await sr.KioskDevice.update(tablet.id, { directory_sent_at: new Date(now).toISOString() });
+      return Response.json({ ok: true });
+    }
     case 'signup_state': {
       const [staff, rows, tokens] = await Promise.all([staffOf(), helps(), sr.PushToken.list('-updated_date', 5000)]);
       // A person whose account gets alerts has the app on their phone.

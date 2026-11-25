@@ -41,7 +41,7 @@ export default function VehicleLogs() {
                   <div>
                     <div className="font-medium">{v.name} · {v.plate_number}</div>
                     <div className="text-muted-foreground text-xs">
-                      {v.last_location_update ? new Date(v.last_location_update).toLocaleString() : "no update yet"}
+                      {v.last_location_update ? new Date(v.last_location_update).toLocaleString() : "No update yet"}
                       {v.current_lat != null && ` · ${v.current_lat.toFixed(4)}, ${v.current_lng.toFixed(4)}`}
                     </div>
                   </div>

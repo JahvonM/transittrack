@@ -1,6 +1,9 @@
 import { saveDeviceToken } from "@/lib/deviceAuth";
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { isDriverStoreInstall, rememberTabletMode } from "@/lib/kioskApp";
+import { CHOOSE_SCREEN_PATH, pairingPath, screenForCode } from "@/lib/tabletPairing";
 import { Bus, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,10 +36,23 @@ export default function DriverPairing({ onPaired }) {
       saveDeviceToken(res.data.device_id, res.data.device_token);
       onPaired(res.data.device_id);
     } catch (err) {
-      setError(err?.response?.data?.error || "Invalid or expired pairing code.");
+      if (screenForCode(err) === "kiosk") {
+        // A bus kiosk's code on a tablet: it is becoming a kiosk. Open the
+        // kiosk screen, which pairs with the same code. A driver's own phone
+        // (the store app) has no kiosk screen.
+        if (!isDriverStoreInstall()) {
+          rememberTabletMode("kiosk");
+          window.location.replace(pairingPath("kiosk", value));
+          return;
+        }
+        setError("This code is for a bus kiosk tablet, not a driver's phone.");
+      } else {
+        setError(err?.response?.data?.error || "Invalid or expired pairing code.");
+      }
       setChecking(false);
     }
   };
+  const tablet = !isDriverStoreInstall();
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-background safe-area-top safe-area-x">
@@ -58,6 +74,7 @@ export default function DriverPairing({ onPaired }) {
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </form>
+            {tablet && <Button asChild variant="ghost" className="mt-2 w-full"><Link to={CHOOSE_SCREEN_PATH}>Choose tablet screen</Link></Button>}
           </CardContent>
         </Card>
       </div>

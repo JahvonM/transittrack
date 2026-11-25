@@ -14,11 +14,11 @@ const ME={driver:{name:'Dana Driver',email:'dana.driver@gmail.com',phone:''},com
 
 async function phone(page,{today=TODAY,requests=[]}={}) {
  const calls=[];const state={requests:[...requests]};
- await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
+ await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
-  if(url.includes('/functions/driverPhone')) {
+  if(url.includes('/functions/v1/driverPhone')) {
    const body=route.request().postDataJSON();calls.push(body);
    if(body.action==='requests') return route.fulfill({json:{requests:state.requests,colleagues:[{id:'d2',name:'Sam Other'}]}});
    if(body.action==='request') {
@@ -30,12 +30,12 @@ async function phone(page,{today=TODAY,requests=[]}={}) {
    const reply={me:ME,today,messages:{messages:[]},documents:{documents:[]},hours:{shifts:[]},register_push:{ok:true}}[body.action];
    return route.fulfill({json:reply||{error:'Unknown action'}});
   }
-  if(url.includes('/functions/entityAccess')) {
+  if(url.includes('/functions/v1/entityAccess')) {
    const body=route.request().postDataJSON();
    if(body.entity==='User' && body.operation==='get') return route.fulfill({json:{result:{id:'u1',email:'dana.driver@gmail.com',full_name:'Dana Driver',role:'user'}}});
    return route.fulfill({json:{result:[]}});
   }
-  if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'u1',email:'dana.driver@gmail.com',role:'user'}});
+  if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:{id:'u1',email:'dana.driver@gmail.com',role:'user'}}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  }));
  return calls;
@@ -104,16 +104,16 @@ test.describe('admin',()=>{
  test.use({viewport:{width:1280,height:900}});
  async function admin(page,{vehicles=[],requests=[]}={}) {
   const updates=[],decisions=[];
-  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); localStorage.setItem('tt-map-engine','basic'); });
+  await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); localStorage.setItem('tt-map-engine','basic'); });
   await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
   await page.route('**/api/**',withAdminBatch(async route=>{
    const url=route.request().url();
-   if(url.includes('/functions/driverRequests')) {
+   if(url.includes('/functions/v1/driverRequests')) {
     const body=route.request().postDataJSON();
     if(body.action==='decide'){ decisions.push(body); requests=requests.map(r=>r.id===body.request_id?{...r,status:body.decision,decision_note:body.note}:r); }
     return route.fulfill({json:{requests}});
    }
-   if(url.includes('/functions/entityAccess')) {
+   if(url.includes('/functions/v1/entityAccess')) {
     const body=route.request().postDataJSON();let result=[];
     if(body.entity==='User' && body.operation==='get') result={id:'admin',email:'admin@test.local',full_name:'Admin',role:'admin'};
     else if(body.entity==='Vehicle' && body.operation==='update'){updates.push(body.data);const v=vehicles.find(x=>x.id===body.id);Object.assign(v,body.data);result=v;}
@@ -122,7 +122,7 @@ test.describe('admin',()=>{
     else if(body.entity==='Company') result=[{id:'a',name:'Coyaba Transport'}];
     return route.fulfill({json:{result}});
    }
-   if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local'}});
+   if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:{id:'admin',role:'admin',email:'admin@test.local'}}});
    return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
   }));
   return {updates,decisions};

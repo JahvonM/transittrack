@@ -8,8 +8,8 @@ async function site(page, { whatsapp = '14735550100' } = {}) {
   const requests = [];
   await page.route('**/api/**', (r) => {
     const url = r.request().url();
-    if (url.includes('/functions/appSupport')) return r.fulfill({ json: { whatsapp_number: whatsapp } });
-    if (url.includes('/functions/bookingRequest')) { requests.push(r.request().postDataJSON()); return r.fulfill({ json: { ok: true, id: 'req1' } }); }
+    if (url.includes('/functions/v1/appSupport')) return r.fulfill({ json: { whatsapp_number: whatsapp } });
+    if (url.includes('/functions/v1/bookingRequest')) { requests.push(r.request().postDataJSON()); return r.fulfill({ json: { ok: true, id: 'req1' } }); }
     return r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });
   return requests;
@@ -19,7 +19,7 @@ test('the home page leads to a ride request for the ride chosen', async ({ page 
   await site(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/site');
-  await expect(page.getByRole('heading', { level: 1, name: /Airport pickups, transfers and island tours in Grenada/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Airport to anywhere' })).toBeVisible();
   // Five rides on the board, each with its own request link.
   await expect(page.locator('.mcs-board-row')).toHaveCount(5);
   await expect(page.getByRole('link', { name: 'Message us on WhatsApp' })).toHaveAttribute('href', /wa\.me\/14735550100/);
@@ -28,12 +28,55 @@ test('the home page leads to a ride request for the ride chosen', async ({ page 
   await expect(page.getByRole('radio', { name: /Island tours/ })).toBeChecked();
 });
 
-test('the moving sign can be stopped', async ({ page }) => {
+test('scrolling moves the opening through its shots, and its numbers jump to each one', async ({ page }) => {
   await site(page);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/site');
-  await page.getByRole('button', { name: 'Stop the sign' }).click();
-  await expect(page.getByRole('button', { name: 'Start the sign' })).toBeVisible();
+  const story = page.locator('.mcs-story');
+  await expect(story).toHaveAttribute('data-scene', '0');
+  await expect(page.getByRole('heading', { level: 1, name: 'Airport to anywhere' })).toBeInViewport();
+  // The header is see-through over the opening.
+  await expect(page.locator('.mcs')).toHaveAttribute('data-over-hero', '');
+  // Halfway down: the second shot.
+  await page.evaluate(() => { const s = document.querySelector('.mcs-story'); window.scrollTo(0, s.offsetTop + (s.offsetHeight - innerHeight) * 0.5); });
+  await expect(story).toHaveAttribute('data-scene', '1');
+  await expect(page.getByRole('heading', { name: 'Anywhere on the island' })).toBeInViewport();
+  // The card belongs to the last shot; its link can't be reached before then.
+  expect(await page.evaluate(() => document.querySelector('.mcs-open-card[data-i="2"]').inert)).toBe(true);
+  // The numbers on the side go straight to a shot.
+  await page.getByRole('navigation', { name: 'Story' }).getByRole('button', { name: 'Go to Track' }).click();
+  await expect(story).toHaveAttribute('data-scene', '2');
+  await expect(page.getByRole('heading', { name: 'Watch your ride arrive' })).toBeInViewport();
+  await expect(page.getByRole('link', { name: 'Open ride tracking' })).toBeVisible();
+  // Words and links of shots that are off screen can't be reached with Tab.
+  expect(await page.evaluate(() => document.querySelector('.mcs-open-copy[data-i="0"]').inert)).toBe(true);
+  // Past the opening the header is solid again.
+  await page.evaluate(() => { const s = document.querySelector('.mcs-story'); window.scrollTo(0, s.offsetTop + s.offsetHeight + 200); });
+  await expect(page.locator('.mcs')).not.toHaveAttribute('data-over-hero', '');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+});
+
+test('on a phone the opening fits, with both buttons in reach', async ({ page }) => {
+  await site(page);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 700 });
+    await page.goto('/site');
+    await expect(page.getByRole('heading', { level: 1, name: 'Airport to anywhere' })).toBeInViewport();
+    await expect(page.locator('.mcs-open-actions').getByRole('link', { name: 'Request a ride' })).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('.mcs-open-actions').getByRole('link', { name: /Track a ride/ })).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+  }
+});
+
+test('with less motion asked for, the opening stays still', async ({ page }) => {
+  await site(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/site');
+  await expect(page.getByRole('heading', { level: 1, name: 'Airport to anywhere' })).toBeVisible();
+  await expect(page.locator('.mcs-story')).toHaveCount(0);
+  await expect(page.locator('.mcs-board-row').first()).toHaveClass(/mcs-in/);
 });
 
 test('a ride request fills in the ticket beside the form and sends what was typed', async ({ page }) => {
@@ -72,17 +115,81 @@ test('a ride request fills in the ticket beside the form and sends what was type
   expect(requests[0]).toMatchObject({ action: 'request', service: 'transfer', pickup: 'Spice Island Beach Resort', dropoff: "St. George's market", guests: 4, name: 'Ana Joseph', email: 'ana@example.com' });
 });
 
-for (const width of [320, 390]) {
+test('what was typed in a ride request comes back after visiting another page, until it is sent', async ({ page }) => {
+  const requests = await site(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/site/book');
+  await page.getByRole('radio', { name: /Transfers/ }).check();
+  await page.getByLabel('Pick up from').fill('Spice Island Beach Resort');
+  await page.getByLabel('Your name').fill('Ana Joseph');
+  await page.getByLabel('Email').fill('ana@example.com');
+  // Off to the terms and back.
+  await page.getByRole('link', { name: 'terms', exact: true }).click();
+  await expect(page).toHaveURL(/\/site\/terms/);
+  await page.goBack();
+  await expect(page.getByLabel('Your name')).toHaveValue('Ana Joseph');
+  // Off to the home page, and back with its Request a ride link.
+  await page.goto('/site');
+  await page.getByRole('link', { name: 'Request a ride' }).first().click();
+  await expect(page).toHaveURL(/\/site\/book/);
+  await expect(page.getByLabel('Your name')).toHaveValue('Ana Joseph');
+  await expect(page.getByLabel('Email')).toHaveValue('ana@example.com');
+  await expect(page.getByLabel('Pick up from')).toHaveValue('Spice Island Beach Resort');
+  await expect(page.getByRole('radio', { name: /Transfers/ })).toBeChecked();
+  // A reload keeps it too.
+  await page.reload();
+  await expect(page.getByLabel('Your name')).toHaveValue('Ana Joseph');
+  // Once sent, it is forgotten.
+  const when = await page.evaluate(() => {
+    const d = new Date(Date.now() - 4 * 3600_000 + 3 * 86400_000);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}T10:30`;
+  });
+  await page.getByLabel('Pickup time').fill(when);
+  await page.getByLabel('Going to').fill("St. George's market");
+  await page.getByLabel('Phone or WhatsApp').fill('+1 473 555 0101');
+  await page.getByRole('button', { name: 'Send request' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Request sent' })).toBeVisible();
+  expect(requests).toHaveLength(1);
+  await page.goto('/site/book');
+  await expect(page.getByLabel('Your name')).toHaveValue('');
+});
+
+for (const width of [320, 360, 375, 390]) {
   test(`the website fits a ${width}px phone without sideways scrolling`, async ({ page }) => {
     await site(page);
     await page.setViewportSize({ width, height: 800 });
     for (const path of ['/site', '/site/book']) {
       await page.goto(path);
       await expect(page.getByRole('link', { name: 'Request a ride' }).first()).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+      // The whole name shows, and the button doesn't sit on top of it.
+      const header = await page.evaluate(() => {
+        const name = document.querySelector('.mcs-brand span');
+        const button = document.querySelector('.mcs-nav .mcs-btn');
+        return { clipped: name.scrollWidth - name.clientWidth, gap: button.getBoundingClientRect().left - (name.getBoundingClientRect().left + name.scrollWidth) };
+      });
+      expect(header.clipped).toBeLessThanOrEqual(0);
+      expect(header.gap).toBeGreaterThanOrEqual(0);
     }
   });
 }
+
+// While the web font is still loading the browser draws a stand-in font; the
+// header must still fit small phones.
+test('the header fits small phones before its fonts arrive', async ({ page }) => {
+  await site(page);
+  await page.route('**/*.woff2', (r) => r.abort());
+  for (const width of [320, 360]) {
+    await page.setViewportSize({ width, height: 800 });
+    for (const path of ['/site', '/site/book']) {
+      await page.goto(path);
+      await expect(page.getByRole('link', { name: 'Request a ride' }).first()).toBeInViewport({ ratio: 1 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    }
+  }
+});
 
 test('without a WhatsApp number, the contact part offers the form instead', async ({ page }) => {
   await site(page, { whatsapp: '' });

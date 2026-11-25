@@ -8,12 +8,12 @@ import { ChevronLeft, Users, Building2, Radio, Wrench } from "lucide-react";
 import { previewText } from "@/components/chat/previewText";
 
 const QUICK_REPLIES = [
-  "⏰ Running late",
-  "🚌 On the way",
-  "📍 Almost there",
-  "✅ Arrived at stop",
-  "🚦 Stuck in traffic",
-  "🔧 Vehicle issue — delay expected",
+  "Running late",
+  "On the way",
+  "Almost there",
+  "Arrived at stop",
+  "Stuck in traffic",
+  "Vehicle issue, expect a delay",
 ];
 
 const CONTACTS = [

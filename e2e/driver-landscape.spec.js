@@ -12,9 +12,9 @@ async function mockApi(page, calls, driverContext=driver) {
     const url = request.url();
     calls.push(url);
     const body = request.postDataJSON();
-    if (url.includes('/functions/kioskHeartbeat')) return route.fulfill({ json: kiosk });
-    if (url.includes('/functions/kioskCheckIn')) return route.fulfill({ json: { staff: [], generated_at: new Date().toISOString() } });
-    if (url.includes('/functions/driverSession')) {
+    if (url.includes('/functions/v1/kioskHeartbeat')) return route.fulfill({ json: kiosk });
+    if (url.includes('/functions/v1/kioskCheckIn')) return route.fulfill({ json: { staff: [], generated_at: new Date().toISOString() } });
+    if (url.includes('/functions/v1/driverSession')) {
       if (body?.action === 'my_documents') return route.fulfill(body.pin === '1234'
         ? { json: { ok: true, driver_name: 'Test Driver', documents: [
           { kind: 'license', document_number: 'DL-1', expiry_date: '2030-01-31', file_name: 'licence.png', url: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' },
@@ -23,7 +23,7 @@ async function mockApi(page, calls, driverContext=driver) {
       if (body?.action === 'verify_pin') return route.fulfill(body.pin === '1234' ? { json: { ok: true, driver_grant: "a".repeat(64) } } : { status: 403, json: { error: 'Incorrect PIN' } });
       return route.fulfill({ json: driverContext });
     }
-    if (url.includes('/functions/appSupport')) return route.fulfill({ json: { whatsapp_number: '14735551234' } });
+    if (url.includes('/functions/v1/appSupport')) return route.fulfill({ json: { whatsapp_number: '14735551234' } });
     if (url.includes('/entities/')) return route.fulfill({ status: 403, json: { error: 'Direct entity access blocked in test' } });
     return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });
@@ -105,7 +105,7 @@ test('bottom navigation and rotation preserve one GPS watcher',async({page})=>{
 });
 test('SOS retains hold activation and uses the authenticated session',async({page})=>{
  await page.setViewportSize({width:1280,height:800});await openDriver(page,{route});
- const sent=[];await page.route('**/functions/driverSession',r=>{const b=r.request().postDataJSON();if(b.action==='sos'){sent.push(b);return r.fulfill({json:{ok:true}});}return r.fallback();});
+ const sent=[];await page.route('**/functions/v1/driverSession',r=>{const b=r.request().postDataJSON();if(b.action==='sos'){sent.push(b);return r.fulfill({json:{ok:true}});}return r.fallback();});
  const sos=page.getByRole('button',{name:/^SOS/});await sos.click();expect(sent).toHaveLength(0);
  const box=await sos.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();
  await expect.poll(()=>sent.length).toBe(1);await page.mouse.up();
@@ -136,6 +136,32 @@ test('background GPS is opt-in, bound to this bus and can export saved points',a
  expect(await page.evaluate(()=>window.__backgroundConfigs[0])).toMatchObject({device_id:'driver-test',expected_company_id:'company-a',expected_vehicle_id:'bus-a'});
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export saved GPS',exact:true}).click();expect((await download).suggestedFilename()).toBe('saved-driver-gps.json');
  await toggle.click();await expect.poll(()=>page.evaluate(()=>window.__backgroundStops)).toBeGreaterThan(0);
+});
+
+test('on a bus tablet background GPS is always on: it starts with sharing and cannot be switched off',async({page})=>{
+ await page.setViewportSize({width:1280,height:800});
+ await page.addInitScript(()=>{
+  localStorage.setItem('tt_device_token_driver-test','c'.repeat(64));
+  // The kiosk app reports the switch as locked on (DriverBackgroundPolicy).
+  const state={available:true,enabled:true,locked:true,active:false,pending:0,review:0,status:'Background tracking is off'};
+  window.__backgroundConfigs=[];window.__backgroundOff=0;
+  const background={getState:async()=>({...state}),setEnabled:async({enabled})=>{if(!enabled){window.__backgroundOff++;throw new Error('On bus tablets the GPS always stays on.');}return {...state}},
+   configure:async data=>{window.__backgroundConfigs.push(data);state.active=true;state.status='Fix (USB GPS)';return {managed:true}},
+   pulse:async()=>({}),stop:async()=>{state.active=false;},savedPoints:async()=>({points:[],done:true})};
+  const gps={getState:async()=>({available:true,enabled:true,backgroundManaged:state.active,status:state.active?'Fix (USB GPS)':'Off'}),addListener:async()=>({remove:async()=>{}})};
+  const other=new Proxy({},{get:(_,key)=>key==='addListener'?async()=>({remove:async()=>{}}):async()=>({})});
+  window.CapacitorPlatforms={platforms:new Map(),currentPlatform:{name:'android',getPlatform:()=> 'android',isNativePlatform:()=>true,isPluginAvailable:name=>['UsbGps','DriverBackground'].includes(name),registerPlugin:name=>name==='DriverBackground'?background:name==='UsbGps'?gps:other}};
+ });
+ await openDriver(page,{vehicle:{...vehicle,tracking_active:true}});
+ // Sharing the bus starts the tablet's own GPS session without anyone turning it on.
+ await expect.poll(()=>page.evaluate(()=>window.__backgroundConfigs.length)).toBeGreaterThan(0);
+ expect(await page.evaluate(()=>window.__backgroundConfigs[0])).toMatchObject({device_id:'driver-test',expected_company_id:'company-a',expected_vehicle_id:'bus-a'});
+ await sections(page).getByRole('button',{name:'More',exact:true}).click();
+ await page.getByRole('button',{name:/Test Driver.*Tablet settings/}).click();
+ const toggle=page.getByRole('switch',{name:'Keep driver GPS in background'});
+ await expect(toggle).toBeChecked();await expect(toggle).toBeDisabled();
+ await expect(page.getByText(/Always on for bus tablets/)).toBeVisible();
+ expect(await page.evaluate(()=>window.__backgroundOff)).toBe(0);
 });
 
 // Every driver tablet screen, landscape and portrait: nothing spills sideways

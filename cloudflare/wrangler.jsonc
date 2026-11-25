@@ -1,6 +1,9 @@
 // Cloudflare hosting for the Supabase build of the app (step 7 of the move
 // from Base44). The `transittrack` Worker serves the built files in dist/;
 // any address that isn't a file gets index.html, so the app's own pages load.
+// worker.js runs only when no file matches a request that isn't a page being
+// opened: it answers "not found" for a missing build file (/assets/...) and
+// passes everything else to the assets as before.
 // Kept out of the repository root so Base44's own build never picks it up.
 //
 // Worker -> Settings -> Build:
@@ -10,11 +13,13 @@
 //   Build variable: NODE_VERSION = 22
 {
   "name": "transittrack",
+  "main": "worker.js",
   "compatibility_date": "2025-09-01",
   "workers_dev": true,
   "previews": {},
   "assets": {
     "directory": "../dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   }
 }

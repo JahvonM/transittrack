@@ -3,9 +3,12 @@ import { Satellite, RefreshCw } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/tablet/settingsKit";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { readUsbGpsState, setUsbGpsEnabled, onUsbGpsState, rescanUsbGps, openUsbAutoAcceptSettings } from "@/lib/driverGps";
+import { readUsbGpsState, setUsbGpsEnabled, onUsbGpsState, rescanUsbGps, openUsbAutoAcceptSettings, adminGpsChoice } from "@/lib/driverGps";
 
-export default function UsbGpsPanel() {
+// adminChoice: the GPS Admin chose for this tablet ("usb" or "tablet"); the
+// switch then stays where Admin put it.
+export default function UsbGpsPanel({ adminChoice } = {}) {
+  const locked = adminGpsChoice(adminChoice);
   const [state, setState] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -27,8 +30,9 @@ export default function UsbGpsPanel() {
     <CardContent className="space-y-3">
       <div className="flex items-center gap-3">
         <div className="flex-1"><p className="text-sm font-medium">Use the USB GPS receiver</p><p className="text-xs text-muted-foreground">VFAN and other USB receivers plugged into this tablet.</p></div>
-        <Switch aria-label="Use integrated USB GPS" checked={state.enabled} disabled={busy} onCheckedChange={toggle} />
+        <Switch aria-label="Use integrated USB GPS" checked={state.enabled} disabled={busy || !!locked} onCheckedChange={toggle} />
       </div>
+      {locked && <p className="text-xs text-muted-foreground">Set in Admin → Kiosk tablets: {locked === "usb" ? "GPS module" : "the tablet's own GPS"}. Change it there.</p>}
       <p role="status" className="text-sm">{state.enabled ? state.status : "Off. Using the tablet's own GPS."}</p>
       {!state.enabled && <p className="text-xs text-muted-foreground">If the old McSween Helper is still installed, stop it first so both apps don't use the receiver.</p>}
       {state.enabled && <>

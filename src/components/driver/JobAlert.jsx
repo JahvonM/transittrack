@@ -26,7 +26,7 @@ export default function JobAlert({ alert, onDismiss, onOpen, onAccept }) {
       <div role="alertdialog" aria-modal="true" aria-label={head.title} className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-border/60 bg-card shadow-2xl animate-in fade-in zoom-in-95 duration-300">
         <div className={`h-2 ${head.bar}`} />
         <div className="space-y-4 p-6 sm:p-8">
-          <p className={`text-sm font-bold uppercase tracking-wider ${head.text}`}>{head.title}</p>
+          <p className={`text-sm font-bold ${head.text}`}>{head.title}</p>
           <div>
             <p className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
               <JobTypeIcon trip={job} className="h-4 w-4" /> {jobTypeLabel(job)}{job.client_name ? ` · ${job.client_name}` : ""}

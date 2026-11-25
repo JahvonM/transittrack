@@ -369,6 +369,9 @@ async function rest(path: string, init: Omit<RequestInit, 'headers'> & { headers
   let detail: { code?: string; message?: string } = {};
   try { detail = JSON.parse(body); } catch { /* not JSON */ }
   console.error(`[supabase] ${init.method || 'GET'} ${path.split('?')[0]}: ${res.status} ${detail.code || ''} ${(detail.message || body).slice(0, 300)}`);
+  // A database rule's answer meant for the person, e.g. "Only 2 left on the
+  // shelf" (SQLSTATE PT409, which PostgREST sends as 409 with its message).
+  if (detail.code === 'PT409' && typeof detail.message === 'string' && detail.message) throw httpError(409, detail.message.slice(0, 200));
   if (res.status === 409 || detail.code === '23505') throw httpError(409, 'That record already exists');
   if (res.status === 429) throw httpError(429, 'Too many requests');
   if (res.status === 404) throw httpError(404, 'Not found');
@@ -641,7 +644,6 @@ const DEFAULT_ORIGINS = [
   // The public website (booking form and ride tracking).
   'https://mcsweenstransport.com',
   'https://www.mcsweenstransport.com',
-  'https://eager-transit-track-go.base44.app',
   // The Supabase build on Cloudflare while it is tested side by side.
   'https://new.mcsweenstransport.com',
   'https://mcsween-transport.pages.dev',

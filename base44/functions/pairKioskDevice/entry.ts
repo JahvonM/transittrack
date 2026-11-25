@@ -1,4 +1,3 @@
-import { forwardToSupabase } from '../../shared/forwardToSupabase.ts';
 import { acquireOperation, durableWritesEnabled, operationHash } from '../../shared/durableOperation.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 // Random device credentials are stored only as hashes in protected DeviceCredential.
@@ -28,9 +27,6 @@ async function authenticatedTablet(base44, device, token) {
 
 
 export default async function(req) {
-  // After the switch, calls from the installed tablet app go on to Supabase.
-  const forwarded = await forwardToSupabase(req, 'pairKioskDevice');
-  if (forwarded) return forwarded;
   try {
     const body = await req.json();
     const { pairing_code } = body;
@@ -60,8 +56,11 @@ export default async function(req) {
       return Response.json({ error: 'This code has already been used to pair a tablet. Ask an admin to generate a new one.' }, { status: 409 });
     }
 
-    if (body.expected_type === 'driver' && device.kiosk_type !== 'driver') return Response.json({ error: 'Not a driver tablet' }, { status: 400 });
-    if (body.expected_type === 'kiosk' && device.kiosk_type === 'driver') return Response.json({ error: 'Not a kiosk tablet' }, { status: 400 });
+    // A code typed on the wrong screen of the tablet app: say which screen it
+    // is for (`code`), so the app can open that screen and pair there. The
+    // code is not used up.
+    if (body.expected_type === 'driver' && device.kiosk_type !== 'driver') return Response.json({ error: 'Not a driver tablet', code: 'KIOSK_TABLET' }, { status: 400 });
+    if (body.expected_type === 'kiosk' && device.kiosk_type === 'driver') return Response.json({ error: 'Not a kiosk tablet', code: 'DRIVER_TABLET' }, { status: 400 });
     // A bus tablet's code lasts 15 minutes; a driver's own phone's code 7 days
     // (the driver installs the app from the store first). A code set to last
     // longer than that was not made by Admin and is refused.

@@ -8,7 +8,7 @@ Never delete webhooks, cron jobs, auth callbacks, or anything called from outsid
 
 - `base44/workflows/*` and the functions they run (`inspectionAlerts`, `maintenanceAlerts`, `learnTravelTimes`, `weeklyReport`).
 - `base44/functions/*`: Base44 calls them by name, so code scanners report them all as unused.
-- Sign-in hand-offs opened by other apps: `/oauth/consent`, `/desktop-signin`, `/phone-signin`, `/login`, `/reset-password`.
+- Sign-in hand-offs opened by other apps: `/desktop-signin`, `/phone-signin`, `/login`, `/reset-password`.
 - Pages linked from the app stores: `/privacy`, `/terms`, `/reviewer-sandbox`.
 - `/track`: guests open it from ride-tracking links sent by dispatch (the `visitorTracking` function).
 - Pages the tablet app opens directly: `/tablet`, `/driver`, `/kiosk`.

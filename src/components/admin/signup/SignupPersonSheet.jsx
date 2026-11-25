@@ -1,3 +1,4 @@
+import { confirmAction } from "@/components/ConfirmHost";
 import React, { useEffect, useRef, useState } from "react";
 import { Check, Mail, MapPin, Nfc, QrCode, Smartphone, UserCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
@@ -118,6 +119,7 @@ export default function SignupPersonSheet({ person, company, call, onChanged, on
   const [showQr, setShowQr] = useState(!person?.registered);
   const [pickupOpen, setPickupOpen] = useState(false);
   const [appBusy, setAppBusy] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [error, setError] = useState("");
   const ref = person?.ref;
 
@@ -144,6 +146,13 @@ export default function SignupPersonSheet({ person, company, call, onChanged, on
   const steps = stepsOf(person);
   const first = firstName(person.name);
   const letGo = async () => { await call("signup_claim", { person_ref: ref, release: true }).catch(() => {}); onChanged(); onClose(); };
+  const remove = async () => {
+    if (!(await confirmAction({ title: `Remove ${person.name}?`, description: "Remove them from this company's sign-up list and passenger directory, and stop their company access, card and codes. Their login account and past trips are kept.", confirmLabel: "Remove passenger" }))) return;
+    setRemoving(true); setError("");
+    try { const data = await call("signup_remove", { person_ref: ref }); if (!data?.ok) throw new Error(data?.error || "Removal failed"); onClose(); await onChanged(); }
+    catch (e) { setError(errorText(e, "Couldn't remove this passenger.")); }
+    finally { setRemoving(false); }
+  };
   const setApp = async (value) => {
     setAppBusy(true); setError("");
     try { await call("signup_app", { person_ref: ref, has_app: value }); onChanged(); }
@@ -218,6 +227,9 @@ export default function SignupPersonSheet({ person, company, call, onChanged, on
           </div>
         )}
 
+        <div className="mt-6 border-t pt-4">
+          <Button variant="outline" className="text-danger" disabled={removing || claim.state !== "mine"} onClick={remove}>{removing ? "Removing…" : "Remove passenger"}</Button>
+        </div>
         {pickupOpen && <PassengerPickupDialog person={person} onClose={() => setPickupOpen(false)} onSaved={async () => onChanged()} />}
       </SheetContent>
     </Sheet>

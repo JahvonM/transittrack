@@ -4,20 +4,20 @@ async function mockedChat(page,role) {
  const notifications=[],messages=[];
  const vehicle={id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A',type:'staff_bus',status:'idle',capacity:25};
  await page.addInitScript(()=>{
-  localStorage.setItem('base44_access_token','mock-authenticated-session');
+  localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
   localStorage.setItem('tt_company_access_grant','a'.repeat(64));
   localStorage.setItem('tt_staff_vehicle_id','bus-a');
  });
  await page.route('**/api/**',async route=>{
   const req=route.request(),url=req.url();
-  // Chat photos use the public-file upload (UploadPublicFile); older code used UploadFile.
-  if(/\/integration-endpoints\/Core\/Upload(Public)?File\b/.test(url))return route.fulfill({json:{file_url:'https://mock.invalid/photo.jpg'}});
+  // Chat photos are uploaded to the integrations function as a form.
+  if(url.includes('/functions/v1/integrations')&&(req.headers()['content-type']||'').startsWith('multipart/form-data'))return route.fulfill({json:{file_url:'https://mock.invalid/photo.jpg'}});
   if(url.includes('/entities/'))return route.fulfill({status:403,json:{error:'Direct access blocked'}});
-  if(url.includes('/functions/notifyAdminMessage')) {
+  if(url.includes('/functions/v1/notifyAdminMessage')) {
    notifications.push(req.postDataJSON());return route.fulfill({json:{ok:true}});
   }
-  if(url.includes('/functions/companyAccess'))return route.fulfill({json:{company:{id:'a',name:'Company A',phone:''},my_bus:{id:'bus-a',name:'Bus A'}}});
-  if(url.includes('/functions/entityAccess')) {
+  if(url.includes('/functions/v1/companyAccess'))return route.fulfill({json:{company:{id:'a',name:'Company A',phone:''},my_bus:{id:'bus-a',name:'Bus A'}}});
+  if(url.includes('/functions/v1/entityAccess')) {
    const body=req.postDataJSON();let result=[];
    if(body.entity==='Bootstrap')result={workplace:null,vehicles:[vehicle],routes:[],trips:[]}; // the passenger home's combined request
    else if(body.entity==='User')result={id:'caller',role,email:'caller@test.invalid',full_name:'Test Caller',company_id:'a'};

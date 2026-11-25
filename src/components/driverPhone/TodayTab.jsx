@@ -52,9 +52,6 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
   const [panel, setPanel] = useState(null);
   const panelButton = useRef(null);
   const openPanel = (name, event) => { panelButton.current = event.currentTarget; setPanel(name); };
-  const first = (driverName || "").split(" ")[0] || "there";
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const stops = route?.stops || [];
   const riding = pickups.filter((p) => !p.skipping);
   const atStop = (name) => riding.filter((p) => p.stop === name);
@@ -71,7 +68,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
     <div className="tt-phone-today flex flex-col gap-4">
       <header>
         <p className="text-body-sm text-muted-foreground">{new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</p>
-        <h1 className="text-headline">{greeting}, {first}</h1>
+        <h1 className="text-headline">Today</h1>
       </header>
 
       {bus && <TripDirectionControl bus={bus} workplace={workplace} onChange={onDirectionChange} />}
@@ -82,7 +79,7 @@ export default function TodayTab({ today, driverName, onPickBus, onStartShift, o
         </Section>
       ) : (
         <section className="tt-driver-vehicle-hero rounded-2xl border border-border bg-card p-4" aria-label="Your bus">
-          <BusArtwork vehicle={bus} fallbackUrl="/images/boarding-coaster.webp" width={280} className="w-full h-40 mb-4" />
+          <BusArtwork vehicle={bus} width={280} className="w-full h-40 mb-4" />
           <div className="flex items-center gap-3">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary" aria-hidden="true"><Bus className="h-6 w-6" /></span>
             <div className="min-w-0 flex-1">

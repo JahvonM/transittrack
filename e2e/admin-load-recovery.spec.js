@@ -4,14 +4,14 @@ const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A'
 async function session(page,role) {
  const calls=[],direct=[];
  await page.addInitScript(()=>{
-   localStorage.setItem('base44_access_token','mock-authenticated-session');
+   localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
    localStorage.setItem('tt-map-engine','basic');
  });
  await page.route('https://api.mapbox.com/**', r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',withAdminBatch(async route=>{
   const request=route.request(), url=request.url();
   if(url.includes('/entities/')) {direct.push(url);return route.fulfill({status:403,json:{error:'Direct entity access blocked'}});}
-  if(url.includes('/functions/entityAccess')) {
+  if(url.includes('/functions/v1/entityAccess')) {
    const body=request.postDataJSON();calls.push(body);
    let result=[];
    if(body.entity==='User' && body.operation==='get') result={id:'caller',email:'caller@test.local',full_name:'Test Caller',role,company_id:role==='company'?'a':''};
@@ -28,7 +28,7 @@ test('admin recovers from a fully failed load without leaving a spinner or showi
  await session(page,'admin');
  let failing=true;
  const reads=[];
- await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
   const b=r.request().postDataJSON();reads.push(b);
   if(b.entity==='User'&&b.id==='me')return r.fulfill({json:{result:{id:'caller',role:'admin',full_name:'Test Admin',email:'test@invalid'}}});
   if(failing)return r.fulfill({status:503,json:{error:'Isolated outage'}});
@@ -45,7 +45,7 @@ test('admin recovers from a fully failed load without leaving a spinner or showi
 });
 test('admin partial failure keeps its loaded fleet and retry only loads the missing dataset',async({page})=>{
  await session(page,'admin');let failParts=true;const reads=[];
- await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
   const b=r.request().postDataJSON();reads.push(b);
   if(b.entity==='User'&&b.id==='me')return r.fulfill({json:{result:{id:'caller',role:'admin',full_name:'Test Admin'}}});
   if(b.entity==='Part'&&failParts)return r.fulfill({status:503,json:{error:'Parts temporarily unavailable'}});
@@ -63,12 +63,12 @@ test('admin partial failure keeps its loaded fleet and retry only loads the miss
 
 test('passenger directory opens while fleet loading is unavailable',async({page})=>{
  await session(page,'admin');let directoryReads=0;
- await page.route('**/functions/entityAccess',withAdminBatch(route=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(route=>{
   const body=route.request().postDataJSON();
   if(body.entity==='User'&&body.id==='me')return route.fulfill({json:{result:{id:'caller',role:'admin',full_name:'Test Admin'}}});
   return route.fulfill({status:503,json:{error:'Fleet unavailable'}});
  }));
- await page.route('**/functions/nfcCards',route=>{directoryReads++;return route.fulfill({json:{people:[{key:'contact:p',id:'p',source:'contact',name:'Directory Passenger',company_id:'a',company_name:'Company A'}],vehicles:[]}});});
+ await page.route('**/functions/v1/nfcCards',route=>{directoryReads++;return route.fulfill({json:{people:[{key:'contact:p',id:'p',source:'contact',type:'staff',name:'Directory Passenger',company_id:'a',company_name:'Company A'}],vehicles:[]}});});
  await page.goto('/admin/directory');
  await expect(page.getByText('Directory Passenger',{exact:true})).toBeVisible({timeout:15000});
  expect(directoryReads).toBe(1);
@@ -77,7 +77,7 @@ test('passenger directory opens while fleet loading is unavailable',async({page}
 
 test('activity updates use supplied rows without reloading all activity lists',async({page})=>{
  await session(page,'admin');await page.clock.install();let version=1;const reads=[];
- await page.route('**/functions/entityAccess',withAdminBatch(route=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(route=>{
   const b=route.request().postDataJSON();reads.push(b);
   if(b.entity==='User'&&b.id==='me')return route.fulfill({json:{result:{id:'caller',role:'admin',full_name:'Test Admin'}}});
   let result=[];
@@ -98,7 +98,7 @@ test('activity updates use supplied rows without reloading all activity lists',a
 
 test('admin navigation retains loaded overview data rather than restarting all reads',async({page})=>{
  const {calls}=await session(page,'admin');
- await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people:[],vehicles:[]}}));
+ await page.route('**/functions/v1/nfcCards',r=>r.fulfill({json:{people:[],vehicles:[]}}));
  await page.goto('/admin');
  await expect(page.getByRole('region',{name:'Live Fleet'})).toBeVisible({timeout:15000});
  const initial=calls.filter(b=>b.entity==='Vehicle'&&b.limit!==5000).length;

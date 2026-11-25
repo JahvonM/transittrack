@@ -22,12 +22,16 @@ For the office and drivers. Nothing here needs a computer person.
 ## Boarding tablets
 
 - In **Kiosk tablets → Reassign**, choose what the reader records:
-  - **Boarding and getting off (asks each time)**: as before.
+  - **Boarding and getting off (tap on, tap again to get off)**: a card tap
+    records by itself, getting on, then getting off at the rider's next tap.
+    A second tap within 5 minutes shows **Already recorded** and how long to
+    wait. Codes and QR still ask "boarding or exiting".
   - **Boarding only**: front door; records straight away.
   - **Getting off only**: rear door.
   - Tick **Only accept taps while a driver shift is open** if you want taps
     refused when no driver has started their shift.
-- A second tap within 30 minutes shows **Already recorded** and adds nothing.
+- On a one-way reader, a second tap within 30 minutes shows **Already
+  recorded** and adds nothing.
 - On the tablet, hold the top bar for 3 seconds and enter the bus PIN for
   **Tablet settings**. **Diagnostics** shows, in plain words, whether the
   card reader, camera, card list, saved taps, connection and kiosk lock are

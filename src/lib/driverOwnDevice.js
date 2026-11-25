@@ -28,9 +28,25 @@ export function busChoiceMessage(error, fallback = "Something went wrong. Try ag
 }
 
 // The PIN saved for offline unlock and the driver grant both belong to the
-// old bus, so they go when the phone changes bus.
+// old bus, so they go when the phone (or a bus's tablet) changes bus.
 export function forgetBusAccess(deviceId) {
   if (!deviceId) return;
   forgetPin(deviceId);
   try { localStorage.removeItem("tt_driver_grant_" + deviceId); } catch { /* storage unavailable */ }
 }
+
+// The bus this device last opened on. When the office moves a tablet to
+// another bus, the next check-in names a different bus, and the tablet locks
+// and asks for the new bus's PIN.
+const BUS_KEY = (deviceId) => "tt_driver_bus_" + deviceId;
+export function knownBus(deviceId) {
+  try { return localStorage.getItem(BUS_KEY(deviceId)) || ""; } catch { return ""; }
+}
+export function rememberBus(deviceId, busId) {
+  if (!deviceId || !busId) return;
+  try { localStorage.setItem(BUS_KEY(deviceId), busId); } catch { /* storage unavailable */ }
+}
+
+// A bus's own driver tablet (not a driver's phone) can switch bus: pick the
+// bus it's in now and enter that bus's PIN.
+export const canSwitchBus = (session) => !!session && !isOwnDevice(session);

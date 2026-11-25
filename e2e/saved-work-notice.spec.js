@@ -4,12 +4,12 @@ import { test, expect } from '@playwright/test';
 // sat over the bus tablets' screens where nobody can act on it.
 async function withSaved(page, items) {
   await page.addInitScript((list) => {
-    localStorage.setItem('base44_access_token', 'mock-authenticated-session');
+    localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
     localStorage.setItem('tt_offline_jobs', JSON.stringify(list));
   }, items);
   await page.route('**/api/**', (route) => {
     const url = route.request().url();
-    if (url.includes('/functions/entityAccess')) {
+    if (url.includes('/functions/v1/entityAccess')) {
       const body = route.request().postDataJSON();
       return route.fulfill({ json: { result: body.entity === 'User' ? { id: 'u', email: 'u@test.local', full_name: 'U', role: 'admin' } : [] } });
     }

@@ -12,9 +12,9 @@ async function mockApi(page, calls, driverContext=driver) {
     const url = request.url();
     calls.push(url);
     const body = request.postDataJSON();
-    if (url.includes('/functions/kioskHeartbeat')) return route.fulfill({ json: kiosk });
-    if (url.includes('/functions/kioskCheckIn')) return route.fulfill({ json: { staff: [], generated_at: new Date().toISOString() } });
-    if (url.includes('/functions/driverSession')) {
+    if (url.includes('/functions/v1/kioskHeartbeat')) return route.fulfill({ json: kiosk });
+    if (url.includes('/functions/v1/kioskCheckIn')) return route.fulfill({ json: { staff: [], generated_at: new Date().toISOString() } });
+    if (url.includes('/functions/v1/driverSession')) {
       if (body?.action === 'my_documents') return route.fulfill(body.pin === '1234'
         ? { json: { ok: true, driver_name: 'Test Driver', documents: [
           { kind: 'license', document_number: 'DL-1', expiry_date: '2030-01-31', file_name: 'licence.png', url: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=' },
@@ -23,7 +23,7 @@ async function mockApi(page, calls, driverContext=driver) {
       if (body?.action === 'verify_pin') return route.fulfill(body.pin === '1234' ? { json: { ok: true, driver_grant: "a".repeat(64) } } : { status: 403, json: { error: 'Incorrect PIN' } });
       return route.fulfill({ json: driverContext });
     }
-    if (url.includes('/functions/appSupport')) return route.fulfill({ json: { whatsapp_number: '14735551234' } });
+    if (url.includes('/functions/v1/appSupport')) return route.fulfill({ json: { whatsapp_number: '14735551234' } });
     if (url.includes('/entities/')) return route.fulfill({ status: 403, json: { error: 'Direct entity access blocked in test' } });
     return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });
@@ -104,7 +104,7 @@ test('search and latest boarding use original records',async({page})=>{
 });
 test('More fault report preserves existing handler and fields',async({page})=>{
  await openDriver(page);const sent=[];
- await page.route('**/functions/driverSession',r=>{const b=r.request().postDataJSON();if(b.action==='report_incident'){sent.push(b);return r.fulfill({json:{ok:true}});}return r.fallback();});
+ await page.route('**/functions/v1/driverSession',r=>{const b=r.request().postDataJSON();if(b.action==='report_incident'){sent.push(b);return r.fulfill({json:{ok:true}});}return r.fallback();});
  await sections(page).getByRole('button',{name:'More',exact:true}).click();
  await page.getByRole('button',{name:'Report fault'}).click();
  await page.getByPlaceholder('Describe what happened...').fill('Real inspection finding');
@@ -178,4 +178,20 @@ test('Android USB GPS settings can enable, report reconnect status and roll back
  await page.getByRole('button',{name:'Turn it on',exact:true}).click();
  await expect.poll(()=>page.evaluate(()=>window.__usbAutoAcceptSettingsOpened)).toBe(true);
  await page.screenshot({path:'/tmp/driver-usb-gps-settings.png',fullPage:true});
+});
+
+test('SOS hands the driver a WhatsApp message that says who, which bus, and to call', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 1280 });
+  await openDriver(page);
+  const sos = page.getByRole('button', { name: /Press and hold to activate/ }).first();
+  const box = await sos.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1100);
+  await page.mouse.up();
+  const link = page.getByRole('link', { name: 'Alert boss via WhatsApp' });
+  await expect(link).toBeVisible();
+  const text = decodeURIComponent((await link.getAttribute('href')).split('?text=')[1]);
+  expect(text).toBe('SOS from Test Driver on Bus A: I need help now. Please call me.');
+  expect(text).not.toMatch(/mechanical|backup|dispatched/i);
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  KIOSK_ADMIN, KIOSK_PACKAGE, accountLabel, canTakeOwnership, connectProblem, deviceAccounts, deviceUsers, installResult,
-  installedVersion, ownerPackage, ownerResult, readiness,
+  KIOSK_ADMIN, KIOSK_PACKAGE, USB_AUTO_OK_PERMISSION, accountLabel, canTakeOwnership, connectProblem, deviceAccounts, deviceUsers,
+  installResult, installedVersion, ownerPackage, ownerResult, readiness, usbAutoOkGranted, usbAutoOkResult,
 } from "@/lib/usbSetup";
 
 // Admin → Kiosk tablets → Set up a device (USB from the browser).
@@ -59,6 +59,19 @@ describe("reading Android's answers", () => {
     expect(ownerResult("Error: something new\n").message).toMatch(/something new/);
   });
 
+  it("reads and explains the USB auto-OK grant (same permission as the Windows setup tool)", () => {
+    expect(USB_AUTO_OK_PERMISSION).toBe("android.permission.WRITE_SECURE_SETTINGS");
+    const granted = `    install permissions:\n      android.permission.INTERNET: granted=true\n    runtime permissions:\n      android.permission.WRITE_SECURE_SETTINGS: granted=true`;
+    expect(usbAutoOkGranted(granted)).toBe(true);
+    expect(usbAutoOkGranted(granted.replace("WRITE_SECURE_SETTINGS: granted=true", "WRITE_SECURE_SETTINGS: granted=false"))).toBe(false);
+    expect(usbAutoOkGranted("")).toBe(false);
+    // pm grant prints nothing when it worked.
+    expect(usbAutoOkResult("").ok).toBe(true);
+    expect(usbAutoOkResult("Exception occurred while executing 'grant':\njava.lang.IllegalArgumentException: Unknown package: com.transittrack.app").code).toBe("not_installed");
+    const refused = usbAutoOkResult("java.lang.SecurityException: grantRuntimePermission: Neither user 2000 nor current process has android.permission.GRANT_RUNTIME_PERMISSIONS.");
+    expect(refused).toMatchObject({ ok: false, code: "unknown", message: expect.stringContaining("tap OK") });
+  });
+
   it("explains what the installer said", () => {
     expect(installResult("Success").ok).toBe(true);
     expect(installResult("Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: Package com.transittrack.app signatures do not match]").code).toBe("signature");
@@ -86,6 +99,14 @@ describe("what's in the way", () => {
     expect(other.find((i) => i.key === "owner")).toMatchObject({ ok: false, title: expect.stringContaining("com.freekiosk") });
     expect(other.some((i) => i.key === "accounts")).toBe(false);
     expect(readiness({ ...base, owner: KIOSK_PACKAGE }).find((i) => i.key === "owner").ok).toBe(true);
+  });
+
+  it("says whether USB auto-OK is on, once the app is installed", () => {
+    expect(readiness({ ...base, usbAutoOk: true }).find((i) => i.key === "usb")).toMatchObject({ ok: true, title: "USB auto-OK is on" });
+    expect(readiness({ ...base, usbAutoOk: false }).find((i) => i.key === "usb")).toMatchObject({ ok: false, title: "USB auto-OK is off" });
+    expect(readiness({ ...base, version: "" }).some((i) => i.key === "usb")).toBe(false);
+    // Off is a warning, not a stopper for taking ownership.
+    expect(canTakeOwnership({ ...base, usbAutoOk: false })).toBe(true);
   });
 
   it("turns browser errors into next steps", () => {

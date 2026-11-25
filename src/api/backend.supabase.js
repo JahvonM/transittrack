@@ -1,7 +1,6 @@
-// The app's backend client on Supabase (step 7 of the move from Base44).
-// Used by `vite build --mode supabase` (the Cloudflare build); the normal build
-// keeps backend.base44.js. It answers the same calls the app already makes on
-// the Base44 client, so the screens don't change:
+// The app's backend client: Supabase. Every build uses it (vite.config.js).
+// It answers the same calls the app made when it ran on Base44, so the screens
+// didn't change:
 //   auth.*                 Supabase Auth (email + password with a code,
 //                          Google/Apple, password reset)
 //   functions.invoke       the same functions, on Supabase Edge Functions
@@ -20,7 +19,9 @@ export const BACKEND = 'supabase';
 // The project's address and its publishable key are public by design: the
 // browser sends them with every request, and they open nothing by themselves
 // (every table is locked; the functions check who is asking).
-const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || 'https://ghqpznxqngvhmkiwcauj.supabase.co').replace(/\/+$/, '');
+// A path (the browser tests use '/api') means that path on the page's own address.
+const SUPABASE_URL = ((url) => (url.startsWith('/') && typeof window !== 'undefined' ? window.location.origin + url : url))(
+  String(import.meta.env.VITE_SUPABASE_URL || 'https://ghqpznxqngvhmkiwcauj.supabase.co')).replace(/\/+$/, '');
 const PUBLISHABLE_KEY = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_XeQJGv6I-Yicnl3WAu659g_Q7AqBc2C');
 const REF = (() => { try { return new URL(SUPABASE_URL).hostname.split('.')[0]; } catch { return 'app'; } })();
 export const AUTH_STORAGE_KEY = `sb-${REF}-auth-token`;

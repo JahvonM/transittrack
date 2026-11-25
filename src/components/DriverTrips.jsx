@@ -126,7 +126,7 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh, vehi
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                 <JobTypeIcon trip={trip} className="h-3.5 w-3.5" /> {jobTypeLabel(trip)}{trip.client_name ? ` · ${trip.client_name}` : ""}
               </p>
               <div className="font-medium">
@@ -280,7 +280,7 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh, vehi
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Today's jobs</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground">Today's jobs</h3>
         <div className="space-y-2 mt-2">
           {todays.length === 0 && (
             <p className="text-sm text-muted-foreground py-6 text-center border rounded-2xl">
@@ -292,7 +292,7 @@ export default function DriverTrips({ trips, invoke, startSharing, refresh, vehi
       </div>
       {later.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Upcoming</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground">Upcoming</h3>
           <div className="space-y-2 mt-2">{later.map(renderTrip)}</div>
         </div>
       )}

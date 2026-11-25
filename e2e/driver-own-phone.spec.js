@@ -12,10 +12,10 @@ async function mockApi(page, { busyAnswer = false } = {}) {
   await page.route('**/api/**', async (route) => {
     const url = route.request().url();
     const body = route.request().postDataJSON();
-    if (url.includes('/functions/pairKioskDevice')) {
+    if (url.includes('/functions/v1/pairKioskDevice')) {
       return route.fulfill({ json: { device_id: 'own-phone', device_token: 'b'.repeat(64), kiosk_type: 'driver', personal: true, vehicle_id: '', company_id: 'company-a', company_name: 'Company A', driver_name: 'Ana Joseph' } });
     }
-    if (url.includes('/functions/driverSession')) {
+    if (url.includes('/functions/v1/driverSession')) {
       state.calls.push(body?.action);
       if (body?.action === 'list_buses') return route.fulfill({ json: { current: null, buses: [
         { id: 'bus-a', name: 'Bus 3', plate_number: 'P 3333', type: 'bus', busy: false },

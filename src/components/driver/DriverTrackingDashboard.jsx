@@ -54,6 +54,8 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   const [lastSentAt, setLastSentAt] = useState(null);
   const [queued, setQueued] = useState(() => queuedGpsCount());
   const [gpsProblem, setGpsProblem] = useState("");
+  // True while the tablet's own GPS fills in for a USB GPS module that went quiet.
+  const [gpsBackup, setGpsBackup] = useState(false);
   const [, setTick] = useState(0);
   useEffect(() => {
     const onQueue = () => { setQueued(queuedGpsCount()); setGpsProblem(gpsSyncError()); };
@@ -166,6 +168,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
   const beginWatch = () => {
     watchId.current = watchDriverPosition(
       (p) => {
+        setGpsBackup(p.backup === true);
         if (p.coords.accuracy != null && p.coords.accuracy > 100) { setGpsProblem("Weak GPS signal"); return; }
         handlePosition(p.coords.latitude, p.coords.longitude, p.coords.speed, { heading: p.coords.heading, accuracy: p.coords.accuracy, ts: p.timestamp, nativeManaged: p.nativeManaged, nativePersisted: p.nativePersisted });
       },
@@ -215,6 +218,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     }
     await stopBackgroundGps().catch(() => {});
     setSharing(false);
+    setGpsBackup(false);
     if (watchId.current != null) { clearDriverWatch(watchId.current); watchId.current = null; }
     const v = vehicleRef.current;
     if (v) {
@@ -255,6 +259,7 @@ export default function DriverTrackingDashboard({ session, invoke, onReportIncid
     ? (queued ? { tone: "warn", text: `${queued} saved GPS point${queued === 1 ? "" : "s"} waiting to upload` } : null)
     : gpsProblem ? { tone: "warn", text: gpsProblem }
     : staleFix ? { tone: "warn", text: `No GPS signal for ${ago(lastFixAt)}` }
+    : gpsBackup ? { tone: "warn", text: `USB GPS has no signal · using the tablet's own GPS${lastSentAt ? ` · sent ${ago(lastSentAt)} ago` : ""}` }
     : queued ? { tone: "warn", text: `No connection · ${queued} GPS point${queued === 1 ? "" : "s"} saved on this tablet, will upload` }
     : lastSentAt ? { tone: "ok", text: `GPS live · sent ${ago(lastSentAt)} ago` }
     : { tone: "muted", text: "Waiting for first GPS fix…" };

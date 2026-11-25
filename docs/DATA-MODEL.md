@@ -50,7 +50,7 @@ Changing records through entityAccess:
 
 - **admin**: any record (except invoices, made only in billing, and app errors, which can only be marked fixed).
 - **company**: records of the kinds it can read, for its own company; it can't make a new `Company`.
-- **mechanic**: maintenance records (`Vehicle`, `Fault`, `Inspection`, `InspectionResult`, `InspectionTemplate`, `Part`, `MaintenanceSchedule`, `MaintenanceSettings`) and the mechanic chat;
+- **mechanic**: maintenance records (`Vehicle`, `Fault`, `Inspection`, `InspectionResult`, `InspectionTemplate`, `Part`, `MaintenanceSchedule`, `MaintenanceSettings`, `VehicleGuide`, `GuideFact`, `GuideDocument`, `PartDiagram`, `PartInterchange`, `CatalogueGroup`, `TorqueSpec`, `WorkshopVehicle`, `WorkshopJob`, `WorkshopJobPart`) and the mechanic chat;
   on `Vehicle` only odometer, hours, status and inspection fields. Deleting maintenance records is admin-only.
 - **staff / passenger**: their own profile fields, their own staff-chat messages and lost-item reports.
 
@@ -63,6 +63,7 @@ Changing records through entityAccess:
 | [BookingRequest](#bookingrequest) | `booking_request` | entityAccess | — | — | — | — | all |
 | [Broadcast](#broadcast) | `broadcast` | entityAccess | — | own company + notices to every company (pickup changes: own bus only) | own company + notices to every company | notices to every company | all |
 | [CardHolder](#cardholder) | `card_holder` | entityAccess | — | — | own company | — | all |
+| [CatalogueGroup](#cataloguegroup) | `catalogue_group` | entityAccess | — | — | — | all companies | all |
 | [Client](#client) | `client` | entityAccess | — | — | — | — | all |
 | [ClientError](#clienterror) | `client_error` | entityAccess | — | — | — | — | all |
 | [Company](#company) | `company` | entityAccess | — | own company, fewer fields | own company | all companies, fewer fields | all |
@@ -79,6 +80,8 @@ Changing records through entityAccess:
 | [Fault](#fault) | `fault` | entityAccess | — | — | own company | all companies | all |
 | [FrontDeskSignIns](#frontdesksignins) | `front_desk_sign_ins` | entityAccess | — | — | — | — | all |
 | [GroupMessage](#groupmessage) | `group_message` | entityAccess | — | own company, staff chat | own company | mechanic chat | all |
+| [GuideDocument](#guidedocument) | `guide_document` | entityAccess | — | — | — | all companies | all |
+| [GuideFact](#guidefact) | `guide_fact` | entityAccess | — | — | — | all companies | all |
 | [Incident](#incident) | `incident` | entityAccess | — | — | own company | — | all |
 | [Inspection](#inspection) | `inspection` | entityAccess | — | — | own company | all companies | all |
 | [InspectionResult](#inspectionresult) | `inspection_result` | entityAccess | — | — | own company | all companies | all |
@@ -96,6 +99,8 @@ Changing records through entityAccess:
 | [OfficeDisplay](#officedisplay) | `office_display` | server only | — | — | — | — | through other functions |
 | [OfficeDisplayPairing](#officedisplaypairing) | `office_display_pairing` | server only | — | — | — | — | through other functions |
 | [Part](#part) | `part` | entityAccess | — | — | own company | all companies | all |
+| [PartDiagram](#partdiagram) | `part_diagram` | entityAccess | — | — | — | all companies | all |
+| [PartInterchange](#partinterchange) | `part_interchange` | entityAccess | — | — | — | all companies | all |
 | [PassengerAccessCredential](#passengeraccesscredential) | `passenger_access_credential` | server only | — | — | — | — | through other functions |
 | [PassengerCase](#passengercase) | `passenger_case` | server only | — | — | — | — | through other functions |
 | [PassengerOneTimeCredential](#passengeronetimecredential) | `passenger_one_time_credential` | server only | — | — | — | — | through other functions |
@@ -112,12 +117,17 @@ Changing records through entityAccess:
 | [StaffCheckIn](#staffcheckin) | `staff_check_in` | entityAccess | — | — | own company | — | all |
 | [TabletRecordingSession](#tabletrecordingsession) | `tablet_recording_session` | server only | — | — | — | — | through other functions |
 | [TabletSupportSession](#tabletsupportsession) | `tablet_support_session` | server only | — | — | — | — | through other functions |
+| [TorqueSpec](#torquespec) | `torque_spec` | entityAccess | — | — | — | all companies | all |
 | [Trip](#trip) | `trip` | entityAccess | — | own company, fewer fields | own company | — | all |
 | [User](#user) | `app_user` | entityAccess | — | own profile | own profile | own profile | all |
 | [Vehicle](#vehicle) | `vehicle` | entityAccess | — | own company, fewer fields | own company | all companies | all |
+| [VehicleGuide](#vehicleguide) | `vehicle_guide` | entityAccess | — | — | — | all companies | all |
 | [VerificationAttempt](#verificationattempt) | `verification_attempt` | server only | — | — | — | — | through other functions |
 | [VerificationGrant](#verificationgrant) | `verification_grant` | server only | — | — | — | — | through other functions |
 | [Workplace](#workplace) | `workplace` | entityAccess | — | own company | own company | — | all |
+| [WorkshopJob](#workshopjob) | `workshop_job` | entityAccess | — | — | — | all companies | all |
+| [WorkshopJobPart](#workshopjobpart) | `workshop_job_part` | entityAccess | — | — | — | all companies | all |
+| [WorkshopVehicle](#workshopvehicle) | `workshop_vehicle` | entityAccess | — | — | — | all companies | all |
 
 "Server only": no screen reads these through entityAccess; only server functions use them
 (sign-in codes, device keys, memberships, verification and support records).
@@ -160,6 +170,11 @@ Table `app_support_setting` · server functions only.
 | Field | Type | Notes |
 |---|---|---|
 | `whatsapp_number` | text | App support WhatsApp number in international format, digits only (e.g. 14735551234). Shown to everyone as a 'Report an app problem' link; read and changed only through the appSupport function. |
+| `contact_email` | text | Public business email shown on the Terms page and the website (Admin -> Settings -> Business details). Read and changed only through the appSupport function. |
+| `contact_phone` | text | Public business phone number shown on the Terms page, as typed (e.g. +1 473 555 1234). |
+| `business_address` | text | Public business address shown on the Terms page. |
+| `cancel_free_hours` | double precision | Customers can cancel a ride free of charge until this many hours before the pickup time (0-168). Empty: no rule is published yet. |
+| `cancel_late_charge` | text | What a later cancellation costs, in the owner's words (e.g. 'the full price'), shown on the Terms page. |
 
 ### AuditLog
 
@@ -245,6 +260,30 @@ Table `card_holder` · belongs to a company through `company_id` · read and cha
 | `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `notes` | text |  |
+
+### CatalogueGroup
+
+Table `catalogue_group` · read and changed through entityAccess.
+
+Maker's catalogue: one diagram of a bus model's parts catalogue as the maker lists it (e.g. Toyota 1502 OIL FILTER), with its parts' numbers, names and quantities, pasted in by the team from Partsouq. A reference list, not stock: a part is added to stock from it on purpose. The maker's drawing itself is not kept; link opens it on Partsouq. Fleet-wide: administrators and mechanics only.
+
+**Links to:** [Vehicle](#vehicle) (`vehicle_id`).
+
+**Linked from:** [PartDiagram](#partdiagram).catalogue_group_id.
+
+| Field | Type | Notes |
+|---|---|---|
+| `guide_id` | text | The VehicleGuide (bus model) page it belongs to. Required. |
+| `vehicle_id` | text | → Vehicle. The bus it was looked up for, by chassis number (catalogues differ by engine and options). |
+| `model_code` | text | The maker's model code of that bus, e.g. KDH212R-JEMDY. |
+| `category` | text | The catalogue's own grouping, e.g. Engine / Fuel / Tool or A ENGINE MECHANICAL. |
+| `code` | text | The diagram's number in the catalogue, e.g. 1502 or 150A-001. Required. |
+| `title` | text | e.g. OIL FILTER. Required. |
+| `detail` | text | What the catalogue adds after the title, e.g. YD25DDTI (1206 - 2006). |
+| `link` | text | Web address (https) of this diagram on Partsouq, to open the maker's drawing. |
+| `parts` | jsonb (list) | The diagram's parts, as pasted. |
+| `notes` | text |  |
+| `sort_order` | double precision |  |
 
 ### Client
 
@@ -523,6 +562,8 @@ Table `fault` · belongs to a company through `vehicle_id`, then `company_id` ·
 
 **Links to:** [Vehicle](#vehicle) (`vehicle_id`), [Company](#company) (`company_id`), [Inspection](#inspection) (`inspection_id`).
 
+**Linked from:** [WorkshopJob](#workshopjob).fault_id.
+
 | Field | Type | Notes |
 |---|---|---|
 | `vehicle_id` | text | → Vehicle. Required. |
@@ -576,6 +617,44 @@ Table `group_message` · belongs to a company through `vehicle_id`, then `compan
 | `edited` | boolean | Default `false`. |
 | `sender_id` | text | → User. |
 | `sender_email` | text |  |
+
+### GuideDocument
+
+Table `guide_document` · read and changed through entityAccess.
+
+Bus library: a manual or bulletin uploaded for a model (a PDF or photo), kept as a private file. For documents the company owns: not for sharing outside it.
+
+| Field | Type | Notes |
+|---|---|---|
+| `guide_id` | text | The VehicleGuide this document is for. Required. |
+| `title` | text | Required. |
+| `kind` | text | One of: `owners_manual`, `workshop_manual`, `parts_list`, `bulletin`, `other`. Default `"other"`. |
+| `file_uri` | text | Private file (storage://private/...), opened through a short-lived link. |
+| `file_name` | text |  |
+| `notes` | text | What is in it, so it can be found by searching. |
+
+### GuideFact
+
+Table `guide_fact` · read and changed through entityAccess.
+
+Bus library: one fact on a model's page (an oil capacity, a service interval, a known problem), with where it came from and whether a mechanic has checked it.
+
+| Field | Type | Notes |
+|---|---|---|
+| `guide_id` | text | The VehicleGuide this fact is on. Required. |
+| `section` | text | Where it shows: specs, fluids (oils and capacities), service (schedule), tyres, electrical, filters (filters, belts and part numbers), torque, problems (known problems and fixes), recalls, notes. One of: `specs`, `fluids`, `service`, `tyres`, `electrical`, `filters`, `torque`, `problems`, `recalls`, `notes`. Required. |
+| `label` | text | What it is, e.g. Engine oil with filter. Required. |
+| `value` | text | The answer, e.g. 7.0 litres. |
+| `detail` | text | More: how to fix a known problem, what a service item involves. |
+| `applies_to` | text | When it only applies to some buses, e.g. 2KD-FTV diesel only. |
+| `interval_km` | double precision | Service items: every so many km. |
+| `interval_months` | double precision | Service items: every so many months. |
+| `source_name` | text | Where it came from, e.g. Toyota owner's manual or an owners' forum. |
+| `source_link` | text | Web address of the source (https). |
+| `status` | text | unchecked until a mechanic confirms it on a bus or in a manual; wrong keeps it visible as a warning. One of: `unchecked`, `checked`, `wrong`. Default `"unchecked"`. |
+| `checked_by` | text | Who marked it checked or wrong (set by the server). |
+| `checked_at` | timestamptz | When it was marked checked or wrong (set by the server). |
+| `sort_order` | double precision | Order within its section. |
 
 ### Incident
 
@@ -740,6 +819,7 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `driver_
 | `device_info` | text | Reported by the tablet: which map it can draw (full/basic), WebGL 2 support and browser. |
 | `update_requested_at` | timestamptz | When an admin pressed Send update; the tablet reloads to the newest version the next time it is idle. |
 | `directory_sent_at` | timestamptz | When an admin last sent the staff card list to this tablet; the tablet re-downloads it on its next check-in. |
+| `gps_source` | text | Driver tablets: the GPS Admin chose. 'usb' uses the USB GPS module (the tablet's own GPS fills in if it goes quiet), 'tablet' uses the tablet's own GPS. Empty: the choice made on the tablet stays. One of: `usb`, `tablet`. |
 | `reader_mode` | text | What a boarding tablet records: 'both' asks the rider each time; 'boarding' or 'exit' records that direction only (one reader per door). One of: `both`, `boarding`, `exit`. Default `"both"`. |
 | `nfc_spot` | text | Where passengers tap their card on this boarding device, for the hint on screen. 'auto' follows the layout. One of: `auto`, `above_screen`, `back_top`, `back_middle`, `external`. Default `"auto"`. |
 | `require_active_trip` | boolean | Refuse taps unless a driver's shift is open on the bus. Off: taps are recorded and marked 'no active trip'. Default `false`. |
@@ -957,6 +1037,8 @@ Table `part` · belongs to a company through `company_id` · read and changed th
 
 **Links to:** [Company](#company) (`company_id`).
 
+**Linked from:** [WorkshopJobPart](#workshopjobpart).part_id.
+
 | Field | Type | Notes |
 |---|---|---|
 | `company_id` | text | → Company. |
@@ -970,6 +1052,50 @@ Table `part` · belongs to a company through `company_id` · read and changed th
 | `unit_price` | double precision | Default `0`. |
 | `supplier` | text |  |
 | `photo_url` | text | Photo of the part. |
+| `guide_ids` | jsonb (list) | The Bus library pages (VehicleGuide ids) of the bus models this part fits. Set by administrators and mechanics. |
+| `min_stock` | double precision | Warn when the stock falls to this or below; empty for no warning. |
+| `bin_location` | text | Where it is kept, e.g. Shelf B2. |
+
+### PartDiagram
+
+Table `part_diagram` · read and changed through entityAccess.
+
+Parts catalogue: a picture of one area of a bus model (front brakes, filters) with numbered pins on the parts, each pin linked to a Part in stock. Shown on the model's Bus library page. Fleet-wide: administrators and mechanics only.
+
+**Links to:** [CatalogueGroup](#cataloguegroup) (`catalogue_group_id`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `guide_id` | text | The VehicleGuide (bus model) this picture is of. Required. |
+| `title` | text | e.g. Front brakes. Required. |
+| `system` | text | Which part of the bus, e.g. Brakes, Engine, Suspension. |
+| `image_url` | text | The team's own photo or drawing of the area (a public file uploaded in the app). |
+| `drawing_key` | text | A guide drawing built into the app (src/assets/diagrams), shown while there is no photo. Generic, not drawn from Toyota or Nissan diagrams. One of: `oil-filter`, `fuel-filter`, `air-filter`, `front-brakes`, `rear-brakes`, `front-suspension`, `cooling`, `drive-belt`. |
+| `catalogue_link` | text | Web address (https) of the maker's own diagram for this area, e.g. on Partsouq, for reference. |
+| `catalogue_group_id` | text | → CatalogueGroup. The maker's catalogue diagram (CatalogueGroup, on the same model page) this is a photo of, so the photo shows beside its parts list in the Workshop; empty for none. |
+| `notes` | text |  |
+| `pins` | jsonb (list) | Numbered pins on the picture, each on a part and/or a bolt with its torque. |
+| `sort_order` | double precision |  |
+
+### PartInterchange
+
+Table `part_interchange` · read and changed through entityAccess.
+
+Parts catalogue: another part number that can be used in place of one (a newer genuine number, or an aftermarket equivalent), with where that came from and whether a mechanic has checked it. Matched to Parts by number, so it applies wherever that number is stocked. Fleet-wide: administrators and mechanics only.
+
+| Field | Type | Notes |
+|---|---|---|
+| `part_number` | text | The number it replaces, e.g. 90915-YZZD2. Matched ignoring case, spaces and dashes. Required. |
+| `alt_number` | text | The number that can be used instead, e.g. Z418. Required. |
+| `alt_brand` | text | Who makes it, e.g. Ryco or Toyota. |
+| `kind` | text | newer_genuine: the maker's later number for the same part; older_genuine: the number it replaced; aftermarket: another brand's equivalent. One of: `newer_genuine`, `older_genuine`, `aftermarket`. Default `"aftermarket"`. |
+| `applies_to` | text | When it only fits some buses, e.g. 1KD-FTV only. |
+| `notes` | text |  |
+| `source_name` | text |  |
+| `source_link` | text | Web address of the source (https). |
+| `status` | text | unchecked until a mechanic confirms the part fits; wrong keeps it visible as a warning. One of: `unchecked`, `checked`, `wrong`. Default `"unchecked"`. |
+| `checked_by` | text | Who marked it checked or wrong (set by the server). |
+| `checked_at` | timestamptz | When it was marked checked or wrong (set by the server). |
 
 ### PassengerAccessCredential
 
@@ -1295,6 +1421,31 @@ Table `tablet_support_session` · server functions only.
 | `failure_code` | text |  |
 | `display_id` | text | An office display an administrator started this camera view for; that display may watch it (officeDisplay). |
 
+### TorqueSpec
+
+Table `torque_spec` · read and changed through entityAccess.
+
+Workshop: how tight one bolt or nut goes on a vehicle model (e.g. wheel nuts 103 N·m), shown in the Workshop app and pinned on its bolt maps. Researched values start unchecked until a mechanic confirms them. Fleet-wide: administrators and mechanics only.
+
+| Field | Type | Notes |
+|---|---|---|
+| `guide_id` | text | The VehicleGuide (model page) it belongs to. Required. |
+| `system` | text | Which part of the vehicle. One of: `wheels_brakes`, `suspension_steering`, `engine`, `cooling`, `fuel`, `gearbox_axle`, `body_electrical`. Required. |
+| `item` | text | The bolt or nut, e.g. Wheel nuts, Caliper bracket bolts. Required. |
+| `size` | text | Thread size, e.g. M12×1.5, if known. |
+| `nm` | double precision | Torque in newton-metres (the first or only stage). |
+| `stages` | text | Further stages or angles, e.g. 35 N·m, then +90°, then +90°. |
+| `sequence` | text | The order to tighten in, e.g. criss-cross, centre outwards. |
+| `new_bolt` | boolean | Use a new bolt each time (stretch bolt). |
+| `thread_lock` | text | Thread locker or sealant to use, if any. |
+| `applies_to` | text | Which engines, years or versions it is for. |
+| `source_name` | text |  |
+| `source_link` | text | Web address (https) of where the value came from. |
+| `status` | text | unchecked until a mechanic confirms it; wrong keeps it visible as a warning. One of: `unchecked`, `checked`, `wrong`. Default `"unchecked"`. |
+| `checked_by` | text | Who marked it checked or wrong (set by the server). |
+| `checked_at` | timestamptz | When it was marked checked or wrong (set by the server). |
+| `sort_order` | double precision | Order within its system. |
+
 ### Trip
 
 Table `trip` · belongs to a company through `vehicle_id`, then `company_id` · read and changed through entityAccess.
@@ -1425,9 +1576,9 @@ Table `vehicle` · belongs to a company through `driver_id`, then `company_id` �
 
 **Links to:** [Driver](#driver) (`driver_id`), [Company](#company) (`company_id`), [Route](#route) (`route_id`).
 
-**Linked from:** [Broadcast](#broadcast).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PassengerCase](#passengercase).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [RideException](#rideexception).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id.
+**Linked from:** [Broadcast](#broadcast).vehicle_id, [CatalogueGroup](#cataloguegroup).vehicle_id, [CompanyMembership](#companymembership).vehicle_id, [Contact](#contact).vehicle_id, [DeviceCredential](#devicecredential).vehicle_id, [DriverPinCredential](#driverpincredential).vehicle_id, [DriverShift](#drivershift).vehicle_id, [DrivingEvent](#drivingevent).vehicle_id, [Fault](#fault).vehicle_id, [GroupMessage](#groupmessage).vehicle_id, [Incident](#incident).vehicle_id, [Inspection](#inspection).vehicle_id, [InspectionResult](#inspectionresult).vehicle_id, [KioskDevice](#kioskdevice).vehicle_id, [LocationPing](#locationping).vehicle_id, [MaintenanceSchedule](#maintenanceschedule).vehicle_id, [PassengerCase](#passengercase).vehicle_id, [PhoneUnlock](#phoneunlock).vehicle_id, [RideException](#rideexception).vehicle_id, [StaffCheckIn](#staffcheckin).vehicle_id, [TabletRecordingSession](#tabletrecordingsession).vehicle_id, [TabletSupportSession](#tabletsupportsession).vehicle_id, [Trip](#trip).vehicle_id, [VerificationGrant](#verificationgrant).vehicle_id, [WorkshopJob](#workshopjob).vehicle_id.
 
-**Everyone except admins, company managers and mechanics gets only:** `name`, `type`, `company_id`, `company_name`, `capacity`, `route_id`, `current_lat`, `current_lng`, `speed`, `heading`, `status`, `driver_name`, `image_url`, `model_3d`, `tracking_active`, `last_location_update`, `trail`, `trip_direction`, `return_pickup_state`, `road_next_stop`.
+**Everyone except admins, company managers and mechanics gets only:** `name`, `type`, `company_id`, `company_name`, `capacity`, `route_id`, `current_lat`, `current_lng`, `speed`, `heading`, `status`, `driver_name`, `image_url`, `model_3d`, `tracking_active`, `last_location_update`, `trip_direction`, `return_pickup_state`, `road_next_stop`.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -1477,6 +1628,24 @@ Table `vehicle` · belongs to a company through `driver_id`, then `company_id` �
 | `return_pickup_state` | text | Company boarding state for a return journey. One of: `pending`, `near`, `arrived`, `departed`. |
 | `return_pickup_date` | text | Server-local service date for resetting company boarding state. Not sent to the browser. |
 
+### VehicleGuide
+
+Table `vehicle_guide` · read and changed through entityAccess.
+
+Bus library: one page per bus model and generation (Admin → Bus library), with its facts (GuideFact) and manuals (GuideDocument). The buses it covers are found by make, model and year. Fleet-wide: administrators and mechanics only.
+
+| Field | Type | Notes |
+|---|---|---|
+| `make` | text | e.g. Toyota. Required. |
+| `model` | text | e.g. Hiace. Matched to Vehicle.model ignoring case, spaces and dashes. Required. |
+| `generation` | text | e.g. H200 (5th generation) |
+| `year_from` | bigint | First model year this page covers; empty for any. |
+| `year_to` | bigint | Last model year this page covers; empty for any. |
+| `engines` | text | The engines this model came with, e.g. 2.5 diesel (2KD-FTV). |
+| `market` | text | Which market's version, e.g. General export (Caribbean). Specs differ by market. |
+| `summary` | text |  |
+| `starter_key` | text | The starter file this page was filled from (src/data/busLibrary), so the same file is not imported twice. |
+
 ### VerificationAttempt
 
 Table `verification_attempt` · server functions only.
@@ -1522,6 +1691,67 @@ Table `workplace` · belongs to a company through `company_id` · read and chang
 | `company_name` | text |  |
 | `lat` | double precision |  |
 | `lng` | double precision |  |
+
+### WorkshopJob
+
+Table `workshop_job` · read and changed through entityAccess.
+
+Workshop: one piece of work on a bus or workshop car (a repair or a service): what was wrong, the steps, the parts used (WorkshopJobPart) and what fixed it. Done jobs become the model's past fixes in Troubleshooting. Fleet-wide: administrators and mechanics only.
+
+**Links to:** [Vehicle](#vehicle) (`vehicle_id`), [Fault](#fault) (`fault_id`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `vehicle_kind` | text | bus: a fleet Vehicle; car: a WorkshopVehicle. One of: `bus`, `car`. Required. |
+| `vehicle_id` | text | → Vehicle. The Vehicle or WorkshopVehicle the work is on. It cannot change. Required. |
+| `vehicle_name` | text | The vehicle's name when the job was started (set by the server). |
+| `guide_id` | text | The VehicleGuide (model page) the vehicle used, so the fix shows for the same model. |
+| `title` | text | What's being done, e.g. Front brake pads. Required. |
+| `symptom` | text | What was wrong, in the driver's or mechanic's words. |
+| `fault_codes` | text | Codes read from the vehicle, e.g. P0401, P2002. |
+| `fault_id` | text | → Fault. The bus's Fault this job fixes, if any. |
+| `status` | text | One of: `open`, `done`. Default `"open"`. |
+| `steps` | jsonb (list) | The checklist, in order. |
+| `fix` | text | What fixed it. |
+| `notes` | text |  |
+| `odometer` | double precision | Odometer reading in km when the work was done. |
+| `done_at` | timestamptz | When it was marked done (set by the server). |
+| `done_by` | text | Who marked it done (set by the server). |
+
+### WorkshopJobPart
+
+Table `workshop_job_part` · read and changed through entityAccess.
+
+Workshop: a part used on a WorkshopJob. One from the shelf comes off the Part's stock in the database as it is saved (and goes back when removed); one bought for the job leaves the stock alone and can be written in without being on the parts list. Fleet-wide: administrators and mechanics only.
+
+**Links to:** [Part](#part) (`part_id`).
+
+| Field | Type | Notes |
+|---|---|---|
+| `job_id` | text | The WorkshopJob. It cannot change. Required. |
+| `part_id` | text | → Part. The Part on the shelves; empty for a part bought for the job that is not on the list. It cannot change. |
+| `part_name` | text | The part's name (copied from the Part by the server). Required. |
+| `part_number` | text | Its number (copied from the Part by the server). |
+| `qty` | double precision | How many were used. Required. |
+| `from_stock` | boolean | true: taken from the shelf (stock goes down); false: bought for this job. Default `true`. |
+
+### WorkshopVehicle
+
+Table `workshop_vehicle` · read and changed through entityAccess.
+
+Workshop: a vehicle the workshop looks after that is not a fleet bus (e.g. the owner's own cars). Kept apart from Vehicle so it never appears on the fleet map, kiosks, driver apps or company screens. Matched to its model page by make, model and year. Administrators and mechanics only.
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | text | What the team calls it, e.g. BMW X3. Required. |
+| `make` | text | Required. |
+| `model` | text | Required. |
+| `year` | bigint |  |
+| `engine` | text |  |
+| `transmission` | text |  |
+| `vin` | text | Chassis number (VIN). |
+| `plate_number` | text |  |
+| `notes` | text |  |
 
 ## Other storage (Supabase only)
 

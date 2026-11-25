@@ -1,8 +1,10 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, CircleDot, OctagonAlert, RotateCcw, Wrench } from "lucide-react";
+import { CheckCircle2, CircleDot, Hammer, OctagonAlert, RotateCcw, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState, Kpi, KpiRow, PageIntro, Segmented, StatusChip } from "@/components/admin/kit";
 
@@ -15,6 +17,9 @@ const STATUS_LABEL = { open: "Open", in_progress: "In progress", resolved: "Reso
 // on a failed pre-trip check unless the company turned that off).
 export default function FaultsTab({ faults = [], onChange }) {
   const { toast } = useToast();
+  const { user } = useAuth();
+  // A fault can become a job in the Workshop (administrators and mechanics).
+  const workshop = ["admin", "mechanic"].includes(user?.role);
   const [statusFilter, setStatusFilter] = useState("open");
   const [busy, setBusy] = useState(null);
 
@@ -79,6 +84,11 @@ export default function FaultsTab({ faults = [], onChange }) {
                   {f.status !== "in_progress" && f.status !== "resolved" && (
                     <Button variant="outline" size="sm" disabled={busy === f.id} onClick={() => setStatus(f, "in_progress")}>
                       <Wrench className="h-4 w-4" /> Start work
+                    </Button>
+                  )}
+                  {workshop && f.status !== "resolved" && f.vehicle_id && (
+                    <Button asChild variant="outline" size="sm">
+                      <Link to={`/workshop/bus/${encodeURIComponent(f.vehicle_id)}/jobs?fault=${encodeURIComponent(f.id)}`}><Hammer className="h-4 w-4" /> Job in the Workshop</Link>
                     </Button>
                   )}
                   {f.status !== "resolved" && (

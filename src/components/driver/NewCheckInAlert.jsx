@@ -43,7 +43,7 @@ export default function NewCheckInAlert({ checkIn, onDismiss }) {
               : <UserIcon className="w-20 h-20 text-muted-foreground" />}
           </div>
           <div className="min-w-0 flex-1 pt-0.5">
-            <p className={`text-sm font-bold uppercase tracking-wider ${boarded ? "text-success" : "text-info"}`}>
+            <p className={`text-sm font-bold ${boarded ? "text-success": "text-info"}`}>
               {boarded ? "Boarded" : "Exited"}
             </p>
             <p className="font-heading font-bold text-3xl sm:text-5xl leading-tight break-words">{checkIn.staff_name}</p>

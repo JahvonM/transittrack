@@ -20,7 +20,7 @@ export default function DriverMessageAlert({ alert, onAcknowledge }) {
               <MessageSquare className="w-5 h-5" />
             </span>
             <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {alert.is_reply ? "" : alert.driver_email ? "Message from dispatch" : "Broadcast"}
               </p>
               <h2 className="text-lg font-heading font-semibold">{alert.title || "New message"}</h2>

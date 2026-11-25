@@ -1,0 +1,192 @@
+{
+  "key": "nissan-nv350-e26",
+  "make": "Nissan",
+  "model": "NV350",
+  "generation": "E26 (NV350 Urvan)",
+  "year_from": 2012,
+  "year_to": null,
+  "engines": "Diesel: 2.5 (YD25DDTi, common-rail turbo). Petrol: 2.5 (QR25DE). Later models in some markets: 2.4 diesel (4N16).",
+  "market": "General export (VINs starting JN1). Specs differ by market and engine.",
+  "summary": "Starter page compiled from public sources in November 2026. Every fact links to where it came from and starts as Not checked: confirm each one on the bus (door-pillar label, engine plate) or in its owner's manual before relying on it. Nissan's published service schedule for South Africa was only partly readable, so the intervals here need checking against the bus's own service booklet.",
+  "facts": [
+    {
+      "section": "specs",
+      "label": "Diesel engine",
+      "value": "YD25DDTi 2.5 L common-rail turbo diesel: 95 kW (129 hp) at 3200 rpm, 356 N·m at 1400–2000 rpm",
+      "applies_to": "Diesel",
+      "source_name": "Nissan Sri Lanka NV350 Urvan brochure",
+      "source_link": "https://www.nissanlk.com/wp-content/uploads/Nisan-NV350-URVAN.pdf"
+    },
+    {
+      "section": "specs",
+      "label": "Gearbox",
+      "value": "5-speed manual",
+      "applies_to": "YD25DDTi models",
+      "detail": "Some markets also list a 5-speed automatic; the newer 4N16 models use a 7-speed automatic (Nissan Singapore).",
+      "source_name": "Nissan Sri Lanka NV350 Urvan brochure",
+      "source_link": "https://www.nissanlk.com/wp-content/uploads/Nisan-NV350-URVAN.pdf"
+    },
+    {
+      "section": "specs",
+      "label": "Newer diesel in some markets",
+      "value": "4N16 2.4 L: 132 PS at 3250 rpm, 370 N·m at 2000 rpm, 7-speed automatic",
+      "applies_to": "Later models (Singapore listing)",
+      "source_name": "Nissan Singapore NV350 specifications",
+      "source_link": "https://www.nissan.com.sg/vehicles/new/nv350/specifications.html"
+    },
+    {
+      "section": "specs",
+      "label": "Fuel tank",
+      "value": "65 litres",
+      "applies_to": "Diesel",
+      "source_name": "Nissan Mozambique NV350 Urvan brochure",
+      "source_link": "https://www.nissan.co.mz/media/3gwnhnga/urvan-rhd-port.pdf"
+    },
+    {
+      "section": "specs",
+      "label": "Brakes and safety",
+      "value": "ABS, Brake Assist (selected models), front airbags",
+      "source_name": "Nissan Sri Lanka NV350 Urvan brochure",
+      "source_link": "https://www.nissanlk.com/wp-content/uploads/Nisan-NV350-URVAN.pdf"
+    },
+    {
+      "section": "fluids",
+      "label": "Engine oil amount",
+      "value": "7.8 L with filter, 7.5 L without",
+      "applies_to": "Diesel (YD25DDTi)",
+      "detail": "The Thai Urvan owner's manual asks for genuine Nissan engine oil. The Cabstar truck with the same engine is listed at 7.2 L elsewhere, so fill to the dipstick.",
+      "source_name": "Nissan Thailand Urvan owner's manual",
+      "source_link": "https://en.nissan.co.th/content/dam/Nissan/th/owners/OwnerManual-170612/Urvan%20Owner%20Manual%20EN.pdf"
+    },
+    {
+      "section": "fluids",
+      "label": "Engine oil grade",
+      "value": "Never use API CG-4 grade oil",
+      "applies_to": "Diesel (YD25DDTi)",
+      "detail": "From Nissan South Africa's NV350 schedule. Nissan's Serena manual for the same engine lists CF-4 10W-30 from the factory. Confirm the grade for your climate in the owner's manual.",
+      "source_name": "Nissan South Africa NV350 maintenance schedule",
+      "source_link": "https://www.nissan.co.za/content/dam/Nissan/za/Maintenance/NV350.pdf"
+    },
+    {
+      "section": "service",
+      "label": "Engine oil and filter (severe use)",
+      "value": "Every 7,500 km or 6 months",
+      "interval_km": 7500,
+      "interval_months": 6,
+      "applies_to": "Diesel, severe conditions",
+      "detail": "Nissan's interval for severe use (dusty roads, short trips, heavy loads, heat). Daily staff runs in Grenada's heat probably count. The normal-use interval couldn't be read from the PDF; Autodoc lists 15,000 km or 12 months.",
+      "source_name": "Nissan South Africa NV350 maintenance schedule",
+      "source_link": "https://www.nissan.co.za/content/dam/Nissan/za/Maintenance/NV350.pdf"
+    },
+    {
+      "section": "service",
+      "label": "Brake fluid (severe use)",
+      "value": "Every 15,000 km or 12 months",
+      "interval_km": 15000,
+      "interval_months": 12,
+      "detail": "The PDF's text was jumbled here: confirm in the service booklet.",
+      "source_name": "Nissan South Africa NV350 maintenance schedule",
+      "source_link": "https://www.nissan.co.za/content/dam/Nissan/za/Maintenance/NV350.pdf"
+    },
+    {
+      "section": "service",
+      "label": "Coolant",
+      "value": "Check the mixture every 30,000 km or 24 months; replace first at 150,000 km or 96 months, then every 75,000 km or 48 months",
+      "applies_to": "Petrol QR25DE (the diesel's row couldn't be read)",
+      "source_name": "Nissan South Africa NV350 maintenance schedule",
+      "source_link": "https://www.nissan.co.za/content/dam/Nissan/za/Maintenance/NV350.pdf"
+    },
+    {
+      "section": "service",
+      "label": "Fuel filter and air filter",
+      "value": "On the schedule, more often under severe use",
+      "applies_to": "Diesel",
+      "detail": "The schedule marks both for more frequent replacement in severe conditions, but the intervals couldn't be read. Ask a Nissan dealer or check the bus's service booklet.",
+      "source_name": "Nissan South Africa NV350 maintenance schedule",
+      "source_link": "https://www.nissan.co.za/content/dam/Nissan/za/Maintenance/NV350.pdf"
+    },
+    {
+      "section": "tyres",
+      "label": "Wheel nut torque",
+      "value": "108 N·m (11 kg-m, 80 ft-lb)",
+      "detail": "Recheck after the first 1,000 km and after a tyre rotation (Thai Urvan manual), and at each service (South African manual).",
+      "source_name": "Nissan NV350 owner's manual (South Africa)",
+      "source_link": "https://www-europe.nissan-cdn.net/content/dam/Nissan/za/OWNERS/OwnerManuals/Nissan%20NV350%20Manual.pdf"
+    },
+    {
+      "section": "tyres",
+      "label": "Tyre size",
+      "value": "195R15C-8PR",
+      "detail": "Nissan Kenya's brochure gives the same; tyre databases list LT195R15 8PR on 5.5J×15 wheels.",
+      "source_name": "Nissan Thailand Urvan owner's manual",
+      "source_link": "https://en.nissan.co.th/content/dam/Nissan/th/owners/OwnerManual-170612/Urvan%20Owner%20Manual%20EN.pdf"
+    },
+    {
+      "section": "tyres",
+      "label": "Tyre pressures",
+      "value": "Use the tyre placard on the bus: front and rear differ, laden and unladen",
+      "detail": "Set each axle's pressure before loading or unloading.",
+      "source_name": "Nissan NV350 owner's manual (South Africa)",
+      "source_link": "https://www-europe.nissan-cdn.net/content/dam/Nissan/za/OWNERS/OwnerManuals/Nissan%20NV350%20Manual.pdf"
+    },
+    {
+      "section": "filters",
+      "label": "Nissan oil filter",
+      "value": "15208-BN30A",
+      "applies_to": "Listed for NV350 Urvan, Navara, NP300, Cabstar",
+      "detail": "A parts-store listing, not Nissan's own catalogue: confirm by chassis number before ordering.",
+      "source_name": "Partsouq listing",
+      "source_link": "https://partsouq.com/shop/product/15208BN30A-nissan-filter-assy-oil/18223938"
+    },
+    {
+      "section": "filters",
+      "label": "Nissan air filter",
+      "value": "16546-02N01",
+      "applies_to": "Listed for NV350 Urvan 2012–2021",
+      "detail": "A parts-store listing, not Nissan's own catalogue: confirm by chassis number before ordering.",
+      "source_name": "Partsouq listing",
+      "source_link": "https://partsouq.com/shop/product/1654602N01-nissan-element-assy-air/13892708"
+    },
+    {
+      "section": "problems",
+      "label": "Timing chain wear",
+      "value": "A rattle on start-up and rough running are the early signs",
+      "applies_to": "YD25DDTi (reported mainly on the Navara D22 and D40)",
+      "detail": "Blamed on a single-row primary chain; double-row aftermarket kits exist. Not confirmed for the NV350 itself, but it is the same engine.",
+      "source_name": "Willy's Workshop (Australian workshop blog)",
+      "source_link": "https://willysworkshop.com.au/blog/yd25-timing-chain-problems-d40-navara/"
+    },
+    {
+      "section": "problems",
+      "label": "Injector trouble",
+      "value": "Hard starting, rough idle, heavy smoke",
+      "applies_to": "YD25DDTi",
+      "detail": "Usually blamed on poor fuel and neglected fuel filters.",
+      "source_name": "YD25 engine guide (parts seller)",
+      "source_link": "https://autopartswd.com/yd25-engine-guide/"
+    },
+    {
+      "section": "problems",
+      "label": "Turbo failures reported",
+      "value": "One owner's turbo failed at about 210,000 miles, and they found about four other Urvan E26s in Mauritius with the same problem",
+      "applies_to": "E26 diesel",
+      "detail": "One owner's report: anecdotal.",
+      "source_name": "Owner complaint (CarComplaints.com)",
+      "source_link": "https://carcomplaints.com/Nissan/NV3500/2013/engine/turbo_stopped_working.shtml"
+    },
+    {
+      "section": "notes",
+      "label": "Recalls",
+      "value": "Ask a Nissan dealer to check each chassis number for open campaigns",
+      "detail": "This research did not cover NV350 recall lists.",
+      "source_name": "Library research, November 2026"
+    },
+    {
+      "section": "notes",
+      "label": "Still to find",
+      "value": "Coolant amount, gearbox oil, tyre pressures, fuel filter part number",
+      "detail": "The Thai owner's manual lists several unlabeled YD25 figures from 11.0 to 12.6 L, probably coolant amounts for different versions: read the right row in the manual. Then add the facts here and mark them checked.",
+      "source_name": "Library research, November 2026"
+    }
+  ]
+}

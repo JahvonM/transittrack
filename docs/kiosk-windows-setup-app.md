@@ -26,6 +26,7 @@ The tool does not install prerequisites, create signing keys, or change Gradle c
 7. Confirm the expected installed version and retained pairing on the device.
 
 Do not uninstall to bypass a signature mismatch. Use the original signing PC/environment.
+GitHub can also make the same signed file without the PC: see kiosk-apk-from-github.md.
 Updates preserve existing device ownership; do not request ownership again when the device is already managed by this app.
 Update main stops if the checkout has local changes, is on a different branch, or has an unexpected origin.
 The setup tool does not switch branches, stash changes, merge, reset, or push code.

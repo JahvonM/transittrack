@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import {
   AlertTriangle, Building2, CalendarClock, ChevronLeft, ChevronRight, CircleCheck, Globe, MapPin, Navigation, Pencil, Plane, Plus, Trash2, Users,
 } from "lucide-react";
@@ -58,7 +59,10 @@ function JobCard({ job, clash, onOpen }) {
 // that jobs use are kept here too.
 export default function JobsTab({ vehicles = [], routes = [], trips = [], completedTrips = [], places = [], clients = [], onChange }) {
   const { toast } = useToast();
-  const [view, setView] = useState("board");
+  // A notice about a new ride request opens Jobs on Requests (?view=requests).
+  const { search } = useLocation();
+  const [view, setView] = useState(() => (new URLSearchParams(search).get("view") === "requests" ? "requests" : "board"));
+  useEffect(() => { if (new URLSearchParams(search).get("view") === "requests") setView("requests"); }, [search]);
   const [day, setDay] = useState(() => dayKey(new Date()));
   const [dialog, setDialog] = useState({ open: false, job: null, draft: null, request: null });
   const [placeDialog, setPlaceDialog] = useState({ open: false, place: null });

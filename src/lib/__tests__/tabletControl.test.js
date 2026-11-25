@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { newControl, currentControl, controlNotice, controlCompletion, strictControlDevice, CONTROL_TTL } from "../../../base44/shared/tabletControl.ts";
+import { newControl, currentControl, controlNotice, controlCompletion, strictControlDevice, controlTtl, CONTROL_TTL, UPDATE_TTL } from "../../../base44/shared/tabletControl.ts";
 import { mock, load, request, digest } from "../../../security-tests/helpers.js";
 import { cleanTabletSession } from "../tabletSession";
 const TOKEN = "a".repeat(64);
@@ -30,6 +30,24 @@ describe("privileged tablet command policy", () => {
     expect(currentControl({ ...d, control_command: { ...built.command, expires_at: "invalid" } }, now)).toBeNull();
     expect(currentControl({ ...d, control_command: { ...built.command, lock_until: new Date(now + 700000).toISOString() } }, now)).toBeNull();
     expect(() => newControl(device, "shell", "caller")).toThrow();
+  });
+  it("gives an app update 15 minutes only on a tablet whose app knows the longer window", () => {
+    const now = Date.now();
+    const newer = { ...device, helper_health: { native_app_code: 13 } }, older = { ...device, helper_health: { native_app_code: 12 } };
+    expect(controlTtl("app_update", newer)).toBe(UPDATE_TTL);
+    expect(controlTtl("app_update", older)).toBe(CONTROL_TTL);
+    expect(controlTtl("app_update", { ...device, helper_health: { native_app_code: "13" } })).toBe(CONTROL_TTL);
+    expect(controlTtl("reboot", newer)).toBe(CONTROL_TTL);
+    const long = newControl(newer, "app_update", "caller", now);
+    expect(Date.parse(long.command.expires_at) - now).toBe(UPDATE_TTL);
+    const d = { ...newer, control_command: long.command, control_status: long.status };
+    expect(currentControl(d, now + 10 * 60_000)).toEqual(long.command);
+    expect(currentControl(d, now + UPDATE_TTL)).toBeNull();
+    // Only an app update may last 15 minutes.
+    const reboot = newControl(newer, "reboot", "caller", now).command;
+    expect(currentControl({ ...newer, control_command: { ...reboot, expires_at: long.command.expires_at } }, now)).toBeNull();
+    const short = newControl(older, "app_update", "caller", now).command;
+    expect(Date.parse(short.expires_at) - now).toBe(CONTROL_TTL);
   });
   it("has no device-ID-only authorization, even for legacy development tablets", async () => {
     const c = fixture();
@@ -90,16 +108,35 @@ describe("real tabletControl endpoint against isolated database", () => {
     expect((await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).status).toBe(410);
   });
   it("requires parked vehicle, tracking off, no open shifts, including older history pages", async () => {
-    for (const over of [{ tracking_active: true }, { speed: 3 }, { speed: null }]) {
+    const fresh = new Date().toISOString();
+    for (const over of [{ tracking_active: true, last_location_update: fresh }, { tracking_active: undefined, last_location_update: fresh }, { speed: 3 }, { speed: null }]) {
       const c = fixture(), id = await issue(c, "reboot"); Object.assign(c.tables.Vehicle[0], over);
       expect(await (await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).json()).toMatchObject({ action: "reboot", blocked_code: "TABLET_BUSY" });
     }
     const c = fixture(), id = await issue(c, "reboot");
     c.tables.DriverShift = [...Array.from({ length: 100 }, (_, i) => ({ id: String(i), company_id: "a", vehicle_id: "bus-a", started_at: "2026-10-14", ended_at: "2026-10-15" })),
-      { id: "old", company_id: "a", vehicle_id: "bus-a", started_at: "2026-01-01" }];
+      { id: "open", company_id: "a", vehicle_id: "bus-a", started_at: new Date(Date.now() - 2 * 3600_000).toISOString() }];
     expect(await (await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).json()).toMatchObject({ action: "reboot", blocked_code: "TABLET_BUSY" });
-    c.tables.DriverShift[100].ended_at = "2026-01-02";
+    c.tables.DriverShift[100].ended_at = fresh;
     expect((await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).status).toBe(200);
+  });
+  it("ignores a tracking flag the bus stopped backing with positions, and a shift left open for days", async () => {
+    // A tablet switched off mid-shift: its flag says tracking, its last position is an hour old.
+    let c = fixture(), id = await issue(c, "reboot");
+    Object.assign(c.tables.Vehicle[0], { tracking_active: true, last_location_update: new Date(Date.now() - 3600_000).toISOString() });
+    let proof = await (await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).json();
+    expect(proof.action).toBe("reboot");
+    expect(proof.blocked_code).toBeUndefined();
+    // Nobody ended this shift, 19 hours ago; one that started 17 hours ago still counts.
+    c = fixture(); id = await issue(c, "reboot");
+    c.tables.DriverShift = [{ id: "forgotten", company_id: "a", vehicle_id: "bus-a", started_at: new Date(Date.now() - 19 * 3600_000).toISOString() }];
+    proof = await (await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).json();
+    expect(proof.blocked_code).toBeUndefined();
+    c.tables.DriverShift[0].started_at = new Date(Date.now() - 17 * 3600_000).toISOString();
+    expect(await (await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).json()).toMatchObject({ blocked_code: "TABLET_BUSY" });
+    // A shift with no readable start time still counts.
+    c.tables.DriverShift[0].started_at = "";
+    expect(await (await run(c, { operation: "claim", command_id: id, device_token: TOKEN })).json()).toMatchObject({ blocked_code: "TABLET_BUSY" });
   });
   it("records only allowlisted results; duplicate receipt cannot rewrite completion", async () => {
     const c = fixture(), id = await issue(c, "reboot");

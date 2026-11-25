@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 640" role="img" aria-labelledby="t d">
+<title id="t">Air filter: guide drawing</title>
+<desc id="d">Air box opened: the lid lifted, the filter element taken out, the clips, the air intake on one side and the hose to the engine on the other.</desc>
+<style>
+.b{fill:#e2e8f0;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.m{fill:#cbd5e1;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.d{fill:#94a3b8;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.k{fill:#475569;stroke:#1e293b;stroke-width:2}
+.a{fill:#67e8f9;stroke:#0e7490;stroke-width:3;stroke-linejoin:round}
+.ln{fill:none;stroke:#1e293b;stroke-linecap:round;stroke-linejoin:round}
+.ld{fill:none;stroke:#64748b;stroke-width:2}
+.t{font:700 30px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+.s{font:500 17px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#475569}
+.l{font:600 22px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+</style>
+<rect width="800" height="640" fill="#f8fafc"/>
+<text class="t" x="24" y="44">Air filter</text>
+<text class="s" x="24" y="72">Guide drawing: not to scale, not from Toyota or Nissan diagrams</text>
+<rect class="d" x="170" y="118" width="300" height="46" rx="14"/>
+<rect class="a" x="190" y="178" width="260" height="50" rx="8"/>
+<polyline points="196,180 208,226 220,180 232,226 244,180 256,226 268,180 280,226 292,180 304,226 316,180 328,226 340,180 352,226 364,180 376,226 388,180 400,226 412,180 424,226 436,180" fill="none" stroke="#0e7490" stroke-width="2"/>
+<rect class="m" x="170" y="245" width="300" height="180" rx="18"/>
+<rect class="k" x="180" y="238" width="20" height="18" rx="3"/><rect class="k" x="440" y="238" width="20" height="18" rx="3"/>
+<rect class="b" x="40" y="305" width="135" height="50" rx="10"/>
+<path class="ln" stroke="#94a3b8" stroke-width="40" d="M470 335 C 540 335, 560 420, 640 420"/>
+<rect class="b" x="640" y="380" width="130" height="80" rx="12"/>
+<text class="s" x="705" y="427" text-anchor="middle">Engine</text>
+<path class="ld" d="M470 141 L560 130"/><circle cx="470" cy="141" r="5" fill="#0f172a"/><text class="l" x="568" y="137" text-anchor="start">Air box lid</text>
+<path class="ld" d="M450 203 L560 200"/><circle cx="450" cy="203" r="5" fill="#0f172a"/><text class="l" x="568" y="207" text-anchor="start">Filter element</text>
+<path class="ld" d="M452 247 L560 265"/><circle cx="452" cy="247" r="5" fill="#0f172a"/><text class="l" x="568" y="272" text-anchor="start">Clips</text>
+<path class="ld" d="M320 425 L320 495"/><circle cx="320" cy="425" r="5" fill="#0f172a"/><text class="l" x="250" y="522" text-anchor="start">Air box</text>
+<path class="ld" d="M70 355 L70 440"/><circle cx="70" cy="355" r="5" fill="#0f172a"/><text class="l" x="24" y="466" text-anchor="start">Air intake</text>
+<text class="l" x="560" y="510">Hose to the engine</text>
+</svg>

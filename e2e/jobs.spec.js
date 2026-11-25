@@ -15,11 +15,11 @@ test('dispatch creates an airport pickup and the day board shows it', async ({ p
     { id: 'hotel', name: 'Grand Hotel', kind: 'hotel', address: 'Grand Anse', lat: 12.03, lng: -61.76 },
   ];
   const clients = [{ id: 'c1', name: 'Grand Hotel Group', kind: 'hotel', currency: 'USD' }];
-  await page.addInitScript(() => { localStorage.setItem('base44_access_token', 'isolated-test-session'); localStorage.setItem('tt-map-engine', 'basic'); });
+  await page.addInitScript(() => { localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'isolated-test-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); localStorage.setItem('tt-map-engine', 'basic'); });
   await page.route('https://api.mapbox.com/**', (r) => r.fulfill({ status: 404, body: '' }));
   await page.route('**/api/**', (r) => {
     const body = r.request().postDataJSON(), url = r.request().url();
-    if (url.includes('/functions/entityAccess')) {
+    if (url.includes('/functions/v1/entityAccess')) {
       if (body.entity === 'User') return r.fulfill({ json: { result: { id: 'admin-test', role: 'admin', full_name: 'Test Admin' } } });
       if (body.entity === 'AdminBootstrap') {
         const lists = { vehicles: [bus], places, clients, trips: created, completedTrips: [], routes: [{ id: "staff-route", name: "Staff morning route", stops: [{ name: "Staff-only stop", lat: 12.04, lng: -61.75 }] }] };
@@ -85,8 +85,8 @@ test('the driver tablet alerts a new job and records the pickup signature with t
   await page.route('**/api/**', async (r) => {
     const url = r.request().url();
     const body = r.request().postDataJSON();
-    if (url.includes('/functions/kioskHeartbeat')) return r.fulfill({ json: kiosk });
-    if (url.includes('/functions/driverSession')) {
+    if (url.includes('/functions/v1/kioskHeartbeat')) return r.fulfill({ json: kiosk });
+    if (url.includes('/functions/v1/driverSession')) {
       if (body?.action === 'verify_pin') return r.fulfill({ json: { ok: true, driver_grant: 'b'.repeat(64) } });
       if (body?.action === 'heartbeat') return r.fulfill({ json: { vehicle, driver_name: 'Kofi', occupancy: 0, check_ins: [], broadcasts: [], group_messages: [], trips, driver_unlocked: true, open_shift: null, staff: [], has_driver_pin: true, company_name: 'Company A' } });
       if (['update_trip_status', 'sign_trip'].includes(body?.action)) {
@@ -150,8 +150,8 @@ test('the signing tablet asks guests to sign at pickup, then at drop-off', async
   await page.route('https://api.mapbox.com/**', (r) => r.fulfill({ status: 404, body: '' }));
   await page.route('**/api/**', (r) => {
     const url = r.request().url(), body = r.request().postDataJSON();
-    if (url.includes('/functions/kioskHeartbeat')) return r.fulfill({ json: device });
-    if (url.includes('/functions/jobSigning')) {
+    if (url.includes('/functions/v1/kioskHeartbeat')) return r.fulfill({ json: device });
+    if (url.includes('/functions/v1/jobSigning')) {
       expect(body.device_token).toBe('e'.repeat(64));
       if (body.action === 'state') return r.fulfill({ json: { bus: { id: 'bus-a', name: 'Bus 12' }, jobs } });
       if (body.action === 'sign') {
@@ -160,7 +160,7 @@ test('the signing tablet asks guests to sign at pickup, then at drop-off', async
         return r.fulfill({ json: { trip: jobs.find((j) => j.id === body.trip_id) } });
       }
     }
-    if (url.includes('/functions/kioskCheckIn')) return r.fulfill({ status: 401, json: { error: 'Invalid or unpaired kiosk device' } });
+    if (url.includes('/functions/v1/kioskCheckIn')) return r.fulfill({ status: 401, json: { error: 'Invalid or unpaired kiosk device' } });
     return r.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });
   await page.clock.install();
@@ -209,8 +209,8 @@ test('at the hotel the front desk confirms the drop-off; the driver sends a meet
   await page.route('**/api/**', async (r) => {
     const url = r.request().url();
     const body = r.request().postDataJSON();
-    if (url.includes('/functions/kioskHeartbeat')) return r.fulfill({ json: kiosk });
-    if (url.includes('/functions/driverSession')) {
+    if (url.includes('/functions/v1/kioskHeartbeat')) return r.fulfill({ json: kiosk });
+    if (url.includes('/functions/v1/driverSession')) {
       if (body?.action === 'verify_pin') return r.fulfill({ json: { ok: true, driver_grant: 'b'.repeat(64) } });
       if (body?.action === 'heartbeat') return r.fulfill({ json: { vehicle, driver_name: 'Kofi Charles', occupancy: 0, check_ins: [], broadcasts: [], group_messages: [], trips: [job, second].filter((t) => t.status !== 'completed'), driver_unlocked: true, open_shift: null, staff: [], has_driver_pin: true, company_name: 'Island Transit Co.' } });
       if (body?.action === 'sign_trip') {
@@ -266,8 +266,8 @@ test('signing operator unlocks jobs and chooses the correct pickup signature',as
  await page.addInitScript(()=>{localStorage.setItem('tt_kiosk_device_id','signer');localStorage.setItem('tt_device_token_signer','e'.repeat(64));});
  await page.route('**/api/**',route=>{
   const url=route.request().url();let body={};try{body=route.request().postDataJSON()||{};}catch{}
-  if(url.includes('/functions/kioskHeartbeat'))return route.fulfill({json:device});
-  if(url.includes('/functions/jobSigning')){
+  if(url.includes('/functions/v1/kioskHeartbeat'))return route.fulfill({json:device});
+  if(url.includes('/functions/v1/jobSigning')){
    actions.push(body);
    if(body.action==='state')return route.fulfill({json:{jobs:jobs.map(({notes,...j})=>j)}});
    if(body.action==='unlock_operator')return route.fulfill(body.pin==='1234'?{json:{operator_grant:'f'.repeat(64)}}:{status:403,json:{error:'Incorrect bus PIN'}});
@@ -306,8 +306,8 @@ test('the guest name card on the signing tablet slides away to the jobs behind i
  await page.addInitScript(() => { localStorage.setItem('tt_kiosk_device_id', 'signer'); localStorage.setItem('tt_device_token_signer', 'e'.repeat(64)); });
  await page.route('**/api/**', (route) => {
   const url = route.request().url(); let body = {}; try { body = route.request().postDataJSON() || {}; } catch { /* GET */ }
-  if (url.includes('/functions/kioskHeartbeat')) return route.fulfill({ json: device });
-  if (url.includes('/functions/jobSigning')) {
+  if (url.includes('/functions/v1/kioskHeartbeat')) return route.fulfill({ json: device });
+  if (url.includes('/functions/v1/jobSigning')) {
    if (body.action === 'state') return route.fulfill({ json: { jobs: [] } });
    if (body.action === 'unlock_operator') return route.fulfill({ json: { operator_grant: 'f'.repeat(64) } });
    if (body.action === 'operator_state') return route.fulfill({ json: { jobs } });
@@ -352,18 +352,18 @@ test('if confirming a website request fails, Confirm ride retries with the saved
   const bus = { id: 'bus', name: 'Bus 12', company_id: 'a', company_name: 'Island Transit Co.', driver_name: 'Kofi', status: 'idle', type: 'bus', capacity: 30 };
   const when = new Date(Date.now() + 2 * 86400_000); when.setHours(10, 0, 0, 0);
   let request = { id: 'req-1', status: 'new', service: 'transfer', requested_time: when.toISOString(), pickup: 'Grand Hotel', dropoff: 'Maurice Bishop Airport', guests: 2, name: 'Ana Joseph', phone: '+1 473 555 0101', email: 'ana@example.com', created_date: new Date().toISOString() };
-  await page.addInitScript(() => { localStorage.setItem('base44_access_token', 'isolated-test-session'); localStorage.setItem('tt-map-engine', 'basic'); });
+  await page.addInitScript(() => { localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'isolated-test-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); localStorage.setItem('tt-map-engine', 'basic'); });
   await page.route('https://api.mapbox.com/**', (r) => r.fulfill({ status: 404, body: '' }));
   await page.route('**/api/**', (r) => {
     const body = r.request().postDataJSON(), url = r.request().url();
-    if (url.includes('/functions/bookingRequest')) {
+    if (url.includes('/functions/v1/bookingRequest')) {
       confirms.push(body);
       // The first confirmation fails (say the connection dropped); the second goes through.
       if (confirms.length === 1) return r.fulfill({ status: 500, json: { error: 'Server is busy. Try again.' } });
       request = null;
       return r.fulfill({ json: { ok: true, emailed: true, tracking: true } });
     }
-    if (url.includes('/functions/entityAccess')) {
+    if (url.includes('/functions/v1/entityAccess')) {
       if (body.entity === 'User') return r.fulfill({ json: { result: { id: 'admin-test', role: 'admin', full_name: 'Test Admin' } } });
       if (body.entity === 'AdminBootstrap') {
         const lists = { vehicles: [bus], trips: created };
@@ -410,8 +410,8 @@ async function signingTablet(page, { saved = [] } = {}) {
  }, saved);
  await page.route('**/api/**', (route) => {
   const url = route.request().url(); let body = {}; try { body = route.request().postDataJSON() || {}; } catch { /* no body */ }
-  if (url.includes('/functions/kioskHeartbeat')) return route.fulfill({ json: device });
-  if (url.includes('/functions/jobSigning')) {
+  if (url.includes('/functions/v1/kioskHeartbeat')) return route.fulfill({ json: device });
+  if (url.includes('/functions/v1/jobSigning')) {
    actions.push(body);
    if (body.action === 'sign') return route.abort();
    if (body.action === 'state') return route.fulfill({ json: { jobs: [], bus: { id: device.vehicle_id, name: device.vehicle_name } } });

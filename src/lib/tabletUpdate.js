@@ -10,6 +10,9 @@
 // and survives the reload.
 import { useEffect, useRef } from "react";
 import { APP_BUILD } from "@/lib/appHealth";
+import { stageNewVersion } from "@/lib/swStage";
+
+export { stageNewVersion };
 
 const APPLIED_KEY = "tt_update_applied_at";
 const CHECK_EVERY_MS = 60 * 1000;
@@ -61,26 +64,6 @@ export function updateRequested(requestedAt) {
   let applied = 0;
   try { applied = Date.parse(localStorage.getItem(APPLIED_KEY) || "") || 0; } catch { /* ignore */ }
   return t > applied;
-}
-
-// Asks the service worker to save the whole new version for offline use.
-// True when it's saved (or there's no service worker to ask, e.g. a dev build).
-export async function stageNewVersion(timeoutMs = 90_000) {
-  const sw = typeof navigator !== "undefined" ? navigator.serviceWorker : null;
-  if (!sw) return true;
-  let reg = null;
-  try { reg = await sw.getRegistration(); } catch { /* ignore */ }
-  if (!reg) return true;
-  try { await reg.update(); } catch { /* keep the current worker */ }
-  const worker = sw.controller || reg.active;
-  if (!worker) return true;
-  return new Promise((resolve) => {
-    const channel = new MessageChannel();
-    const timer = setTimeout(() => resolve(false), timeoutMs);
-    channel.port1.onmessage = (e) => { clearTimeout(timer); resolve(e.data?.ok === true); };
-    try { worker.postMessage({ type: "tt-stage-update" }, [channel.port2]); }
-    catch { clearTimeout(timer); resolve(false); }
-  });
 }
 
 // Reloads into the newest version only once it's fully saved on the tablet.

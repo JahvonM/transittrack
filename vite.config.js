@@ -1,25 +1,14 @@
-import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { fileURLToPath } from 'node:url'
-import { readFileSync } from 'node:fs'
+import { existsSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 
-// `vite build --mode supabase` (npm run build:supabase) builds the app for its
-// own hosting on Supabase + Cloudflare; the normal build stays on Base44.
-// `tt-backend` is the one switch: src/api/backend.base44.js or backend.supabase.js.
-const backendFor = (mode) => fileURLToPath(new URL(mode === 'supabase' ? './src/api/backend.supabase.js' : './src/api/backend.base44.js', import.meta.url))
-
-// The switch for the whole app (step 7): base44/shared/liveBackend.ts. When it
-// says 'supabase', the build Base44 hosts (the one the tablets, phone app and
-// desktop app open) talks to Supabase too.
-export function liveBackend(source = readFileSync(new URL('./base44/shared/liveBackend.ts', import.meta.url), 'utf8')) {
-  const m = source.match(/^export const LIVE_BACKEND: Backend = '(base44|supabase)';$/m)
-  if (!m) throw new Error('base44/shared/liveBackend.ts: LIVE_BACKEND line not found')
-  return m[1]
-}
-// Browser fixtures intercept Base44 requests; keep their build isolated from the live switch.
-// Normal production builds always follow LIVE_BACKEND.
-const backendMode = (mode) => mode === 'e2e' ? 'base44' : (mode === 'supabase' || liveBackend() === 'supabase' ? 'supabase' : 'base44')
+// The app runs on Supabase (src/api/backend.supabase.js). The browser tests
+// (`--mode e2e`) build it the same way but point it at /api on the page's own
+// address, where every test answers for the server, so a request a test didn't
+// plan for never leaves the machine.
+const E2E_SUPABASE_URL = '/api'
 
 // Build stamp shown in Admin → Fleet health, so you can see which tablets
 // are still running an older version. Also written into offline-manifest.json
@@ -27,54 +16,44 @@ const backendMode = (mode) => mode === 'e2e' ? 'base44' : (mode === 'supabase' |
 const APP_BUILD = new Date().toISOString().slice(0, 16).replace('T', ' ');
 
 // Lists every file in the build so the service worker (public/sw.js) can
-// save them all and the app opens with no WiFi.
+// save them all and the app opens with no WiFi. Written once the build is on
+// disk, from the files actually there: listed any earlier, a chunk renamed
+// late in the build (mapbox-gl) was listed under a name that never existed,
+// and the service worker can only switch to a version once every listed file
+// has been saved.
+export function offlineFiles(bundle, dir, exists = existsSync) {
+  return Object.keys(bundle)
+    .filter((f) => !f.endsWith('.map') && f !== 'index.html' && f !== 'offline-manifest.json')
+    .filter((f) => exists(join(dir, f)))
+}
 function offlineManifest() {
   return {
     name: 'tt-offline-manifest',
     apply: 'build',
-    generateBundle(_options, bundle) {
-      const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'index.html');
-      this.emitFile({ type: 'asset', fileName: 'offline-manifest.json', source: JSON.stringify({ built: new Date().toISOString(), build: APP_BUILD, files }) });
+    writeBundle: {
+      order: 'post',
+      handler(options, bundle) {
+        const files = offlineFiles(bundle, options.dir)
+        writeFileSync(join(options.dir, 'offline-manifest.json'), JSON.stringify({ built: new Date().toISOString(), build: APP_BUILD, files }))
+      },
     },
   };
 }
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  define: { __APP_BUILD__: JSON.stringify(APP_BUILD) },
+  define: {
+    __APP_BUILD__: JSON.stringify(APP_BUILD),
+    ...(mode === 'e2e' ? { 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(E2E_SUPABASE_URL) } : {}),
+  },
   resolve: {
     alias: {
-      'tt-backend': backendFor(backendMode(mode)),
-      // The Base44 plugin provides @/ itself; the Supabase build leaves that plugin out.
-      ...(mode === 'supabase' ? { '@': fileURLToPath(new URL('./src', import.meta.url)) } : {}),
+      'tt-backend': fileURLToPath(new URL('./src/api/backend.supabase.js', import.meta.url)),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   plugins: [
-    ...(mode === 'supabase' ? [] : [base44({
-      // Support for legacy code that imports the base44 SDK with @/integrations, @/entities, etc.
-      // can be removed if the code has been updated to use the new SDK imports from @base44/sdk
-      legacySDKImports: process.env.BASE44_LEGACY_SDK_IMPORTS === 'true',
-      hmrNotifier: true,
-      navigationNotifier: true,
-      analyticsTracker: true,
-      visualEditAgent: true
-    })]),
     react(),
     offlineManifest(),
   ],
-  // `vite preview` only serves the static build — the SDK always calls a
-  // same-origin relative `/api` (see src/api/base44Client.js's `serverUrl:
-  // ''`), which the real deployed app satisfies because Base44's own hosting
-  // serves both the static bundle and /api from one origin. Locally there is
-  // no /api route at all, so proxy it straight to the real backend. This only
-  // affects `vite preview` (used by the Playwright e2e suite) — the actual
-  // deploy never runs `vite preview`, so this is inert in production.
-  preview: {
-    proxy: {
-      '/api': {
-        target: 'https://base44.app',
-        changeOrigin: true,
-      },
-    },
-  },
 }));

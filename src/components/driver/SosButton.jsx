@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
-import { SOS_MESSAGE, waLink } from "@/lib/mapbox";
+import { sosMessage, waLink } from "@/lib/mapbox";
 import { Siren, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 
 // compact: a single-row button for the Drive screen side panel.
-export default function SosButton({ vehicle, invoke, emergencyContacts, compact = false }) {
+export default function SosButton({ vehicle, invoke, emergencyContacts, driverName = "", compact = false }) {
   const [holding, setHolding] = useState(false);
   const [fired, setFired] = useState(!!vehicle && vehicle.status === "emergency");
   const [contacts, setContacts] = useState(null); // { boss_phone, secretary_phone } once loaded
@@ -62,6 +62,7 @@ export default function SosButton({ vehicle, invoke, emergencyContacts, compact 
     }
   };
 
+  const message = sosMessage({ driver: driverName || vehicle?.driver_name, bus: vehicle?.name, lat: vehicle?.current_lat, lng: vehicle?.current_lng });
   const hasBoss = !!contacts?.boss_phone;
   const hasSecretary = !!contacts?.secretary_phone;
   const hasAnyContact = hasBoss || hasSecretary;
@@ -71,7 +72,7 @@ export default function SosButton({ vehicle, invoke, emergencyContacts, compact 
       <button
         onMouseDown={startHold} onMouseUp={cancelHold} onMouseLeave={cancelHold}
         onTouchStart={startHold} onTouchEnd={cancelHold} disabled={fired || cooldown}
-        className={`w-full rounded-2xl border-2 border-destructive/40 ${compact ? "min-h-[52px] py-2 px-4 flex flex-row items-center justify-center gap-3 text-left rounded-xl" : "py-5 flex flex-col items-center gap-1"} transition-all ${
+        className={`w-full rounded-2xl border-2 border-destructive/40 ${compact ? "min-h-[52px] py-2 px-4 flex flex-row items-center justify-center gap-3 text-left rounded-xl" : "py-5 flex flex-col items-center gap-1"} transition-[background-color,transform] ${
           holding ? "bg-destructive scale-95" : fired ? "bg-destructive/20" : "bg-destructive/10 hover:bg-destructive/20"
         }`}
       >
@@ -105,7 +106,7 @@ export default function SosButton({ vehicle, invoke, emergencyContacts, compact 
           )}
           {hasBoss && (
             <a
-              href={waLink(contacts.boss_phone, SOS_MESSAGE)}
+              href={waLink(contacts.boss_phone, message)}
               target="_blank" rel="noopener noreferrer"
               className="w-full rounded-xl bg-success hover:bg-green-700 text-white font-medium py-3 flex items-center justify-center gap-2"
             >
@@ -115,7 +116,7 @@ export default function SosButton({ vehicle, invoke, emergencyContacts, compact 
           )}
           {hasSecretary && (
             <a
-              href={waLink(contacts.secretary_phone, SOS_MESSAGE)}
+              href={waLink(contacts.secretary_phone, message)}
               target="_blank" rel="noopener noreferrer"
               className="w-full rounded-xl bg-success hover:bg-green-700 text-white font-medium py-3 flex items-center justify-center gap-2"
             >

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("npm:@base44/sdk@0.8.44", () => ({ createClientFromRequest: vi.fn() }));
-vi.mock("../../../base44/shared/forwardToSupabase.ts", () => ({ forwardToSupabase: vi.fn(async () => null) }));
 vi.mock("../../../base44/shared/atomicOps.ts", () => ({ reserveAttempt: vi.fn(async () => true) }));
 vi.mock("../../../base44/shared/notificationPolicy.ts", () => ({
   emailWithPolicy: vi.fn(async (_b, _key, recipients, sendOne) => { for (const r of recipients) await sendOne(r); return { sent: recipients.length }; }),
@@ -144,6 +143,52 @@ describe("booking on the website", () => {
     expect((await call({ action: "spam", request_id: "req2" })).body).toEqual({ ok: true, emailed: false });
     expect(sent).toHaveLength(1);
     expect(rows.get("req2")).toMatchObject({ status: "declined", decline_reason: "spam" });
+  });
+});
+
+describe("cancelling a job", () => {
+  // A cancelled job, and the client it was for.
+  const cancelled = (db, over = {}) => {
+    db.Trip.get = vi.fn(async (id) => (id === "trip9" ? { id, status: "cancelled", job_type: "airport_pickup", scheduled_time: "2026-10-27T15:30:00Z", pickup_name: "MBIA", dropoff_name: "Spice Island", client_id: "cl1", ...over } : null));
+    db.Client = { get: vi.fn(async (id) => (id === "cl1" ? { id, name: "Coyaba", email: "desk@coyaba.example" } : null)) };
+  };
+
+  it("is for admins only, and only about a job that really is cancelled", async () => {
+    setup({ role: "staff" });
+    expect((await call({ action: "cancel_notice", trip_id: "trip1" })).status).toBe(403);
+    setup();
+    expect((await call({ action: "cancel_notice", trip_id: "trip1" })).status).toBe(401);
+    const { sent } = setup({ role: "admin" });
+    const res = await call({ action: "cancel_notice", trip_id: "trip1" });
+    expect(res).toMatchObject({ status: 409, body: { error: "Cancel the job first" } });
+    expect(sent).toHaveLength(0);
+  });
+
+  it("emails whoever asked for it on the website, with the reason given", async () => {
+    const { db, rows, sent } = setup({ role: "admin" });
+    cancelled(db);
+    rows.set("req7", { id: "req7", status: "confirmed", trip_id: "trip9", email: "ana@example.com", service: "airport_pickup" });
+    const res = await call({ action: "cancel_notice", trip_id: "trip9", reason: "Your flight was <cancelled>" });
+    expect(res.body).toEqual({ ok: true, emailed: true, to: "ana@example.com" });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ to: "ana@example.com", subject: "Your ride is cancelled" });
+    expect(sent[0].body).toContain("Your flight was &lt;cancelled&gt;");
+    expect(sent[0].body).toContain("Airport pickup");
+    expect(sent[0].body).toMatch(/requested with this email address on mcsweenstransport\.com/);
+    // The website request wins over the job's client.
+    expect(db.Client.get).not.toHaveBeenCalled();
+  });
+
+  it("emails the job's client when it didn't come from a request, and says so when there's nobody to email", async () => {
+    const { db, sent } = setup({ role: "admin" });
+    cancelled(db);
+    expect((await call({ action: "cancel_notice", trip_id: "trip9" })).body).toEqual({ ok: true, emailed: true, to: "desk@coyaba.example" });
+    expect(sent[0].body).toMatch(/booked for you with McSween Transport/);
+    expect(sent[0].body).toMatch(/sorry, we have had to cancel this ride/);
+    cancelled(db, { client_id: "" });
+    expect((await call({ action: "cancel_notice", trip_id: "trip9" })).body).toEqual({ ok: true, emailed: false, why: "no_email" });
+    expect(sent).toHaveLength(1);
+    expect((await call({ action: "cancel_notice", trip_id: "trip9", reason: "x".repeat(301) })).status).toBe(400);
   });
 });
 

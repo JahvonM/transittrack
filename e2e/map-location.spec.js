@@ -7,7 +7,7 @@ async function setup(page) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.addInitScript(() => {
-    localStorage.setItem('base44_access_token', 'mock-authenticated-session');
+    localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
     localStorage.setItem('tt-map-engine', 'full');
     window.gpsCallbacks = new Map();
     let id = 0;
@@ -20,7 +20,7 @@ async function setup(page) {
     : r.fulfill({ status: 404, body: '' })));
   await page.route('**/api/**', withAdminBatch(async (route) => {
     const url = route.request().url();
-    if (url.includes('/functions/entityAccess')) {
+    if (url.includes('/functions/v1/entityAccess')) {
       const b = route.request().postDataJSON();
       let result = [];
       if (b.entity === 'User' && b.operation === 'get') result = { id: 'c', email: 'c@test.local', full_name: 'Test Caller', role: 'admin' };

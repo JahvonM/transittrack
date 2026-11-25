@@ -61,7 +61,6 @@ const loadMechanicPortal = () => import('@/pages/MechanicPortal');
 const MechanicPortal = lazy(loadMechanicPortal);
 const RunInspection = lazy(() => import('@/pages/RunInspection'));
 const ManagerDashboard = lazy(() => import('@/pages/ManagerDashboard'));
-const OAuthConsent = lazy(() => import('@/pages/OAuthConsent'));
 const DesktopSignIn = lazy(() => import('@/pages/DesktopSignIn'));
 const PhoneSignIn = lazy(() => import('@/pages/PhoneSignIn'));
 // The first time someone opens the app in a browser: get the app, then allow
@@ -88,6 +87,10 @@ const Kiosk = lazy(() => import('@/pages/Kiosk'));
 const RouteExplorer = lazy(() => import('@/pages/RouteExplorer'));
 const StaffDirectory = lazy(() => import('@/pages/StaffDirectory'));
 const ServiceHistory = lazy(() => import('@/pages/ServiceHistory'));
+const loadPartsKiosk = () => import('@/pages/PartsKiosk');
+const PartsKiosk = lazy(loadPartsKiosk);
+const loadWorkshop = () => import('@/pages/Workshop');
+const Workshop = lazy(loadWorkshop);
 const SafetyStandards = lazy(() => import('@/pages/SafetyStandards'));
 const Buses = lazy(() => import('@/pages/Buses'));
 // Passenger More shares StaffPortal data with Home, Journey and My card.
@@ -108,10 +111,12 @@ const DriverPassword = lazy(() => import('@/pages/DriverPassword'));
 const HOME_CODE = {
   '/staff': loadStaffPortal, '/journey': loadStaffPortal, '/my-card': loadStaffPortal, '/more': loadStaffPortal,
   '/admin': loadAdmin, '/mechanic': loadMechanicPortal, '/company': loadCompanyDashboard,
-  '/driver-phone': loadDriverPhone, '/workspace': loadRoleWorkspace,
+  '/driver-phone': loadDriverPhone, '/workspace': loadRoleWorkspace, '/parts': loadPartsKiosk, '/workshop': loadWorkshop,
 };
 const fetchHomeCode = (path) => { HOME_CODE['/' + String(path || '').split('/')[1]]?.().catch(() => { /* the page loads it again */ }); };
 if (typeof window !== 'undefined') fetchHomeCode(window.location.pathname);
+// Screens opened on their own, which shouldn't fetch the home screen's code.
+const OWN_SCREEN = /^\/(parts|workshop)(\/|$)/;
 // Add page imports here
 
 // Pages that moved inside the admin area. Their old addresses still work for
@@ -135,7 +140,10 @@ const AuthenticatedApp = () => {
   const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, checkAppState } = useAuth();
   const location = useLocation();
   const home = user ? homeFor(user) : null;
-  useEffect(() => { if (home) fetchHomeCode(home); }, [home]);
+  // The parts kiosk and the Workshop are screens of their own: don't download
+  // the account's home screen (all of Admin, for an administrator) with them.
+  const ownScreen = OWN_SCREEN.test(location.pathname);
+  useEffect(() => { if (home && !ownScreen) fetchHomeCode(home); }, [home, ownScreen]);
   const authPage = ['/login', '/register', '/forgot-password', '/reset-password'].includes(location.pathname);
   const tabletPage = /^\/(driver|kiosk|tablet)(\/|$)/.test(location.pathname);
   // The legal pages are linked from the app stores, so they must open for
@@ -148,7 +156,8 @@ const AuthenticatedApp = () => {
   // are all one page, so they share a key — switching tabs must not restart
   // it (that would stop GPS tracking and navigation).
   const pageKey = ["/staff","/journey","/my-card","/more","/rides","/help"].includes(location.pathname) ? "/passenger-experience" : /^\/driver(\/|$)/.test(location.pathname) ? "/driver"
-    : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : /^\/admin(\/|$)/.test(location.pathname) ? "/admin" : location.pathname;
+    : location.pathname.startsWith("/driver-phone") ? "/driver-phone" : /^\/admin(\/|$)/.test(location.pathname) ? "/admin"
+    : /^\/workshop(\/|$)/.test(location.pathname) ? "/workshop" : location.pathname;
   // The first screen shown after opening the app, or false once the person
   // has moved on (from then on every new screen slides in).
   const firstScreen = useRef(null);
@@ -194,7 +203,6 @@ const AuthenticatedApp = () => {
       <Route path="/share" element={<ShareJourney />} />
       <Route path="/site/*" element={<SiteApp base="/site" />} />
       <Route path="/join" element={<JoinCompany />} />
-      <Route path="/oauth/consent" element={<OAuthConsent />} />
       <Route path="/desktop-signin" element={<DesktopSignIn />} />
       <Route path="/phone-signin" element={<PhoneSignIn />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -205,10 +213,22 @@ const AuthenticatedApp = () => {
       <Route path="/driver/:stage?" element={<DriverApp />} />
       <Route path="/kiosk" element={<Kiosk />} />
       <Route path="/tablet" element={<TabletStart />} />
+      {/* The parts kiosk: signing in comes back here. */}
+      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login?returnTo=%2Fparts" replace />} />}>
+        <Route path="/parts" element={<RoleGate allow={["admin", "mechanic"]}><PartsKiosk /></RoleGate>} />
+      </Route>
+      {/* The Workshop (torque values and bolt maps): signing in comes back here. */}
+      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login?returnTo=%2Fworkshop" replace />} />}>
+        <Route path="/workshop/*" element={<RoleGate allow={["admin", "mechanic"]}><Workshop /></RoleGate>} />
+      </Route>
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/passenger" element={<Navigate to="/staff" replace />} />
         <Route path="/company" element={<CompanyDashboard />} />
         <Route path="/company/:tab" element={<CompanyDashboard />} />
+        <Route path="/admin/workshop" element={<Navigate to="/workshop" replace />} />
+        {/* Parts and the Bus library live in the Workshop now; old links still land there. */}
+        <Route path="/admin/parts" element={<Navigate to="/workshop/parts" replace />} />
+        <Route path="/admin/library" element={<Navigate to="/workshop" replace />} />
         <Route path="/admin/:section?" element={<Admin />} />
         <Route path="/workspace/:section?" element={<RoleWorkspace />} />
       <Route path="/account" element={<Account />} />

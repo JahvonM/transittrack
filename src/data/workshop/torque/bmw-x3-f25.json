@@ -1,0 +1,42 @@
+{
+  "key": "bmw-x3-f25",
+  "guide_key": "bmw-x3-f25",
+  "label": "BMW X3 F25",
+  "page": {
+    "make": "BMW",
+    "model": "X3",
+    "generation": "F25 (2nd generation)",
+    "year_from": 2010,
+    "year_to": 2017,
+    "engines": "Diesel 2.0 (20d): N47D20 on a 2013 car.",
+    "summary": "The workshop's own BMW X3 20d (2013). Torque values are from public sources and stay Not checked until a mechanic confirms them."
+  },
+  "torque": [
+    {
+      "system": "wheels_brakes",
+      "item": "Wheel bolts",
+      "size": "M14",
+      "nm": 140,
+      "source_name": "BMW wheel bolt lock fitting instructions (140 N·m for M14 wheel bolts)",
+      "source_link": "https://www.bmw.de/de/shop/ls/document/physical-goods/bmw/de/PDF/MOI_Radschraubensicherung.pdf"
+    },
+    {
+      "system": "engine",
+      "item": "Engine oil drain plug",
+      "nm": 25,
+      "sequence": "Fit a new sealing washer.",
+      "applies_to": "A general BMW and MINI figure from a filter maker's fitting sheet, not confirmed for the N47.",
+      "source_name": "Blue Print: BMW and MINI oil filter fitting",
+      "source_link": "https://www.techtips.ie/Blue-Print/bmw-and-mini-oil-filter-fitting.pdf"
+    },
+    {
+      "system": "engine",
+      "item": "Oil filter housing cover",
+      "nm": 25,
+      "sequence": "BMW stamps the figure on the cover itself: check it there first.",
+      "applies_to": "A general BMW and MINI figure from a filter maker's fitting sheet, not confirmed for the N47.",
+      "source_name": "Blue Print: BMW and MINI oil filter fitting",
+      "source_link": "https://www.techtips.ie/Blue-Print/bmw-and-mini-oil-filter-fitting.pdf"
+    }
+  ]
+}

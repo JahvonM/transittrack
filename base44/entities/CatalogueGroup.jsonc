@@ -1,0 +1,100 @@
+{
+  "name": "CatalogueGroup",
+  "type": "object",
+  "description": "Maker's catalogue: one diagram of a bus model's parts catalogue as the maker lists it (e.g. Toyota 1502 OIL FILTER), with its parts' numbers, names and quantities, pasted in by the team from Partsouq. A reference list, not stock: a part is added to stock from it on purpose. The maker's drawing itself is not kept; link opens it on Partsouq. Fleet-wide: administrators and mechanics only.",
+  "required": [
+    "guide_id",
+    "code",
+    "title"
+  ],
+  "properties": {
+    "guide_id": {
+      "type": "string",
+      "description": "The VehicleGuide (bus model) page it belongs to."
+    },
+    "vehicle_id": {
+      "type": "string",
+      "description": "The bus it was looked up for, by chassis number (catalogues differ by engine and options)."
+    },
+    "model_code": {
+      "type": "string",
+      "description": "The maker's model code of that bus, e.g. KDH212R-JEMDY."
+    },
+    "category": {
+      "type": "string",
+      "description": "The catalogue's own grouping, e.g. Engine / Fuel / Tool or A ENGINE MECHANICAL."
+    },
+    "code": {
+      "type": "string",
+      "description": "The diagram's number in the catalogue, e.g. 1502 or 150A-001."
+    },
+    "title": {
+      "type": "string",
+      "description": "e.g. OIL FILTER"
+    },
+    "detail": {
+      "type": "string",
+      "description": "What the catalogue adds after the title, e.g. YD25DDTI (1206 - 2006)."
+    },
+    "link": {
+      "type": "string",
+      "description": "Web address (https) of this diagram on Partsouq, to open the maker's drawing."
+    },
+    "parts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "description": "The number or code next to the part on the drawing."
+          },
+          "number": {
+            "type": "string",
+            "description": "The maker's part number."
+          },
+          "name": {
+            "type": "string"
+          },
+          "qty": {
+            "type": "string",
+            "description": "How many the bus has, as the catalogue gives it."
+          },
+          "info": {
+            "type": "string",
+            "description": "Notes from the catalogue, e.g. which engine or dates."
+          }
+        }
+      },
+      "description": "The diagram's parts, as pasted."
+    },
+    "notes": {
+      "type": "string"
+    },
+    "sort_order": {
+      "type": "number"
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

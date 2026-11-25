@@ -20,14 +20,14 @@ test.describe('boarding tablet', () => {
     await page.route('**/api.open-meteo.com/**', (r) => r.fulfill({ json: {} }));
     await page.route('**/api/**', async (route) => {
       const url = route.request().url();
-      if (url.includes('/functions/kioskHeartbeat')) {
+      if (url.includes('/functions/v1/kioskHeartbeat')) {
         beats++;
         if (reply === 'busy') return route.fulfill({ status: 429, json: { error: 'Server is busy. Please try again shortly.' } });
         if (reply === 'error') return route.fulfill({ status: 500, json: { error: 'Something went wrong. Please try again.' } });
         if (reply === 'down') return route.abort('internetdisconnected');
         return route.fulfill({ json: device });
       }
-      if (url.includes('/functions/kioskCheckIn')) return route.fulfill({ json: { staff: [] } });
+      if (url.includes('/functions/v1/kioskCheckIn')) return route.fulfill({ json: { staff: [] } });
       return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
     });
     await page.clock.install();
@@ -64,8 +64,8 @@ test.describe('driver tablet', () => {
     await page.route('**/api/**', async (r) => {
       const url = r.request().url();
       const body = r.request().postDataJSON();
-      if (url.includes('/functions/kioskHeartbeat')) return r.fulfill({ json: kiosk });
-      if (url.includes('/functions/driverSession')) {
+      if (url.includes('/functions/v1/kioskHeartbeat')) return r.fulfill({ json: kiosk });
+      if (url.includes('/functions/v1/driverSession')) {
         if (body?.action === 'verify_pin') return r.fulfill({ json: { ok: true, driver_grant: 'b'.repeat(64) } });
         if (body?.action !== 'heartbeat') return r.fulfill({ json: { ok: true } });
         beats.push(body.light === true ? 'light' : 'full');

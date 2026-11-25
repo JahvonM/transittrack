@@ -28,23 +28,23 @@ const RECENT=[
 
 async function admin(page){
  const calls=[];const state={settings:{crash_alert:{enabled:true,blocked_emails:['boss@test.local'],updated_by:'Ada Admin'}},recent:[...RECENT]};
- await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); localStorage.setItem('tt-map-engine','basic'); });
+ await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); localStorage.setItem('tt-map-engine','basic'); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
-  if(url.includes('/functions/notificationSettings')) {
+  if(url.includes('/functions/v1/notificationSettings')) {
    const body=route.request().postDataJSON();calls.push(body);
    if(body.action==='overview') return route.fulfill({json:{types:TYPES,settings:state.settings,people:PEOPLE,companies:[{id:'a',name:'Coyaba Transport'},{id:'b',name:'Spice Isle Buses'}],recent:state.recent,me:'admin@test.local'}});
    if(body.action==='save'){ state.settings[body.key]={enabled:body.enabled,blocked_emails:body.blocked_emails,blocked_company_ids:body.blocked_company_ids,updated_by:'Ada Admin'}; return route.fulfill({json:{ok:true,setting:state.settings[body.key]}}); }
    if(body.action==='test'){ state.recent.unshift({id:'t',key:'test',channel:'email',title:'TransitTrack test notification',status:'sent',recipients:['admin@test.local'],recipient_count:1,sent:1,failed:0,skipped:0,error:'',sent_at:new Date().toISOString()}); return route.fulfill({json:{ok:true,to:'admin@test.local'}}); }
    if(body.action==='recent') return route.fulfill({json:{recent:state.recent}});
   }
-  if(url.includes('/functions/entityAccess')) {
+  if(url.includes('/functions/v1/entityAccess')) {
    const body=route.request().postDataJSON();
    const result=body.entity==='User'&&body.operation==='get'?{id:'admin',email:'admin@test.local',full_name:'Ada Admin',role:'admin'}:[];
    return route.fulfill({json:{result}});
   }
-  if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}});
+  if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:{id:'admin',role:'admin',email:'admin@test.local',full_name:'Ada Admin'}}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  }));
  return {calls,state};
@@ -131,22 +131,22 @@ test.describe('passenger account',()=>{
    {key:'bus_approaching_push',channel:'push',label:'My bus is approaching',when:'A phone alert when the office or driver says your bus is near.',on:true,available:true},
    {key:'bus_approaching_email',channel:'email',label:'My bus is approaching (email)',when:'An email when the office or driver says your bus is near.',on:true,available:false},
   ];
-  await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); localStorage.setItem('tt-map-engine','basic'); localStorage.setItem('tt_company_access_grant','a'.repeat(64)); });
+  await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); localStorage.setItem('tt-map-engine','basic'); localStorage.setItem('tt_company_access_grant','a'.repeat(64)); });
   await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
   await page.route('**/api/**',withAdminBatch(async route=>{
    const url=route.request().url();
-   if(url.includes('/functions/myNotifications')){
+   if(url.includes('/functions/v1/myNotifications')){
     const body=route.request().postDataJSON();
     if(body.action==='set'){ saved.push(body); choices=choices.map(c=>c.key===body.key?{...c,on:body.on}:c); }
     return route.fulfill({json:{choices}});
    }
-   if(url.includes('/functions/companyAccess')) return route.fulfill({json:{company:{id:'a',name:'Coyaba Transport'}}});
-   if(url.includes('/functions/entityAccess')){
+   if(url.includes('/functions/v1/companyAccess')) return route.fulfill({json:{company:{id:'a',name:'Coyaba Transport'}}});
+   if(url.includes('/functions/v1/entityAccess')){
     const body=route.request().postDataJSON();
     const result=body.entity==='User'?{id:'p',email:'pat@test.local',full_name:'Pat Passenger',role:'passenger',company_id:'a'}:[];
     return route.fulfill({json:{result}});
    }
-   if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'p',role:'passenger',email:'pat@test.local',full_name:'Pat Passenger'}});
+   if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:{id:'p',role:'passenger',email:'pat@test.local',full_name:'Pat Passenger'}}});
    return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
   }));
   await page.goto('/account');

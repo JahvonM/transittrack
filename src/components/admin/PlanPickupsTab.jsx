@@ -5,10 +5,12 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { confirmAction } from "@/components/ConfirmHost";
-import { EmptyState, Kpi, KpiRow, PageIntro, Panel, Segmented, StatusChip } from "@/components/admin/kit";
+import { EmptyState, FocusNote, Kpi, KpiRow, PageIntro, Panel, Segmented, StatusChip } from "@/components/admin/kit";
+import useAdminFocus from "@/hooks/useAdminFocus";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DEFAULT_BUS_ART } from "@/components/BusArtwork";
 import { Link } from "react-router-dom";
 import BusLoader from "@/components/BusLoader";
 import { drawnRoad } from "@/lib/routeRoad";
@@ -46,7 +48,7 @@ function Seats({ bus }) {
     <div className="min-w-0">
       <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
         <span className="break-words font-semibold">{bus.name}</span>
-        <span className="shrink-0 text-body-sm tabular-nums">{bus.riders}{cap ? ` / ${cap}` : ""} <span className="text-muted-foreground">assigned</span></span>
+        <span className="shrink-0 text-body-sm tabular-nums">{bus.riders}{cap ? ` / ${cap}` : ""} <span className="text-muted-foreground">Assigned</span></span>
       </div>
       <p className="truncate text-caption text-muted-foreground">{bus.route_name || "No route"}</p>
       {cap > 0 && (
@@ -188,8 +190,12 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
     } finally { actionLock.current = false; }
   };
 
+  // A route picked in the planner, explorer or Travel times: its riders only.
+  const [routeFocus, setRouteFocus] = useAdminFocus("route");
+  const focusRoute = routeFocus ? routes.find((r) => r.id === routeFocus) : null;
   const attention = people.filter((p) => !["ok", "no_pickup"].includes(p.status));
   const visible = people.filter((p) => {
+    if (focusRoute && p.route_id !== focusRoute.id) return false;
     if (view === "attention" && ["ok", "no_pickup"].includes(p.status)) return false;
     if (view === "ready" && p.status !== "ok") return false;
     if (view === "no_pickup" && p.status !== "no_pickup") return false;
@@ -225,6 +231,11 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
   return (
     <div className="space-y-4">
       <PageIntro>Review pickups and assign the right bus. Changes apply only after confirmation.</PageIntro>
+      {focusRoute && (
+        <FocusNote onClear={() => { setRouteFocus(""); setActiveKey(""); setChoice(null); }} clearLabel="Show all routes">
+          Showing riders of <span className="font-semibold">{focusRoute.name}</span> only.
+        </FocusNote>
+      )}
       <div className="flex flex-wrap items-center justify-end gap-2">
         {!fixedCompanyId && companies.length > 1 && <div className="w-full sm:w-60"><Select value={companyId} onValueChange={changeCompany} disabled={!!busy}>
           <SelectTrigger aria-label="Company" className="rounded-xl"><SelectValue /></SelectTrigger>
@@ -290,7 +301,7 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
             </div>}
             {active && eligible.length > 0 && <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
               <p className="text-caption font-semibold text-muted-foreground">{active.status === "ok" ? "Assigned bus" : chosen?.id === active.nearby?.bus_id && !active.suggested ? "Nearby bus option" : "Recommended bus"}</p>
-              {chosen && <div className="flex min-w-0 items-center gap-3"><img src="/images/transit-bus-3d.webp" alt="" className="h-20 w-24 shrink-0 object-contain" /><div className="min-w-0 flex-1"><Seats bus={chosen} /></div></div>}
+              {chosen && <div className="flex min-w-0 items-center gap-3"><img src={DEFAULT_BUS_ART} alt="" className="h-20 w-24 shrink-0 object-contain" /><div className="min-w-0 flex-1"><Seats bus={chosen} /></div></div>}
               {eligible.length > 1 && <BusChoice label="Choose another bus" value={chosenId} onChange={(id) => setChoice({ key: active.key, id })} buses={eligible} disabled={!!busy} />}
               {chosen && chosen.id !== active.bus_id && <>
                 {chosen.capacity > 0 && chosen.riders >= chosen.capacity && <p className="text-body-sm text-warning">This bus is at its assigned capacity. Review seats before assigning.</p>}
@@ -320,4 +331,3 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
     </div>
   );
 }
-

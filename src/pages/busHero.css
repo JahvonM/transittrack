@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap');
+
+/* A bus's page opens like the website: the bus's photo (or the van at
+   sunset), its name in wide capitals, and its main details as frosted
+   chips. White text over a dark shade, in light and dark mode. */
+.tt-bus-hero {
+  position: relative; isolation: isolate; overflow: hidden; border-radius: 28px; min-height: 360px;
+  padding: 24px 28px; display: flex; flex-direction: column; justify-content: flex-end; gap: 20px;
+  background: #0b1f2e; color: #ffffff; font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+}
+.tt-bus-hero-photo { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 60% 55%; }
+.tt-bus-hero::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, rgba(6,19,29,0.9) 0%, rgba(6,19,29,0.55) 40%, rgba(6,19,29,0.05) 70%), linear-gradient(0deg, rgba(6,19,29,0.85), rgba(6,19,29,0) 55%);
+}
+.tt-bus-hero-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.tt-bus-hero-tag {
+  display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 14px; border-radius: 999px;
+  font-size: 11px; font-weight: 650; font-stretch: 125%; letter-spacing: 0.05em; text-transform: uppercase;
+  background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.24);
+}
+.tt-bus-hero-tag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #9fd2f0; }
+.tt-bus-hero-tag[data-tone="warning"]::before { background: #ffc56b; }
+.tt-bus-hero-tag[data-tone="danger"]::before { background: #ff9b8f; }
+.tt-bus-hero-name { margin: 14px 0 0; font-size: clamp(2.6rem, 6vw, 5rem); line-height: 0.9; font-weight: 850; font-stretch: 125%; letter-spacing: -0.015em; text-transform: uppercase; overflow-wrap: anywhere; }
+.tt-bus-hero-sub { margin: 12px 0 0; max-width: 52ch; font-size: 15px; line-height: 1.5; color: rgba(242,246,248,0.9); }
+.tt-bus-hero-chips { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
+.tt-bus-hero-chips > div {
+  flex: 1 1 150px; padding: 14px 16px; border-radius: 20px;
+  background: rgba(255,255,255,0.13); border: 1px solid rgba(255,255,255,0.22);
+  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+}
+.tt-bus-hero-chips dt { font-size: 11px; font-weight: 600; font-stretch: 125%; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,0.88); }
+.tt-bus-hero-chips dd { margin: 8px 0 0; font-size: 24px; line-height: 1.1; font-weight: 300; font-stretch: 125%; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .tt-bus-hero { min-height: 0; padding: 20px 18px 18px; border-radius: 24px; }
+  .tt-bus-hero::before { background: linear-gradient(0deg, rgba(6,19,29,0.92) 35%, rgba(6,19,29,0.35) 100%); }
+  .tt-bus-hero-chips > div { flex-basis: calc(50% - 5px); }
+  .tt-bus-hero-chips dd { font-size: 20px; }
+}

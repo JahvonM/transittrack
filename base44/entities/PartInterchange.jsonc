@@ -1,0 +1,88 @@
+{
+  "name": "PartInterchange",
+  "type": "object",
+  "description": "Parts catalogue: another part number that can be used in place of one (a newer genuine number, or an aftermarket equivalent), with where that came from and whether a mechanic has checked it. Matched to Parts by number, so it applies wherever that number is stocked. Fleet-wide: administrators and mechanics only.",
+  "required": [
+    "part_number",
+    "alt_number"
+  ],
+  "properties": {
+    "part_number": {
+      "type": "string",
+      "description": "The number it replaces, e.g. 90915-YZZD2. Matched ignoring case, spaces and dashes."
+    },
+    "alt_number": {
+      "type": "string",
+      "description": "The number that can be used instead, e.g. Z418."
+    },
+    "alt_brand": {
+      "type": "string",
+      "description": "Who makes it, e.g. Ryco or Toyota."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "newer_genuine",
+        "older_genuine",
+        "aftermarket"
+      ],
+      "default": "aftermarket",
+      "description": "newer_genuine: the maker's later number for the same part; older_genuine: the number it replaced; aftermarket: another brand's equivalent."
+    },
+    "applies_to": {
+      "type": "string",
+      "description": "When it only fits some buses, e.g. 1KD-FTV only."
+    },
+    "notes": {
+      "type": "string"
+    },
+    "source_name": {
+      "type": "string"
+    },
+    "source_link": {
+      "type": "string",
+      "description": "Web address of the source (https)."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "unchecked",
+        "checked",
+        "wrong"
+      ],
+      "default": "unchecked",
+      "description": "unchecked until a mechanic confirms the part fits; wrong keeps it visible as a warning."
+    },
+    "checked_by": {
+      "type": "string",
+      "description": "Who marked it checked or wrong (set by the server)."
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it was marked checked or wrong (set by the server)."
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

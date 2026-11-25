@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Bus, RefreshCw, LogOut } from "lucide-react";
+import { RefreshCw, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CompanyBanner from "@/components/CompanyBanner";
 import DriverGreeting from "@/components/driver/DriverGreeting";
+import BusList from "@/components/driver/BusList";
 import { busChoiceMessage, ownDeviceNoun } from "@/lib/driverOwnDevice";
 
 // A driver's own phone (the store app) belongs to the driver, not to a bus,
@@ -41,9 +42,6 @@ export default function ChooseBus({ session, invoke, onChosen, onUnpair }) {
     }
   };
 
-  const free = (buses || []).filter((b) => !b.busy);
-  const taken = (buses || []).filter((b) => b.busy);
-
   // Same frame as the PIN screen: a phone or a tablet held upright stacks the
   // greeting over the list; a tablet on its side puts them side by side.
   return (
@@ -68,42 +66,8 @@ export default function ChooseBus({ session, invoke, onChosen, onUnpair }) {
 
           {error && <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-body-sm text-destructive">{error}</p>}
 
-          {buses === null ? (
-            <p className="py-8 text-center text-muted-foreground" role="status">Loading buses…</p>
-          ) : buses.length === 0 ? (
-            <p className="rounded-xl border px-4 py-6 text-center text-muted-foreground">
-              No buses are in service for {session?.company_name || "your company"}. Ask the office to add one.
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {free.map((bus) => (
-                <li key={bus.id}>
-                  <button
-                    type="button"
-                    onClick={() => choose(bus)}
-                    disabled={!!busy}
-                    className="flex min-h-[72px] w-full items-center gap-4 rounded-2xl border bg-card px-4 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-                  >
-                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary" aria-hidden="true"><Bus className="h-6 w-6" /></span>
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-body font-semibold">{bus.name}</span>
-                      {bus.plate_number && <span className="text-body-sm text-muted-foreground">{bus.plate_number}</span>}
-                    </span>
-                    <span className="shrink-0 text-body-sm font-medium text-primary">{busy === bus.id ? "Choosing…" : "Drive this bus"}</span>
-                  </button>
-                </li>
-              ))}
-              {taken.map((bus) => (
-                <li key={bus.id} className="flex min-h-[64px] items-center gap-4 rounded-2xl border border-dashed px-4 text-muted-foreground">
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-muted" aria-hidden="true"><Bus className="h-6 w-6" /></span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-body">{bus.name}</span>
-                    <span className="text-body-sm">Another driver is on shift</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <BusList buses={buses} pickingId={busy} onPick={choose}
+            emptyText={`No buses are in service for ${session?.company_name || "your company"}. Ask the office to add one.`} />
         </section>
 
         <Button variant="ghost" className="self-center text-muted-foreground" onClick={onUnpair}>

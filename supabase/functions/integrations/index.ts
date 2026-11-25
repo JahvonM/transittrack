@@ -15,7 +15,7 @@ const ROLES = new Set(['user', 'admin']);
 // sent it from (the email template adds /reset-password). Anything else falls
 // back to the project's Site URL.
 // The Base44 address is opened by the tablets, phone app and desktop app until they are rebuilt.
-const SITES = new Set(['https://new.mcsweenstransport.com', 'https://app.mcsweenstransport.com', 'https://eager-transit-track-go.base44.app']);
+const SITES = new Set(['https://new.mcsweenstransport.com', 'https://app.mcsweenstransport.com']);
 
 function serverKey(): string {
   try {

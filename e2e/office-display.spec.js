@@ -80,7 +80,7 @@ function displayServer(overrides = {}) {
 
 async function open(page, server, { path = "/display", stored = true, bridge = false } = {}) {
   await mockFleet(page, { signedIn: false });
-  await page.route("**/functions/officeDisplay", async (route) => {
+  await page.route("**/functions/v1/officeDisplay", async (route) => {
     const { status, json } = server.handle(route.request().postDataJSON());
     await route.fulfill({ status, json });
   });

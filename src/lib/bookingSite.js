@@ -21,23 +21,23 @@ export const sitePage = (path) => {
 export const SITE_SERVICES = [
   {
     id: "airport_pickup", name: "Airport pickup",
-    text: "We meet you at Maurice Bishop International Airport and take you to your hotel, villa or home. Add your flight number so the driver knows when you land.",
+    text: "Enjoy a seamless arrival. We’ll meet you at Maurice Bishop International Airport and take you safely to your hotel, villa or home. Please provide your flight number to coordinate your pickup.",
   },
   {
     id: "airport_dropoff", name: "Airport drop-off",
-    text: "We collect you from where you are staying and take you to the airport in good time for your flight.",
+    text: "Enjoy a hassle-free departure with convenient pickup from your accommodation and timely transportation to the airport, ensuring you arrive in time for your flight.",
   },
   {
     id: "transfer", name: "Transfers",
-    text: "From one place to another anywhere on the island: hotels, villas, restaurants and events.",
+    text: "Convenient transportation anywhere on the island, from hotels and villas to restaurants, events and other destinations.",
   },
   {
     id: "hotel_tour", name: "Island tours",
-    text: "A bus and a driver for your group for a day out around Grenada. Tell us what you would like to see.",
+    text: "Enjoy a private ride and driver for a day exploring Grenada with your group. Simply tell us what you’d like to see, and we’ll take care of the journey!",
   },
   {
     id: "staff_run", name: "Staff transport",
-    text: "Regular runs for hotels and businesses that need their staff brought to work and taken home again.",
+    text: "Reliable staff transportation for hotels and businesses, with scheduled pickups and drop-offs to and from work.",
   },
 ];
 export const AIRPORT_NAME = "Maurice Bishop International Airport";
@@ -56,6 +56,36 @@ export function grenadaInputToIso(value) {
 export function grenadaInputFor(ms) {
   const d = new Date(ms - 4 * 3600_000);
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
+
+// What a visitor has typed in the ride request form, kept in this browser tab
+// so going to another page (Home, Track, Terms) and coming back doesn't lose
+// it. Session storage: it goes when the tab is closed, so a shared computer
+// doesn't keep someone's details. The hidden spam-trap field is never kept.
+const DRAFT_KEY = "mcs-ride-request";
+const DRAFT_FIELDS = ["service", "when", "flight_number", "pickup", "dropoff", "guests", "luggage", "name", "phone", "email", "notes"];
+const sessionStore = () => { try { return globalThis.sessionStorage || null; } catch { return null; } };
+export function loadRideDraft(storage = sessionStore()) {
+  try {
+    const saved = JSON.parse(storage?.getItem(DRAFT_KEY) || "null");
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) return null;
+    const out = {};
+    for (const k of DRAFT_FIELDS) if (typeof saved[k] === "string") out[k] = saved[k].slice(0, 2000);
+    if (out.service && !SITE_SERVICES.some((s) => s.id === out.service)) delete out.service;
+    return Object.keys(out).length ? out : null;
+  } catch { return null; }
+}
+// blank: the empty form for the same ride, so an untouched form isn't kept.
+export function saveRideDraft(form, blank = {}, storage = sessionStore()) {
+  try {
+    const keep = Object.fromEntries(DRAFT_FIELDS.map((k) => [k, String(form?.[k] ?? "")]));
+    const typed = DRAFT_FIELDS.some((k) => k !== "service" && keep[k] !== String(blank?.[k] ?? ""));
+    if (typed) storage?.setItem(DRAFT_KEY, JSON.stringify(keep));
+    else storage?.removeItem(DRAFT_KEY);
+  } catch { /* storage blocked: the form still works, it just isn't kept */ }
+}
+export function clearRideDraft(storage = sessionStore()) {
+  try { storage?.removeItem(DRAFT_KEY); } catch { /* nothing kept */ }
 }
 
 // Choosing an airport ride puts the airport on the right side (swapping the

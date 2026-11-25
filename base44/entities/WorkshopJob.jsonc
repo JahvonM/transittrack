@@ -1,0 +1,117 @@
+{
+  "name": "WorkshopJob",
+  "type": "object",
+  "description": "Workshop: one piece of work on a bus or workshop car (a repair or a service): what was wrong, the steps, the parts used (WorkshopJobPart) and what fixed it. Done jobs become the model's past fixes in Troubleshooting. Fleet-wide: administrators and mechanics only.",
+  "required": [
+    "vehicle_kind",
+    "vehicle_id",
+    "title"
+  ],
+  "properties": {
+    "vehicle_kind": {
+      "type": "string",
+      "enum": [
+        "bus",
+        "car"
+      ],
+      "description": "bus: a fleet Vehicle; car: a WorkshopVehicle."
+    },
+    "vehicle_id": {
+      "type": "string",
+      "description": "The Vehicle or WorkshopVehicle the work is on. It cannot change."
+    },
+    "vehicle_name": {
+      "type": "string",
+      "description": "The vehicle's name when the job was started (set by the server)."
+    },
+    "guide_id": {
+      "type": "string",
+      "description": "The VehicleGuide (model page) the vehicle used, so the fix shows for the same model."
+    },
+    "title": {
+      "type": "string",
+      "description": "What's being done, e.g. Front brake pads."
+    },
+    "symptom": {
+      "type": "string",
+      "description": "What was wrong, in the driver's or mechanic's words."
+    },
+    "fault_codes": {
+      "type": "string",
+      "description": "Codes read from the vehicle, e.g. P0401, P2002."
+    },
+    "fault_id": {
+      "type": "string",
+      "description": "The bus's Fault this job fixes, if any."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "done"
+      ],
+      "default": "open"
+    },
+    "steps": {
+      "type": "array",
+      "description": "The checklist, in order.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "torque_id": {
+            "type": "string",
+            "description": "A TorqueSpec shown with the step."
+          }
+        }
+      }
+    },
+    "fix": {
+      "type": "string",
+      "description": "What fixed it."
+    },
+    "notes": {
+      "type": "string"
+    },
+    "odometer": {
+      "type": "number",
+      "description": "Odometer reading in km when the work was done."
+    },
+    "done_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it was marked done (set by the server)."
+    },
+    "done_by": {
+      "type": "string",
+      "description": "Who marked it done (set by the server)."
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

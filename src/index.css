@@ -265,7 +265,7 @@
   transform: translateY(-50%) rotate(45deg); background: inherit;
   border-left: 1px solid hsl(var(--border)); border-bottom: 1px solid hsl(var(--border));
 }
-.tt-map-callout__primary { font: 700 20px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.tt-map-callout__primary { font: 600 20px/1 var(--font-display); font-variant-numeric: tabular-nums; }
 .tt-map-callout__secondary { font: 500 12px/1.2 var(--font-body); color: hsl(var(--muted-foreground)); }
 .tt-map-callout[data-tone="live"], .tt-map-callout[data-tone="live"]::after { border-color: hsl(var(--primary) / 0.7); }
 .tt-map-callout[data-tone="lost"] .tt-map-callout__primary { color: hsl(var(--muted-foreground)); }
@@ -457,28 +457,30 @@ html.tt-no-page-zoom, html.tt-no-page-zoom body { touch-action: pan-x pan-y; }
 /* Approved futuristic passenger / driver / boarding presentation.
    Activated only while those screens are mounted. Admin keeps its own theme. */
 html.tt-future {
- --background: 214 65% 5%;
- --foreground: 210 30% 97%;
- --card: 214 49% 9%;
- --card-foreground: 210 30% 97%;
- --popover: 214 46% 10%;
- --popover-foreground: 210 30% 97%;
- --primary: 184 100% 48%;
- --primary-foreground: 216 75% 5%;
- --secondary: 212 40% 14%;
- --secondary-foreground: 210 30% 97%;
- --muted: 213 39% 12%;
- --muted-foreground: 212 26% 74%;
- --accent: 210 40% 16%;
- --accent-foreground: 210 30% 97%;
- --border: 205 38% 24%;
- --input: 209 32% 40%;
- --ring: 184 100% 48%;
- --sidebar-background: 214 65% 5%;
- --sidebar-foreground: 210 30% 97%;
- --sidebar-primary: 184 100% 48%;
- --sidebar-primary-foreground: 216 75% 5%;
- --sidebar-border: 205 38% 24%;
+ /* The website's look (src/site/site.css): deep sea-blue, white highlights
+    with dark text on them, light sky-blue for focus and accents. */
+ --background: 206 61% 11%;
+ --foreground: 200 33% 96%;
+ --card: 206 57% 15%;
+ --card-foreground: 200 33% 96%;
+ --popover: 206 55% 16%;
+ --popover-foreground: 200 33% 96%;
+ --primary: 0 0% 100%;
+ --primary-foreground: 206 61% 11%;
+ --secondary: 206 54% 19%;
+ --secondary-foreground: 200 33% 96%;
+ --muted: 206 48% 18%;
+ --muted-foreground: 206 25% 73%;
+ --accent: 206 50% 22%;
+ --accent-foreground: 200 33% 96%;
+ --border: 206 36% 23%;
+ --input: 206 25% 42%;
+ --ring: 202 72% 78%;
+ --sidebar-background: 206 66% 7%;
+ --sidebar-foreground: 200 33% 96%;
+ --sidebar-primary: 0 0% 100%;
+ --sidebar-primary-foreground: 206 61% 11%;
+ --sidebar-border: 206 40% 13%;
  color-scheme: dark;
 }
 /* Passenger app colours (Account → Appearance). Dark is the approved look;
@@ -487,43 +489,45 @@ html.tt-future {
    card and the boarding pass stay dark in both modes. Declared on <html> so
    sheets (rendered outside the page) get them too. */
 html.tt-passenger-app {
- --background:218 61% 6%;--foreground:205 50% 96%;--card:216 48% 11%;--card-foreground:205 50% 96%;
- --popover:216 48% 11%;--popover-foreground:205 50% 96%;
- --primary:186 95% 50%;--primary-foreground:218 70% 7%;--ring:186 95% 50%;--secondary:215 42% 16%;--secondary-foreground:205 50% 96%;
- --muted:215 35% 15%;--muted-foreground:210 22% 70%;--accent:207 44% 20%;--accent-foreground:205 50% 96%;--border:204 34% 24%;
- --px-page: radial-gradient(ellipse at 90% 0%,#12384d80,transparent 50%),#050d1b; --px-bg:#050d1b;
- --px-text:#edf6ff; --px-text2:#a8bdcf; --px-text3:#6c8294;
- --px-tint:#18d9ed; --px-tint-bright:#18d9ed; --px-tint-soft:#86e7ff; --px-on-tint:#031c29;
- --px-fill:linear-gradient(120deg,#07c5e4,#32d9ed); --px-tint-fill:rgba(24,217,237,.15);
- --px-panel:linear-gradient(135deg,#0b2337,#09182a); --px-panel-border:#294f66; --px-panel-shadow:0 6px 16px #0002;
- --px-card:linear-gradient(145deg,#14263eee,#0c192cee); --px-card-border:#29465b; --px-card-shadow:inset 0 1px 0 #8be7ff0a,0 8px 25px #0002;
- --px-control:#092239; --px-control-quiet:#082033; --px-control-border:#306a8c;
- --px-sep:#294355; --px-hair:rgba(255,255,255,.13);
- --px-cell:#0d1f33; --px-cell-raised:#12283f; --px-sheet:#0b1a2b;
- --px-avatar:#133147; --px-avatar-edge:#46758b; --px-row-icon:#a8d0e7; --px-chevron:#92adc1;
- --px-chip:#20374c; --px-chip-text:#c2d7e7; --px-good:#65ffbb; --px-good-bg:#075948; --px-good-dot:#37eca7;
+ /* The website's look: deep sea-blue, white buttons with dark text, light
+    sky-blue for links, icons and the live line. */
+ --background:206 61% 11%;--foreground:200 33% 96%;--card:206 57% 15%;--card-foreground:200 33% 96%;
+ --popover:206 55% 16%;--popover-foreground:200 33% 96%;
+ --primary:0 0% 100%;--primary-foreground:206 61% 11%;--ring:202 72% 78%;--secondary:206 54% 19%;--secondary-foreground:200 33% 96%;
+ --muted:206 48% 18%;--muted-foreground:206 25% 73%;--accent:206 50% 22%;--accent-foreground:200 33% 96%;--border:206 36% 23%;
+ --px-page:#0b1f2e; --px-bg:#0b1f2e;
+ --px-text:#f2f6f8; --px-text2:#a9bccb; --px-text3:#7c92a4;
+ --px-tint:#9fd2f0; --px-tint-bright:#9fd2f0; --px-tint-soft:#cfe8f7; --px-on-tint:#0b1f2e;
+ --px-fill:#ffffff; --px-tint-fill:rgba(159,210,240,.15);
+ --px-panel:#10283a; --px-panel-border:#22394b; --px-panel-shadow:0 10px 30px -18px #0009;
+ --px-card:#10283a; --px-card-border:#22394b; --px-card-shadow:0 10px 30px -18px #0009;
+ --px-control:#12293b; --px-control-quiet:#0f2536; --px-control-border:#2e4a5f;
+ --px-sep:#1f3647; --px-hair:rgba(255,255,255,.12);
+ --px-cell:#10283a; --px-cell-raised:#143049; --px-sheet:#0e2333;
+ --px-avatar:#16324a; --px-avatar-edge:#3f5e74; --px-row-icon:var(--px-text2); --px-chevron:#8ea6b8;
+ --px-chip:#183247; --px-chip-text:#c9d7e2; --px-good:#65ffbb; --px-good-bg:#075948; --px-good-dot:#37eca7;
  --px-warn:#f5c26b; --px-danger:#ff6488; --px-danger-soft:#ffafbb;
  --px-notice:#182b30; --px-notice-edge:#546445; --px-signout:#0d192d; --px-signout-edge:#3c475f; --px-map-edge:#2a5a73;
- --px-glass:rgba(10,24,40,.72); --px-glass-edge:rgba(255,255,255,.15); --px-press:rgba(255,255,255,.06); --px-press-strong:rgba(255,255,255,.08);
- --px-field:rgba(255,255,255,.08); --px-switch-off:rgba(120,120,128,.36); --px-edge-contrast:#8fb7cf; --px-shadow:rgba(0,0,0,.4);
+ --px-glass:rgba(11,31,46,.72); --px-glass-edge:rgba(255,255,255,.15); --px-press:rgba(255,255,255,.06); --px-press-strong:rgba(255,255,255,.08);
+ --px-field:rgba(255,255,255,.08); --px-switch-off:rgba(120,120,128,.36); --px-edge-contrast:#7f9db3; --px-shadow:rgba(0,0,0,.4);
 }
 html.tt-passenger-app.light, html.tt-admin-app.light.tt-theme-chosen {
- --background:216 20% 96%;--foreground:214 45% 8%;--card:0 0% 100%;--card-foreground:214 45% 8%;
- --popover:0 0% 100%;--popover-foreground:214 45% 8%;
- --primary:192 82% 31%;--primary-foreground:0 0% 100%;--ring:192 82% 31%;--secondary:216 18% 92%;--secondary-foreground:214 45% 8%;
- --muted:216 18% 93%;--muted-foreground:212 14% 38%;--accent:192 50% 93%;--accent-foreground:214 45% 8%;--border:214 18% 86%;--input:214 12% 66%;
+ --background:203 33% 95%;--foreground:206 61% 11%;--card:0 0% 100%;--card-foreground:206 61% 11%;
+ --popover:0 0% 100%;--popover-foreground:206 61% 11%;
+ --primary:206 61% 11%;--primary-foreground:0 0% 100%;--ring:204 66% 33%;--secondary:205 30% 91%;--secondary-foreground:206 61% 11%;
+ --muted:205 30% 92%;--muted-foreground:206 19% 36%;--accent:205 35% 89%;--accent-foreground:206 61% 11%;--border:205 24% 86%;--input:206 15% 60%;
  color-scheme:light;
- --px-page:#f2f4f7; --px-bg:#f2f4f7;
- --px-text:#0b1620; --px-text2:#566676; --px-text3:#8d9aa6;
- --px-tint:#0e7490; --px-tint-soft:#0e7490; --px-on-tint:#ffffff;
- --px-fill:#0e7490; --px-tint-fill:rgba(14,116,144,.1);
- --px-panel:#ffffff; --px-panel-border:#e1e7ed; --px-panel-shadow:0 1px 2px rgba(16,24,40,.06);
- --px-card:#ffffff; --px-card-border:#e1e7ed; --px-card-shadow:0 1px 2px rgba(16,24,40,.06);
- --px-control:#ffffff; --px-control-quiet:#ffffff; --px-control-border:#d5dde4;
- --px-sep:#e3e8ee; --px-hair:rgba(60,60,67,.16);
- --px-cell:#ffffff; --px-cell-raised:#ffffff; --px-sheet:#f2f4f7;
- --px-avatar:#dcedf2; --px-avatar-edge:#b9d4dd; --px-row-icon:#0e7490; --px-chevron:#a3afba;
- --px-chip:#e8edf2; --px-chip-text:#3b4a58; --px-good:#0f7a4f; --px-good-bg:#d6f3e6; --px-good-dot:#16a36a;
+ --px-page:#eef3f6; --px-bg:#eef3f6;
+ --px-text:#0b1f2e; --px-text2:#4e6272; --px-text3:#8193a2;
+ --px-tint:#1c5d8a; --px-tint-soft:#1c5d8a; --px-on-tint:#ffffff;
+ --px-fill:#0b1f2e; --px-tint-fill:rgba(28,93,138,.1);
+ --px-panel:#ffffff; --px-panel-border:#d6e0e7; --px-panel-shadow:0 1px 2px rgba(11,31,46,.06);
+ --px-card:#ffffff; --px-card-border:#d6e0e7; --px-card-shadow:0 1px 2px rgba(11,31,46,.06);
+ --px-control:#ffffff; --px-control-quiet:#ffffff; --px-control-border:#cfdbe3;
+ --px-sep:#e1e8ee; --px-hair:rgba(11,31,46,.14);
+ --px-cell:#ffffff; --px-cell-raised:#ffffff; --px-sheet:#eef3f6;
+ --px-avatar:#dde9f1; --px-avatar-edge:#b8cdda; --px-row-icon:var(--px-text2); --px-chevron:#a0b0bd;
+ --px-chip:#e6eef3; --px-chip-text:#33495a; --px-good:#0f7a4f; --px-good-bg:#d6f3e6; --px-good-dot:#16a36a;
  --px-warn:#9a5b00; --px-danger:#c8254d; --px-danger-soft:#b4233f;
  --px-notice:#fff8e6; --px-notice-edge:#efdcab; --px-signout:#ffffff; --px-signout-edge:#e1e7ed; --px-map-edge:#dfe5eb;
  --px-glass:rgba(255,255,255,.78); --px-glass-edge:rgba(0,0,0,.08); --px-press:rgba(0,0,0,.05); --px-press-strong:rgba(0,0,0,.06);
@@ -533,7 +537,7 @@ html.tt-passenger-app.light, html.tt-admin-app.light.tt-theme-chosen {
    light mode (white text on it). --px-tint-bright is for the dark photo cards. */
 html:is(.tt-passenger-app,.tt-admin-app)[data-accent] {
  --px-tint:hsl(var(--primary)); --px-tint-soft:hsl(var(--primary)); --px-on-tint:hsl(var(--primary-foreground));
- --px-fill:hsl(var(--primary)); --px-tint-fill:hsl(var(--primary) / .15); --px-row-icon:hsl(var(--primary));
+ --px-fill:hsl(var(--primary)); --px-tint-fill:hsl(var(--primary) / .15);
 }
 html:is(.tt-passenger-app,.tt-admin-app)[data-accent="lime"]{--primary:71 90% 63%;--ring:71 90% 63%;--px-tint-bright:hsl(71 90% 63%)}
 html:is(.tt-passenger-app.light,.tt-admin-app.light.tt-theme-chosen)[data-accent="lime"]{--primary:75 85% 26%;--ring:75 85% 26%}
@@ -551,24 +555,26 @@ html:is(.tt-passenger-app,.tt-admin-app)[data-accent="mint"]{--primary:158 64% 5
 html:is(.tt-passenger-app.light,.tt-admin-app.light.tt-theme-chosen)[data-accent="mint"]{--primary:161 94% 24%;--ring:161 94% 24%}
 html:is(.tt-passenger-app,.tt-admin-app)[data-accent="gold"]{--primary:45 96% 58%;--ring:45 96% 58%;--px-tint-bright:hsl(45 96% 58%)}
 html:is(.tt-passenger-app.light,.tt-admin-app.light.tt-theme-chosen)[data-accent="gold"]{--primary:32 95% 34%;--ring:32 95% 34%}
+html:is(.tt-passenger-app,.tt-admin-app)[data-accent="cream"]{--primary:51 32% 77%;--ring:51 32% 77%;--primary-foreground:30 6% 6%;--px-tint-bright:hsl(51 32% 77%)}
+html:is(.tt-passenger-app.light,.tt-admin-app.light.tt-theme-chosen)[data-accent="cream"]{--primary:45 30% 28%;--ring:45 30% 28%;--primary-foreground:0 0% 100%}
 /* Admin console: the sidebar's highlight follows the colour theme; light mode
    (once chosen) gets a light sidebar. Dark values are the approved look. */
 html.tt-admin-app { --sidebar-primary:var(--primary); --sidebar-ring:var(--ring);
  --ad-page:radial-gradient(ellipse at 35% 0%,#0b2c3c66,transparent 50%),hsl(var(--background));
  --ad-sidebar:linear-gradient(180deg,#081b2a,#040f1c); --ad-header:#071624ed;
- --ad-card-image:linear-gradient(135deg,#0e273950,#06111e90); --ad-card-shadow:inset 0 1px 0 #bcf6ff08,0 8px 24px #0002;
- --ad-nav-text:#a9c6da; --ad-nav-hover-bg:#102d4155; --ad-nav-hover-text:#ecfaff; --ad-nav-current-text:#40d9ee; --ad-nav-current-bg:#0c344444;
- --ad-nav-line:#274153; --ad-nav-sep:#244052; --ad-nav-active-bg:linear-gradient(110deg,#05657a66,#064e6977); --ad-nav-active-edge:#2fd9eb55; --ad-nav-active-text:#e5fbff;
- --ad-row-bg:#102a3c55; --ad-row-hover-edge:#29b9d066; --ad-row-hover-bg:#12324777; --ad-icon-text:#a2c5d9; --ad-icon-bg:#ffffff08;
- --ad-action-text:#a6e4f2; --ad-action-edge:#356278; --ad-th-text:#9fb7c9; --ad-tr-hover:#183c4d22; --ad-focus:#3ee0f5;
+ --ad-card-image:linear-gradient(135deg,#0e273950,#06111e90); --ad-card-shadow:inset 0 1px 0 #d4ebf808,0 8px 24px #0002;
+ --ad-nav-text:#a9c6da; --ad-nav-hover-bg:#102d4155; --ad-nav-hover-text:#d4ebf8; --ad-nav-current-text:#9fd2f0; --ad-nav-current-bg:#0c344444;
+ --ad-nav-line:#274153; --ad-nav-sep:#244052; --ad-nav-active-bg:#ffffff0f; --ad-nav-active-edge:#ffffff14; --ad-nav-active-text:#f1f8fc;
+ --ad-row-bg:#102a3c55; --ad-row-hover-edge:#9fd2f066; --ad-row-hover-bg:#12324777; --ad-icon-text:#a2c5d9; --ad-icon-bg:#ffffff08;
+ --ad-action-text:#9fd2f0; --ad-action-edge:#356278; --ad-th-text:#9fb7c9; --ad-tr-hover:#183c4d22; --ad-focus:#9fd2f0;
 }
-html.tt-admin-app[data-accent] { --ad-nav-current-text:hsl(var(--primary)); --ad-nav-active-bg:hsl(var(--primary) / .18); --ad-nav-active-edge:hsl(var(--primary) / .35); --ad-action-text:hsl(var(--primary)); --ad-focus:hsl(var(--primary)); }
+html.tt-admin-app[data-accent] { --ad-nav-current-text:hsl(var(--primary)); --ad-action-text:hsl(var(--primary)); --ad-focus:hsl(var(--primary)); }
 html.tt-admin-app.light.tt-theme-chosen {
  --sidebar-background:216 20% 97%; --sidebar-foreground:214 45% 8%; --sidebar-border:214 18% 88%; --sidebar-accent:216 18% 92%; --sidebar-accent-foreground:214 45% 8%; --sidebar-primary-foreground:0 0% 100%;
  --ad-page:#f2f4f7; --ad-sidebar:#f7f8fae6; --ad-header:#ffffffd9;
  --ad-card-image:none; --ad-card-shadow:0 1px 2px rgba(16,24,40,.06);
  --ad-nav-text:#3b4a58; --ad-nav-hover-bg:rgba(0,0,0,.05); --ad-nav-hover-text:#0b1620; --ad-nav-current-text:hsl(var(--primary)); --ad-nav-current-bg:hsl(var(--primary) / .1);
- --ad-nav-line:#e3e8ee; --ad-nav-sep:#e3e8ee; --ad-nav-active-bg:hsl(var(--primary) / .12); --ad-nav-active-edge:transparent; --ad-nav-active-text:hsl(var(--primary));
+ --ad-nav-line:#e3e8ee; --ad-nav-sep:#e3e8ee; --ad-nav-active-bg:rgba(0,0,0,.05); --ad-nav-active-edge:rgba(0,0,0,.06); --ad-nav-active-text:hsl(var(--primary));
  --ad-row-bg:#ffffff; --ad-row-hover-edge:hsl(var(--primary) / .4); --ad-row-hover-bg:#f5f8fa; --ad-icon-text:#566676; --ad-icon-bg:#eef2f5;
  --ad-action-text:hsl(var(--primary)); --ad-action-edge:#d5dde4; --ad-th-text:#566676; --ad-tr-hover:#f5f8fa; --ad-focus:hsl(var(--primary));
 }
@@ -582,23 +588,23 @@ html.tt-passenger-app.light :is([aria-label="Open passenger chat"],button[aria-l
 html.tt-passenger-app.light .tt-bus-filters { background:#ffffff; border-color:var(--px-control-border); }
 html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="true"] { background:var(--px-fill); color:var(--px-on-tint); box-shadow:none; }
 .tt-future body {
- background: radial-gradient(ellipse at 20% 0%,hsl(197 85% 16% / .45),transparent 48%),hsl(var(--background));
+ background: hsl(var(--background));
 }
 .tt-future :is(.tt-app-shell,.tt-phone-future,.tt-driver-shell,.tt-boarding-future) {
- background: radial-gradient(ellipse at 15% 0%,hsl(198 85% 18% / .3),transparent 55%),hsl(var(--background));
+ background: hsl(var(--background));
 }
 .tt-future :is(.tt-app-shell,.tt-phone-future,.tt-driver-shell) :is(section.rounded-2xl,div.rounded-2xl.border) {
  background-image: linear-gradient(135deg,hsl(207 48% 16% / .55),hsl(215 56% 7% / .65));
  box-shadow: inset 0 1px 0 hsl(190 85% 80% / .06),0 12px 32px #0002;
 }
 .tt-future :is(.tt-future-arrival,.tt-driver-vehicle-hero) {
- background: radial-gradient(ellipse at 75% 35%,hsl(185 100% 45% / .15),transparent 55%),linear-gradient(140deg,#10293f,#06101e);
- border-color: hsl(190 60% 40% / .55);
- box-shadow: 0 16px 40px #0005,inset 0 1px 0 #a4f4ff15;
+ background: linear-gradient(140deg,#10293f,#06101e);
+ border-color: hsl(var(--border));
+ box-shadow: 0 16px 40px #0005,inset 0 1px 0 rgb(255 255 255 / .06);
  position: relative;
  overflow: hidden;
 }
-.tt-future .tt-arrival-art { filter: drop-shadow(0 12px 15px #00dbe622); }
+.tt-future .tt-arrival-art { filter: drop-shadow(0 12px 15px #0006); }
 .tt-future .tt-bus-card {
  border: 1px solid hsl(var(--border));
  border-radius: 1.2rem;
@@ -613,7 +619,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
  background: #071624;
  color: hsl(var(--primary));
  border: 2px solid hsl(var(--primary));
- box-shadow: 0 0 22px #00dae64d,inset 0 0 12px #00dae622;
+ box-shadow: 0 8px 24px #0006;
 }
 .tt-future :is(nav[aria-label="Passenger sections"],nav[aria-label="Driver app sections"],nav[aria-label="Driver sections"]) {
  background: #07121ef5;
@@ -622,20 +628,18 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 }
 .tt-future nav [aria-current="page"] { color: hsl(var(--primary)); }
 .tt-future button.bg-primary {
- background-image: linear-gradient(160deg,#4bf3ff,#00c1da);
- box-shadow: inset 0 1px 0 #b9ffffaa,0 4px 18px #00d7df22;
+ box-shadow: inset 0 1px 0 rgb(255 255 255 / .22);
 }
 .tt-future .tt-boarding-art {
  border-radius: 1.5rem;
- background: radial-gradient(ellipse at 50% 90%,#00dce52e,transparent 65%);
 }
 .tt-future .tt-nfc-target {
- box-shadow: 0 0 0 9px #00dce512,0 0 0 18px #00dce508,0 0 30px #00dce522;
+ box-shadow: 0 0 0 9px hsl(var(--primary) / .07),0 0 0 18px hsl(var(--primary) / .03);
 }
 .tt-future .tt-boarding-future :is(.bg-card\/80,.bg-card\/70) {
  background-color: #081a2bec;
  border-color: #214a63;
- box-shadow: inset 0 1px 0 #a4f4ff12,0 12px 24px #0004;
+ box-shadow: inset 0 1px 0 #d4ebf812,0 12px 24px #0004;
 }
 .tt-future .tt-boarding-future .font-heading { letter-spacing: -.035em; }
 @media (max-height:700px) and (min-width:768px) {
@@ -665,35 +669,35 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-journey-loading-full { min-height:100dvh; }
 .tt-journey-loading-inline { min-height:70dvh; border-radius:24px; }
 .tt-loading-contours { position:absolute; z-index:-1; inset:0; opacity:.14;
- background-image:repeating-radial-gradient(ellipse at 18% 20%,transparent 0 32px,#32c9ee 33px 34px,transparent 35px 62px);
+ background-image:repeating-radial-gradient(ellipse at 18% 20%,transparent 0 32px,#9fd2f0 33px 34px,transparent 35px 62px);
  mask-image:linear-gradient(#000,transparent 80%);
 }
 .tt-loading-header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
-.tt-loading-brand { display:flex; align-items:center; gap:10px; font-size:clamp(20px,2vw,28px); font-weight:750; letter-spacing:-.04em; }
-.tt-loading-accent { color:#46d9ef; }
-.tt-loading-context { color:#99b5ce; font-size:11px; letter-spacing:.17em; text-transform:uppercase; text-align:right; }
+.tt-loading-brand { display:flex; align-items:center; gap:10px; font-size:clamp(20px,2vw,28px); font-weight:600; letter-spacing:-.04em; }
+.tt-loading-accent { color:#9fd2f0; }
+.tt-loading-context { color:#99b5ce; font-size:13px; text-align:right; }
 .tt-loading-body { flex:1; width:100%; max-width:900px; margin:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px 0 26px; text-align:center; }
-.tt-loading-company { display:flex; align-items:center; gap:10px; max-width:100%; padding:10px 20px; border:1px solid #32c9ee60; border-radius:999px; background:#051522aa; font-size:14px; font-weight:600; }
+.tt-loading-company { display:flex; align-items:center; gap:10px; max-width:100%; padding:10px 20px; border:1px solid #9fd2f060; border-radius:999px; background:#051522aa; font-size:14px; font-weight:600; }
 .tt-loading-company span { overflow-wrap:anywhere; }
 .tt-loading-company img { width:30px; height:30px; border-radius:50%; object-fit:contain; }
-.tt-loading-company svg { flex-shrink:0; color:#42daf3; }
+.tt-loading-company svg { flex-shrink:0; color:#9fd2f0; }
 .tt-loading-scene { position:relative; width:min(100%,640px); height:clamp(190px,32vh,340px); display:grid; place-items:center; margin:8px 0 16px; }
-.tt-loading-halo { position:absolute; inset:30% 15% 0; background:radial-gradient(ellipse,#00d8ff33,transparent 65%); filter:blur(14px); }
-.tt-loading-road { position:absolute; bottom:0; width:100%; height:42%; color:#31d8f6; filter:drop-shadow(0 0 7px #18d9ff88); }
+.tt-loading-halo { display:none; }
+.tt-loading-road { position:absolute; bottom:0; width:100%; height:42%; color:#9fd2f0; }
 .tt-loading-route-light { stroke-dashoffset:0; animation:tt-loading-route 5s linear infinite; }
 .tt-loading-bus { position:absolute; inset:0; margin:auto; z-index:1; width:min(86%,520px); height:100%; max-height:100%; filter:drop-shadow(0 16px 22px #000a); }
-.tt-loading-body h1 { margin:0; max-width:720px; font-weight:750; font-size:clamp(25px,3.1vw,42px); line-height:1.18; letter-spacing:-.035em; text-wrap:balance; }
+.tt-loading-body h1 { margin:0; max-width:720px; font-weight:600; font-size:clamp(25px,3.1vw,42px); line-height:1.18; letter-spacing:-.035em; text-wrap:balance; }
 .tt-loading-status { color:#abcce3; font-size:clamp(15px,1.7vw,20px); line-height:1.5; margin:14px 0 20px; }
 .tt-loading-progress { width:min(100%,460px); height:6px; border-radius:999px; overflow:hidden; background:#153d55; }
-.tt-loading-progress span { display:block; width:36%; height:100%; border-radius:inherit; background:#25d5f8; box-shadow:0 0 14px #25d5f8; animation:tt-loading-shimmer 1.8s ease-in-out infinite; }
+.tt-loading-progress span { display:block; width:36%; height:100%; border-radius:inherit; background:#9fd2f0; animation:tt-loading-shimmer 1.8s ease-in-out infinite; }
 .tt-loading-slow { margin-top:20px; color:#abcce3; font-size:14px; max-width:400px; }
-.tt-loading-slow button { display:block; margin:12px auto 0; min-height:48px; padding:10px 24px; border:1px solid #47cbe0; border-radius:12px; color:#e7fbff; background:#10354a; font-weight:600; }
+.tt-loading-slow button { display:block; margin:12px auto 0; min-height:48px; padding:10px 24px; border:1px solid #9fd2f0; border-radius:12px; color:#d4ebf8; background:#10354a; font-weight:600; }
 .tt-loading-slow button:focus-visible { outline:3px solid #fff; outline-offset:4px; }
-.tt-loading-footer { color:#7599b3; font-size:11px; letter-spacing:.24em; text-align:center; }
+.tt-loading-footer { color:#7599b3; font-size:12px; text-align:center; }
 @keyframes tt-loading-route { to { stroke-dashoffset:-1320; } }
 @keyframes tt-loading-shimmer { 0% { transform:translateX(-110%); } 100% { transform:translateX(390%); } }
 @media(max-width:600px) {
- .tt-loading-context { max-width:110px; font-size:9px; letter-spacing:.08em; }
+ .tt-loading-context { max-width:130px; font-size:12px; }
  .tt-loading-body { padding-top:28px; }
  .tt-loading-scene { height:clamp(200px,34vh,310px); }
 }
@@ -711,35 +715,52 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 }
 
 /* Public welcome and authentication share the passenger navy/cyan style. */
-.tt-welcome { background:#041321; color:#f3f8ff; }
+/* Public welcome: the app's own tokens, so light mode and the colour themes
+   apply on the front door exactly as they do inside the app. */
+.tt-welcome { background:hsl(var(--background)); color:hsl(var(--foreground)); }
 .tt-welcome-header { max-width:1280px; margin:auto; padding:20px 28px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
-.tt-welcome-main { max-width:1280px; margin:auto; padding:0 28px; }
-.tt-welcome-hero { position:relative; overflow:hidden; min-height:510px; display:flex; align-items:center; border-radius:28px; background:#041321; }
-.tt-welcome-art { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; }
-.tt-welcome-copy { position:relative; z-index:1; width:52%; padding:40px 32px; background:linear-gradient(90deg,#041321d9,#04132145,transparent); }
-.tt-welcome-copy h1 { font-size:clamp(38px,5.4vw,68px); line-height:1.02; letter-spacing:-.05em; font-weight:750; }
-.tt-welcome-copy p { max-width:430px; color:#c0d1e2; font-size:18px; line-height:1.6; margin:24px 0 30px; }
-.tt-welcome-actions { display:flex; gap:14px; flex-wrap:wrap; }
+.tt-welcome-main { max-width:1280px; margin:auto; padding:0 28px; width:100%; }
+.tt-welcome-hero { position:relative; overflow:hidden; min-height:500px; display:flex; align-items:center; border-radius:28px; border:1px solid hsl(var(--border)); background:hsl(var(--card)); }
+/* The van photo fills the right of the welcome card; its front faces the words on the left. */
+.tt-welcome-art { position:absolute; inset:0 0 0 auto; width:58%; height:100%; object-fit:cover; object-position:25% center; mask-image:linear-gradient(90deg,transparent,#000 16%); }
+.tt-welcome-copy { position:relative; z-index:1; width:50%; padding:40px 32px; background:linear-gradient(90deg,hsl(var(--background)/.94),hsl(var(--background)/.9) 70%,transparent); }
+.tt-welcome-kicker { margin:0 0 14px; font-size:14px; font-weight:600; color:hsl(var(--primary)); }
+.tt-welcome-copy h1 { font-size:clamp(38px,5.4vw,68px); line-height:1.04; letter-spacing:-.012em; word-spacing:.06em; font-weight:600; text-wrap:balance; }
+.tt-welcome-lead { max-width:430px; margin:20px 0 0; color:hsl(var(--muted-foreground)); font-size:18px; line-height:1.6; }
+.tt-welcome-actions { display:flex; gap:14px; flex-wrap:wrap; margin-top:28px; }
 .tt-welcome-actions > a { min-width:170px; }
-.tt-welcome-features { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin:24px 0; }
-.tt-welcome-features > div { display:flex; align-items:center; gap:18px; padding:24px; border:1px solid #264052; background:linear-gradient(120deg,#0c2c3e90,#071725); border-radius:18px; }
-.tt-welcome-features > div > span { display:grid; place-items:center; flex-shrink:0; height:48px; width:48px; border-radius:14px; background:#15cdea14; color:#35dbf5; }
-.tt-welcome-features h2 { font-size:16px; font-weight:600; }
-.tt-welcome-extra { margin:20px 0 30px; }
-.tt-welcome-extra summary { cursor:pointer; color:#a9c4d8; padding:16px 8px; min-height:48px; }
-.tt-welcome-extra summary:focus-visible { outline:2px solid #36d9ef; border-radius:8px; }
-.tt-welcome-workspaces { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:10px 0; }
-.tt-welcome-workspaces > a { display:flex; align-items:center; gap:12px; padding:18px; border:1px solid #264052; border-radius:14px; }
+/* "New here? Create an account" under the buttons. */
+.tt-welcome-signup { margin:14px 0 0; font-size:15px; color:hsl(var(--muted-foreground)); }
+.tt-welcome-signup a { display:inline-flex; align-items:center; min-height:44px; font-weight:600; color:hsl(var(--primary)); text-underline-offset:4px; }
+.tt-welcome-signup a:hover, .tt-welcome-signup a:focus-visible { text-decoration:underline; }
+.tt-welcome-note { margin:18px 0 0; max-width:430px; font-size:13px; line-height:1.5; color:hsl(var(--muted-foreground)); }
+.tt-welcome-steps { margin:34px 0 10px; }
+.tt-welcome-steps > h2 { font-size:15px; font-weight:600; color:hsl(var(--muted-foreground)); }
+.tt-welcome-step-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin-top:14px; }
+.tt-welcome-step-list > li { display:flex; align-items:flex-start; gap:16px; padding:22px; border:1px solid hsl(var(--border)); background:hsl(var(--card)); border-radius:18px; }
+.tt-welcome-step-list > li > span { display:grid; place-items:center; flex-shrink:0; height:44px; width:44px; border-radius:14px; background:hsl(var(--primary)/.12); color:hsl(var(--primary)); font-family:var(--font-display); font-size:22px; font-weight:600; }
+.tt-welcome-step-list h3 { font-size:16px; font-weight:600; }
+.tt-welcome-step-list p { margin-top:6px; font-size:14px; line-height:1.5; color:hsl(var(--muted-foreground)); }
+.tt-welcome-footer { max-width:1224px; margin:6px auto 0; padding:20px 12px 32px; border-top:1px solid hsl(var(--border)); color:hsl(var(--muted-foreground)); font-size:13px; width:100%; }
+.tt-welcome-footer-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.tt-welcome-footer nav { display:flex; flex-wrap:wrap; gap:20px; }
+.tt-welcome-footer nav a { display:inline-flex; align-items:center; min-height:44px; font-weight:600; }
+.tt-welcome-footer nav a:hover { color:hsl(var(--foreground)); }
+.tt-welcome-access summary { cursor:pointer; display:flex; align-items:center; min-height:44px; padding:10px 0; font-weight:600; }
+.tt-welcome-access summary:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; border-radius:8px; }
+.tt-welcome-access > p { padding-bottom:8px; font-size:12px; }
+.tt-welcome-workspaces { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:6px 0 4px; }
+.tt-welcome-workspaces > a { display:flex; align-items:center; gap:12px; padding:16px; border:1px solid hsl(var(--border)); border-radius:14px; background:hsl(var(--card)); color:hsl(var(--foreground)); }
+.tt-welcome-workspaces > a:hover { border-color:hsl(var(--primary)/.55); }
 .tt-welcome-workspaces span { flex:1; min-width:0; }
 .tt-welcome-workspaces strong,.tt-welcome-workspaces small { display:block; }
-.tt-welcome-workspaces small { margin-top:5px; color:#9eb7ca; font-size:12px; }
-.tt-welcome-footer { max-width:1224px; margin:auto; border-top:1px solid #203546; padding:22px 12px; display:flex; align-items:center; justify-content:space-between; gap:12px; color:#7fa5be; font-size:13px; }
+.tt-welcome-workspaces small { margin-top:5px; color:hsl(var(--muted-foreground)); font-size:12px; font-weight:400; }
 .tt-auth-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); background:#041321; color:#f3f8ff; }
 .tt-auth-brand-panel { position:sticky; top:0; height:100dvh; min-height:650px; overflow:hidden; padding:40px; border-right:1px solid #203546; display:flex; flex-direction:column; justify-content:space-between; }
-.tt-auth-logo { display:inline-flex; align-items:center; gap:12px; font-size:26px; font-weight:700; position:relative; z-index:1; letter-spacing:-.03em; }
-.tt-auth-art { position:absolute; inset:0; height:100%; width:100%; object-fit:cover; object-position:75% center; opacity:.65; mask-image:linear-gradient(#000 35%,transparent 85%); }
+.tt-auth-logo { display:inline-flex; align-items:center; gap:12px; font-size:26px; font-weight:600; position:relative; z-index:1; letter-spacing:-.03em; }
+.tt-auth-art { position:absolute; inset:0; height:100%; width:100%; object-fit:cover; object-position:20% center; opacity:.65; mask-image:linear-gradient(#000 35%,transparent 85%); }
 .tt-auth-brand-copy { position:relative; z-index:1; max-width:480px; padding-bottom:20px; }
-.tt-auth-brand-copy h2 { font-size:48px; line-height:1.05; letter-spacing:-.04em; font-weight:700; }
+.tt-auth-brand-copy h2 { font-size:48px; line-height:1.06; letter-spacing:-.022em; font-weight:600; }
 .tt-auth-brand-copy p { font-size:18px; color:#b2c7d7; margin:22px 0; }
 .tt-auth-brand-copy ul { display:flex; flex-direction:column; gap:14px; margin-top:28px; }
 .tt-auth-brand-copy li { display:flex; align-items:center; gap:12px; color:#bfd4e5; font-size:14px; }
@@ -760,22 +781,26 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
  .tt-auth-form-area { padding:20px 20px 36px; }
  .tt-auth-mobile-hero { display:block; margin-bottom:22px; }
  .tt-auth-mobile-hero .tt-auth-logo { font-size:23px; margin-bottom:8px; }
- .tt-auth-mobile-hero > img { width:100%; height:210px; object-fit:cover; object-position:75% center; border-radius:20px; mask-image:linear-gradient(#000 70%,transparent); }
+ .tt-auth-mobile-hero > img { width:100%; height:210px; object-fit:cover; object-position:50% center; border-radius:20px; mask-image:linear-gradient(#000 70%,transparent); }
 }
 @media(max-width:700px) {
  .tt-welcome-header { padding:18px 20px; }
  .tt-welcome-main { padding:0 20px; }
  .tt-welcome-hero { display:block; min-height:0; border-radius:18px; }
- .tt-welcome-art { position:relative; height:240px; object-position:75% center; mask-image:linear-gradient(#000 80%,transparent); }
- .tt-welcome-copy { width:100%; padding:10px 0 4px; text-align:center; background:none; }
+ .tt-welcome-art { position:relative; width:100%; height:240px; object-position:50% center; mask-image:linear-gradient(#000 80%,transparent); }
+ .tt-welcome-copy { width:100%; padding:16px 0 4px; text-align:center; background:none; }
+ .tt-welcome-kicker { margin-bottom:10px; }
  .tt-welcome-copy h1 { font-size:39px; }
- .tt-welcome-copy p { font-size:16px; margin:18px auto 24px; }
- .tt-welcome-actions { display:grid; grid-template-columns:1fr; }
- .tt-welcome-features { grid-template-columns:1fr; gap:10px; margin-top:22px; }
- .tt-welcome-features > div { padding:13px 16px; gap:14px; }
- .tt-welcome-features > div > span { height:38px; width:38px; border-radius:12px; }
+ .tt-welcome-lead { font-size:16px; margin:16px auto 0; }
+ .tt-welcome-note { margin:14px auto 0; }
+ .tt-welcome-actions { display:grid; grid-template-columns:1fr 1fr; margin-top:22px; }
+ .tt-welcome-actions > a { min-width:0; }
+ .tt-welcome-actions > a:first-child { grid-column:1/-1; }
+ .tt-welcome-step-list { grid-template-columns:1fr; gap:10px; }
+ .tt-welcome-step-list > li { padding:16px; }
  .tt-welcome-workspaces { grid-template-columns:1fr; }
- .tt-welcome-footer { margin:0 20px; flex-wrap:wrap; }
+ .tt-welcome-footer { width:auto; margin:6px 20px 0; padding-left:0; padding-right:0; }
+ .tt-welcome-footer-bar nav { gap:16px; }
 }
 
 /* Shared Admin chrome and panels. All existing management tabs inherit it. */
@@ -788,19 +813,32 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-admin-shell div.rounded-2xl.border,
 .tt-admin-stats > button {
  background-image:var(--ad-card-image,linear-gradient(135deg,#0e273950,#06111e90));
- box-shadow:var(--ad-card-shadow,inset 0 1px 0 #bcf6ff08,0 8px 24px #0002);
+ box-shadow:var(--ad-card-shadow,inset 0 1px 0 #d4ebf808,0 8px 24px #0002);
 }
 .tt-admin-group-toggle {
  display:flex; align-items:center; gap:12px; width:100%; min-height:48px; padding:10px 12px;
  text-align:left; border-radius:12px; color:var(--ad-nav-text,#a9c6da); font-size:14px; font-weight:500;
 }
 .tt-admin-group-toggle span { flex:1; }
-.tt-admin-group-toggle:hover { background:var(--ad-nav-hover-bg,#102d4155); color:var(--ad-nav-hover-text,#ecfaff); }
-.tt-admin-group-current { color:var(--ad-nav-current-text,#40d9ee); background:var(--ad-nav-current-bg,#0c344444); }
+.tt-admin-group-toggle:hover { background:var(--ad-nav-hover-bg,#102d4155); color:var(--ad-nav-hover-text,#d4ebf8); }
+.tt-admin-group-current { color:var(--ad-nav-current-text,#9fd2f0); background:var(--ad-nav-current-bg,#0c344444); }
 .tt-admin-group-items { margin:4px 0 10px 20px; padding-left:8px; border-left:1px solid var(--ad-nav-line,#274153); }
 .tt-admin-nav-secondary { border-top:1px solid var(--ad-nav-sep,#244052); margin-top:18px; padding-top:16px; }
-.tt-admin-shell nav [aria-current="page"] { background:var(--ad-nav-active-bg,linear-gradient(110deg,#05657a66,#064e6977)); border:1px solid var(--ad-nav-active-edge,#2fd9eb55); color:var(--ad-nav-active-text,#e5fbff); box-shadow:0 0 18px #16d6ed10; }
-.tt-admin-shell nav :is(button,a):focus-visible { outline:2px solid var(--ad-focus,#3ee0f5); outline-offset:2px; }
+.tt-admin-shell nav [aria-current="page"] { background:var(--ad-nav-active-bg,#ffffff0f); border:1px solid var(--ad-nav-active-edge,#ffffff14); color:var(--ad-nav-active-text,#f1f8fc); }
+.tt-admin-shell nav :is(button,a):focus-visible { outline:2px solid var(--ad-focus,#9fd2f0); outline-offset:2px; }
+/* The admin sidebar sits closer together, so more of it fits without scrolling. */
+.tt-admin-nav .tt-admin-group-toggle { min-height:40px; padding:8px 12px; }
+.tt-admin-nav .tt-admin-group-items { margin:2px 0 6px 20px; }
+.tt-admin-nav .tt-admin-nav-secondary { margin-top:12px; padding-top:12px; }
+/* A hub's tabs: the open tab is a raised pill, not the sidebar's highlight. */
+.tt-admin-shell nav.tt-admin-hub-tabs [aria-current="page"] { background:hsl(var(--background)); border:0; color:hsl(var(--foreground)); box-shadow:0 1px 3px rgb(0 0 0 / .25); }
+.tt-admin-hub-tabs { scrollbar-width:none; }
+/* Admin notices drop in under the header (AdminAlerts). */
+@keyframes tt-admin-popup-in { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+.tt-admin-popup { animation:tt-admin-popup-in 180ms cubic-bezier(.2,.8,.2,1); }
+@media (prefers-reduced-motion:reduce) { .tt-admin-popup { animation:none; } }
+.tt-admin-hub-tabs::-webkit-scrollbar { display:none; }
+.tt-admin-shell nav.tt-admin-hub-tabs a:focus-visible { outline-offset:-2px; }
 .tt-admin-stats > button { min-height:112px; border-radius:16px; }
 .tt-admin-totals { border-bottom:1px solid hsl(var(--border)); padding-bottom:10px; }
 .tt-admin-alert-list { padding-top:10px; }
@@ -808,9 +846,9 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
  display:flex; flex-wrap:wrap; align-items:center; gap:12px; width:100%; min-height:86px; padding:14px;
  border:1px solid hsl(var(--border)); border-radius:14px; background:var(--ad-row-bg,#102a3c55); text-align:left;
 }
-.tt-admin-attention-row:hover { border-color:var(--ad-row-hover-edge,#29b9d066); background:var(--ad-row-hover-bg,#12324777); }
+.tt-admin-attention-row:hover { border-color:var(--ad-row-hover-edge,#9fd2f066); background:var(--ad-row-hover-bg,#12324777); }
 .tt-admin-attention-icon { display:grid; place-items:center; width:52px; height:52px; flex-shrink:0; border-radius:12px; color:var(--ad-icon-text,#a2c5d9); background:var(--ad-icon-bg,#ffffff08); }
-.tt-admin-attention-action { display:inline-flex; align-items:center; gap:6px; flex-shrink:0; padding:7px 10px; font-size:12px; color:var(--ad-action-text,#a6e4f2); border:1px solid var(--ad-action-edge,#356278); border-radius:9px; }
+.tt-admin-attention-action { display:inline-flex; align-items:center; gap:6px; flex-shrink:0; padding:7px 10px; font-size:12px; color:var(--ad-action-text,#9fd2f0); border:1px solid var(--ad-action-edge,#356278); border-radius:9px; }
 .tt-admin-status-table { width:100%; min-width:520px; border-collapse:collapse; font-size:13px; }
 .tt-admin-status-table th { text-align:left; padding:13px 16px; font-size:12px; font-weight:500; color:var(--ad-th-text,#9fb7c9); border-bottom:1px solid hsl(var(--border)); }
 .tt-admin-status-table td { padding:12px 16px; border-bottom:1px solid hsl(var(--border)); vertical-align:middle; }
@@ -820,7 +858,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-admin-tablet-row:last-child { border-bottom:0; }
 .tt-admin-overview [aria-label="Needs attention"] { max-height:580px; overflow:auto; }
 .tt-admin-shell main { padding-bottom:130px; }
-.tt-future button[aria-label="Open messages"] { border-color:#28d9ee; color:#2cd9ef; box-shadow:0 0 20px #00d5f322; }
+.tt-future button[aria-label="Open messages"] { border-color:hsl(var(--primary)); color:hsl(var(--primary)); box-shadow:0 8px 24px #0006; }
 @media(max-width:1279px) {
  .tt-admin-attention-action { margin-left:auto; }
 }
@@ -849,21 +887,23 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 
 /* Approved phone/tablet references: presentation only; live data stays in its existing components. */
 .tt-driver-reference,.tt-driver-phone-reference {
-  --background:218 61% 6%;--foreground:205 50% 96%;--card:216 48% 11%;--card-foreground:205 50% 96%;
-  --primary:186 95% 50%;--primary-foreground:218 70% 7%;--secondary:215 42% 16%;--secondary-foreground:205 50% 96%;
-  --muted:215 35% 15%;--muted-foreground:210 22% 70%;--border:204 34% 24%;--accent:207 44% 20%;--accent-foreground:205 50% 96%;
-  color:hsl(var(--foreground));background:radial-gradient(ellipse at 90% 0%,#12384d80,transparent 50%),#050d1b;
+  /* The website's look: deep sea-blue, white highlights with dark text on them. */
+  --background:206 61% 11%;--foreground:200 33% 96%;--card:206 57% 15%;--card-foreground:200 33% 96%;
+  --primary:0 0% 100%;--primary-foreground:206 61% 11%;--secondary:206 54% 19%;--secondary-foreground:200 33% 96%;
+  --muted:206 48% 18%;--muted-foreground:206 25% 73%;--border:206 36% 23%;--accent:206 50% 22%;--accent-foreground:200 33% 96%;
+  --ring:202 72% 78%;
+  color:hsl(var(--foreground));background:#0b1f2e;
 }
 .tt-passenger-reference button,.tt-driver-reference button,.tt-driver-phone-reference button { border-radius:14px; }
-.tt-passenger-reference button:focus-visible,.tt-driver-reference button:focus-visible,.tt-driver-phone-reference button:focus-visible{outline:2px solid #28e5f4;outline-offset:3px}
+.tt-passenger-reference button:focus-visible,.tt-driver-reference button:focus-visible,.tt-driver-phone-reference button:focus-visible{outline:2px solid hsl(var(--primary));outline-offset:3px}
 .tt-passenger-reference :is(.bg-card,.tt-bus-card),.tt-driver-phone-reference section,.tt-driver-reference :is(.bg-card,.bg-secondary) {
-  background:linear-gradient(145deg,#14263eee,#0c192cee);border-color:#29465b;box-shadow:inset 0 1px 0 #8be7ff0a,0 8px 25px #0002;
+  background:linear-gradient(145deg,#14263eee,#0c192cee);border-color:#29465b;box-shadow:inset 0 1px 0 #9fd2f00a,0 8px 25px #0002;
 }
 .tt-passenger-reference {color:hsl(var(--foreground));background:var(--px-page)}
 .tt-passenger-reference :is(.bg-card,.tt-bus-card) {background:var(--px-card);border-color:var(--px-card-border);box-shadow:var(--px-card-shadow)}
 .tt-passenger-reference button:focus-visible {outline-color:var(--px-tint)}
 .tt-passenger-reference .tt-passenger-greeting h1,.tt-driver-phone-reference h1 {font-size:clamp(25px,6vw,34px);letter-spacing:-.035em}
-.tt-arrival-reference {position:relative;isolation:isolate;overflow:hidden;min-height:310px;background:linear-gradient(90deg,#081a2df2 0%,#091c30bb 45%,#091b3060),url('/images/boarding-coast.webp') center/cover!important;border:1px solid #2e6477!important;box-shadow:0 8px 35px #0005,inset 0 0 36px #27e4ff09!important}
+.tt-arrival-reference {position:relative;isolation:isolate;overflow:hidden;min-height:310px;background:linear-gradient(90deg,#081a2df2 0%,#091c30bb 45%,#091b3060),url('/images/boarding-coast.webp') center/cover!important;border:1px solid hsl(var(--border))!important;box-shadow:0 8px 35px #0005!important}
 .tt-arrival-reference {display:flex;flex-direction:column;gap:12px}
 .tt-arrival-reference>.tt-arrival-art {position:relative;inset:auto;order:3;align-self:flex-end;width:100%;max-width:380px;height:160px;margin:0;z-index:0;filter:drop-shadow(0 18px 15px #0009)}
 .tt-arrival-reference>.tt-arrival-main {order:1;display:flex;flex-direction:column;gap:12px}
@@ -879,9 +919,9 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 .tt-arrival-estimate .text-caption {font-size:14px}
 .tt-passenger-pickup-actions {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:0 24px 16px}
 .tt-passenger-pickup-actions>section,.tt-passenger-pickup-actions>div {padding:0!important;min-width:0}
-.tt-show-map-button {min-height:56px;background:linear-gradient(120deg,#06cce7,#2898ed);color:#041322;font-weight:750;box-shadow:0 5px 24px #04cde52b}
+.tt-show-map-button {min-height:56px;background:var(--px-fill,hsl(var(--primary)));color:var(--px-on-tint,hsl(var(--primary-foreground)));font-weight:600}
 .tt-bus-filters{background:#0d1d32;border-color:#2a455a}
-.tt-bus-filters [aria-pressed="true"] {background:linear-gradient(120deg,#13d7e5,#168dcc);color:#041322;box-shadow:0 0 18px #14ddec22}
+.tt-bus-filters [aria-pressed="true"] {background:var(--px-fill,hsl(var(--primary)));color:var(--px-on-tint,hsl(var(--primary-foreground)))}
 .tt-passenger-reference section[aria-label="Company bus directory"] ul {display:flex;flex-direction:column;gap:14px;background:transparent;border:0}
 .tt-passenger-reference .tt-bus-card{border:1px solid var(--px-card-border);border-radius:20px;overflow:hidden}
 .tt-passenger-reference .tt-bus-card>a{padding:15px;gap:12px;min-height:150px}
@@ -890,7 +930,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-bus-filters [aria-pressed="tr
 /* Frosted like an iOS tab bar: the page scrolls under it, softly blurred, with
    a light top edge. Solid when the phone asks for less transparency. */
 .tt-passenger-reference-tabs {background:var(--px-glass,#071222c2)!important;border-color:var(--px-glass-edge,#ffffff1c)!important;color:var(--px-text2,#a5bbc9);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%)}
-.tt-passenger-reference-tabs [aria-current="page"] {color:var(--px-tint,#25e1ef);text-shadow:0 0 20px #1ceafa55}
+.tt-passenger-reference-tabs [aria-current="page"] {color:var(--px-tint,#9fd2f0)}
 html.tt-passenger-app:is(.light,[data-accent]) .tt-passenger-reference-tabs [aria-current="page"] {text-shadow:none}
 @media (prefers-reduced-transparency: reduce) { .tt-passenger-reference-tabs {background:var(--px-bg,#071222)!important;-webkit-backdrop-filter:none;backdrop-filter:none} }
 @media (prefers-contrast: more) { .tt-passenger-reference-tabs {background:var(--px-bg,#071222)!important;border-color:var(--px-edge-contrast,#8fb7cf)!important} }
@@ -907,12 +947,12 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-passenger-reference-tabs [ari
 @media (max-width: 767px) and (prefers-contrast: more) { .tt-passenger-reference-tabs {background:var(--px-cell,#0a1828)!important;border:1px solid var(--px-edge-contrast,#8fb7cf)!important} }
 .tt-driver-phone-reference .tt-driver-vehicle-hero{position:relative;overflow:hidden;background:linear-gradient(180deg,#0b1d3580,#0a172cf5),url('/images/boarding-coast.webp') center top/cover!important}
 .tt-driver-phone-reference .tt-driver-vehicle-hero>.tt-bus-artwork {filter:drop-shadow(0 16px 10px #0008);height:150px}
-.tt-driver-phone-reference .tt-phone-quick-actions>button {display:flex;align-items:center;gap:12px;min-height:66px;padding:14px 16px;background:linear-gradient(125deg,#16324b,#0f2036);border:1px solid #34566e;box-shadow:inset 0 1px 0 #82e8ff15;color:#e4f6fc;text-align:left;font-weight:650}
-.tt-phone-quick-actions svg{width:23px;height:23px;color:#2fe0ec}
+.tt-driver-phone-reference .tt-phone-quick-actions>button {display:flex;align-items:center;gap:12px;min-height:66px;padding:14px 16px;background:linear-gradient(125deg,#16324b,#0f2036);border:1px solid #34566e;box-shadow:inset 0 1px 0 rgb(255 255 255 / .06);color:#d4ebf8;text-align:left;font-weight:600}
+.tt-phone-quick-actions svg{width:23px;height:23px;color:#9db6c9}
 .tt-phone-trip-summary section {padding:16px}
 .tt-phone-trip-summary h2 {font-size:14px;color:#9db6c9}
 .tt-driver-phone-reference nav{background:#071222f5!important;border-color:#274257}
-.tt-driver-phone-reference nav [aria-current="page"]{color:#2ee4ed}
+.tt-driver-phone-reference nav [aria-current="page"]{color:hsl(var(--primary))}
 .tt-cockpit-shift,.tt-cockpit-shortcut{display:none}
 .tt-driver-reference nav[aria-label="Driver sections"]{display:flex;overflow-x:auto}
 .tt-driver-reference nav[aria-label="Driver sections"]>button{min-width:76px;flex:1;border-radius:0}
@@ -923,7 +963,7 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-passenger-reference-tabs [ari
  .tt-driver-reference>main{grid-column:2;grid-row:3;min-width:0}
  .tt-driver-reference>nav[aria-label="Driver sections"]{grid-column:1;grid-row:3;display:flex;flex-direction:column;overflow-y:auto;border-top:0;border-right:1px solid #27465d;padding:8px 6px;background:#071426}
  .tt-driver-reference>nav[aria-label="Driver sections"]>button{min-height:54px;flex:none;gap:4px;margin:3px 0;font-size:12px;border-radius:12px}
- .tt-driver-reference>nav [aria-current="page"]{background:linear-gradient(90deg,#0fcce929,#128abb16);box-shadow:inset 3px 0 #26def0;color:#5eeef7}
+ .tt-driver-reference>nav [aria-current="page"]{background:rgb(255 255 255 / .07);box-shadow:inset 3px 0 hsl(var(--primary));color:hsl(var(--primary))}
  .tt-driver-reference>nav [aria-current="page"]>span[aria-hidden]{display:none}
  .tt-driver-cockpit-reference {grid-template-columns:minmax(0,1fr) 285px!important;grid-template-areas:"map status" "map next" "map more" "deck deck"!important;grid-template-rows:auto auto minmax(0,1fr) auto!important;gap:12px}
  .tt-driver-cockpit-reference>[style],.tt-driver-cockpit-reference>div:first-child{border:1px solid #2c566b;border-radius:20px;overflow:hidden}
@@ -971,11 +1011,11 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-passenger-reference-tabs [ari
 .tt-pickup-sheet .tt-pickup-finder input { background: #0c1c2a; border-color: #2b5065; color: #f1f6fa; }
 .tt-pickup-sheet .tt-pickup-finder .bg-card { background: #0c1c2a; }
 .tt-pickup-sheet .tt-pickup-finder .border { border-color: #2b5065; }
-.tt-pickup-sheet .tt-pickup-finder .border-primary { border-color: #00d7e8; }
+.tt-pickup-sheet .tt-pickup-finder .border-primary { border-color: var(--tt-pick); }
 
 /* A pickup someone taps glows, so it's clear which one they picked; tapping
    another moves the glow there. Also used for the picked spot on the map. */
-.tt-pickup-sheet { --tt-pick: #00d7e8; --tt-pick-ink: #04121c; }
+.tt-pickup-sheet { --tt-pick: hsl(var(--primary)); --tt-pick-ink: #04121c; }
 /* Light passenger app, and a chosen colour theme, in the pickup finder. */
 html.tt-passenger-app.light .tt-pickup-sheet { background: var(--px-sheet); color: var(--px-text); border-color: var(--px-panel-border); }
 html.tt-passenger-app.light .tt-pickup-sheet .tt-pickup-finder .text-muted-foreground { color: var(--px-text2); }
@@ -991,36 +1031,35 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-pickup-sheet .tt-pickup-finde
   border-color: var(--tt-pick, hsl(var(--primary)));
   background: hsl(var(--primary) / .14);
   background: color-mix(in srgb, var(--tt-pick, hsl(var(--primary))) 16%, transparent);
-  box-shadow: 0 0 0 2px var(--tt-pick, hsl(var(--primary))), 0 0 22px 2px hsl(var(--primary) / .45);
-  box-shadow: 0 0 0 2px var(--tt-pick, hsl(var(--primary))), 0 0 24px 3px color-mix(in srgb, var(--tt-pick, hsl(var(--primary))) 50%, transparent);
+  box-shadow: 0 0 0 2px var(--tt-pick, hsl(var(--primary)));
   animation: tt-pick-glow .55s ease-out;
 }
-.tt-pick-tag { flex-shrink: 0; border-radius: 999px; padding: 2px 9px; font-size: 11px; font-weight: 700; letter-spacing: .02em; background: var(--tt-pick, hsl(var(--primary))); color: var(--tt-pick-ink, hsl(var(--primary-foreground))); }
+.tt-pick-tag { flex-shrink: 0; border-radius: 999px; padding: 2px 9px; font-size: 11px; font-weight: 600; letter-spacing: .02em; background: var(--tt-pick, hsl(var(--primary))); color: var(--tt-pick-ink, hsl(var(--primary-foreground))); }
 .tt-pick-mark { display: grid; place-items: center; width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; border: 2px solid hsl(var(--muted-foreground) / .55); color: transparent; }
 .tt-pickup-sheet .tt-pick-mark { border-color: #5d7a8c; }
 .tt-pick-choice[aria-pressed="true"] .tt-pick-mark,
 .tt-pickup-sheet .tt-pick-choice[aria-pressed="true"] .tt-pick-mark { border-color: var(--tt-pick, hsl(var(--primary))); background: var(--tt-pick, hsl(var(--primary))); color: var(--tt-pick-ink, hsl(var(--primary-foreground))); }
 @keyframes tt-pick-glow {
   0% { transform: scale(.985); box-shadow: 0 0 0 0 var(--tt-pick, hsl(var(--primary))), 0 0 0 0 transparent; }
-  55% { transform: scale(1.012); box-shadow: 0 0 0 5px var(--tt-pick, hsl(var(--primary))), 0 0 36px 8px var(--tt-pick, hsl(var(--primary))); }
+  55% { transform: scale(1.012); box-shadow: 0 0 0 4px var(--tt-pick, hsl(var(--primary))); }
   100% { transform: scale(1); }
 }
 @media (prefers-reduced-motion: reduce) { .tt-pick-choice[aria-pressed="true"], .tt-pickup-sheet .tt-pickup-finder .tt-pick-choice[aria-pressed="true"] { animation: none; } }
 @media (max-width: 360px) { .tt-pick-tag { display: none; } }
 .tt-map-picked-anchor { background: none; border: 0; }
-.tt-map-picked-anchor .tt-map-picked { position: absolute; left: 0; bottom: 22px; transform: translateX(-50%); white-space: nowrap; pointer-events: none; background: #04121c; color: #fff; border: 2px solid var(--tt-pick, #00d7e8); border-radius: 999px; padding: 3px 10px; font: 700 12px/1.2 system-ui, sans-serif; box-shadow: 0 2px 10px rgba(0,0,0,.45); }
+.tt-map-picked-anchor .tt-map-picked { position: absolute; left: 0; bottom: 22px; transform: translateX(-50%); white-space: nowrap; pointer-events: none; background: #04121c; color: #fff; border: 2px solid var(--tt-pick, #9fd2f0); border-radius: 999px; padding: 3px 10px; font: 600 12px/1.2 system-ui, sans-serif; box-shadow: 0 2px 10px rgba(0,0,0,.45); }
 /* Numbered nearby pickup spots: the same number in the list and on the map. */
-.tt-spot-num { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; font: 800 15px/1 system-ui, sans-serif; color: var(--tt-pick, hsl(var(--primary))); border: 2px solid var(--tt-pick, hsl(var(--primary))); }
+.tt-spot-num { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; font: 600 15px/1 system-ui, sans-serif; color: var(--tt-pick, hsl(var(--primary))); border: 2px solid var(--tt-pick, hsl(var(--primary))); }
 .tt-pick-choice[aria-pressed="true"] .tt-spot-num { background: var(--tt-pick, hsl(var(--primary))); color: var(--tt-pick-ink, hsl(var(--primary-foreground))); }
 .tt-map-num-anchor { background: none; border: 0; }
-.tt-map-num { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--tt-pick, #00d7e8); color: var(--tt-pick-ink, #04121c); border: 2px solid #0b0b0d; font: 800 13px/1 system-ui, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,.45); cursor: pointer; }
-.tt-map-num.picked { width: 34px; height: 34px; font-size: 16px; border: 3px solid #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--tt-pick, #00d7e8) 45%, transparent), 0 2px 10px rgba(0,0,0,.5); }
+.tt-map-num { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--tt-pick, #9fd2f0); color: var(--tt-pick-ink, #04121c); border: 2px solid #0b0b0d; font: 600 13px/1 system-ui, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,.45); cursor: pointer; }
+.tt-map-num.picked { width: 34px; height: 34px; font-size: 16px; border: 3px solid #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--tt-pick, #9fd2f0) 45%, transparent), 0 2px 10px rgba(0,0,0,.5); }
 
 /* Office displays (/display): bus names on the wall map. Sized in rem, so
    they follow the screen's own text size. */
 .tt-wall-label {
   white-space: nowrap; pointer-events: none;
-  font: 700 0.95rem/1 var(--font-display); letter-spacing: 0.01em;
+  font: 600 0.95rem/1 var(--font-display); letter-spacing: 0.01em;
   padding: 0.3rem 0.55rem; border-radius: 0.5rem;
   color: hsl(var(--foreground)); background: hsl(var(--background) / 0.9);
   border: 1px solid hsl(var(--primary) / 0.6); box-shadow: var(--shadow-2);
@@ -1034,3 +1073,48 @@ html.tt-passenger-app:is(.light,[data-accent]) .tt-pickup-sheet .tt-pickup-finde
 .tt-display-compact .gap-2 { gap: 0.35rem; }
 .tt-display-compact .py-2 { padding-top: 0.3rem; padding-bottom: 0.3rem; }
 .tt-display-compact .rounded-2xl { border-radius: 0.75rem; }
+/* Phones: while the on-screen keyboard is up, bars and buttons pinned to the
+   bottom of the screen step aside so the field being typed in stays in view
+   (src/lib/typingKeyboard.js sets html[data-typing]). */
+html[data-typing] .tt-hide-while-typing { display: none !important; }
+
+/* Tablet battery at the top of the kiosk screens (src/components/kiosk/TabletBattery.jsx). */
+.tt-battery { display:inline-flex; align-items:center; gap:4px; flex-shrink:0; font-size:13px; font-weight:600; line-height:1; white-space:nowrap; font-variant-numeric:tabular-nums; }
+/* Stronger than the headers' own "svg" rules (driver header icons are cyan and 20px). */
+span.tt-battery > svg.tt-battery-icon { width:24px; height:13px; flex-shrink:0; color:inherit; }
+span.tt-battery > svg.tt-battery-bolt { width:12px; height:12px; flex-shrink:0; color:inherit; }
+.tt-board-trip > span.tt-battery { font-size:15px; }
+.tt-kiosk-phone .tt-board-trip > span.tt-battery { font-size:13px; }
+.tt-loading-status { display:flex; align-items:center; gap:12px; color:#99b5ce; }
+.tt-battery[data-state="warn"] { color:hsl(var(--warning)); }
+.tt-battery[data-state="low"] { color:hsl(var(--destructive)); }
+
+/* The Workshop (/workshop): a light parts-catalogue look, only while it is
+   open. Doubled class: it wins over the Light/Dark and colour themes. */
+html.tt-workshop.tt-workshop {
+ color-scheme: light;
+ --background: 210 20% 96%;
+ --foreground: 216 33% 16%;
+ --card: 0 0% 100%;
+ --card-foreground: 216 33% 16%;
+ --popover: 0 0% 100%;
+ --popover-foreground: 216 33% 16%;
+ --primary: 213 80% 42%;
+ --primary-foreground: 0 0% 100%;
+ --secondary: 213 30% 93%;
+ --secondary-foreground: 216 33% 16%;
+ --muted: 210 20% 94%;
+ --muted-foreground: 215 14% 38%;
+ --accent: 213 75% 95%;
+ --accent-foreground: 216 33% 16%;
+ --destructive: 0 72% 44%;
+ --destructive-foreground: 0 0% 100%;
+ --border: 214 20% 85%;
+ --input: 214 16% 68%;
+ --ring: 213 80% 42%;
+ --success: 142 64% 28%;
+ --warning: 28 92% 34%;
+ --danger: 0 72% 42%;
+ --info: 213 80% 42%;
+}
+html.tt-workshop body { background: hsl(var(--background)); }

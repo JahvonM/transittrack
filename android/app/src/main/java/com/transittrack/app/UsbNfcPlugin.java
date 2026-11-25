@@ -27,6 +27,7 @@ public class UsbNfcPlugin extends Plugin {
     private final BroadcastReceiver permissionResult = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             UsbAutoAcceptService.clearPending(context, "nfc");
+            UsbPromptWindow.close(context);
             if (!intent.getBooleanExtra(android.hardware.usb.UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                 // Like the Helper: a cancelled or closed popup is asked again a minute
                 // later. It never switches the reader off (Android also reports a popup

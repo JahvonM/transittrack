@@ -28,11 +28,11 @@ async function phone(page,{refuse=false,failDirection=false,today=TODAY,messages
  const calls=[];
  let currentToday=structuredClone(today);
  let directionFailed=false;
- await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
+ await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
-  if(url.includes('/functions/driverPhone')) {
+  if(url.includes('/functions/v1/driverPhone')) {
    const body=route.request().postDataJSON();calls.push(body);
    if(refuse) return route.fulfill({status:403,json:{error:'Ask your administrator to put this email on your driver record and switch on "Can use the phone app".',code:'NOT_A_DRIVER'}});
    if(body.action==='set_direction') {
@@ -49,13 +49,13 @@ async function phone(page,{refuse=false,failDirection=false,today=TODAY,messages
     ride_mark:{ok:true,ref:body.ref,ride:body.kind==='no_show'?{state:'no_show',at:new Date().toISOString(),id:'x1'}:body.kind==='got_on'?{state:'on_board',at:new Date().toISOString(),by_driver:true}:{state:'not_yet'}}}[body.action];
    return route.fulfill({json:reply||{error:'Unknown action'}});
   }
-  if(url.includes('/functions/companyAccess')) return route.fulfill({status:401,json:{error:'Company code required',code:'COMPANY_ACCESS_REQUIRED'}});
-  if(url.includes('/functions/entityAccess')) {
+  if(url.includes('/functions/v1/companyAccess')) return route.fulfill({status:401,json:{error:'Company code required',code:'COMPANY_ACCESS_REQUIRED'}});
+  if(url.includes('/functions/v1/entityAccess')) {
    const body=route.request().postDataJSON();
    if(body.entity==='User' && body.operation==='get') return route.fulfill({json:{result:user}});
    return route.fulfill({json:{result:[]}});
   }
-  if(url.includes('/entities/User/me')) return route.fulfill({json:user});
+  if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:user}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  }));
  return calls;
@@ -65,7 +65,7 @@ test('a driver opens stops and pickups from buttons on Today',async({page})=>{
  await phone(page);
  await page.goto('/staff');
  await expect(page).toHaveURL(/\/driver-phone$/);
- await expect(page.getByRole('heading',{name:/Dana$/})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Today',exact:true})).toBeVisible();
  await expect(page.getByText('Bus 12',{exact:true})).toBeVisible();
  await expect(page.getByText('Not on shift',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Start shift'})).toBeVisible();
@@ -202,16 +202,16 @@ test('while the bus moves the app shows only the Driving screen and sends no loc
 test('admin provisions phone login without toggling access through the Driver record',async({page})=>{
  const saves=[];
  const issued={ok:true,username:'dana.driver',temporary_password:'SomeTempPass12345!',must_change_password:true};
- await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
+ await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  const driver={id:'drv',full_name:'Dana Driver',email:'dana.driver@gmail.com',phone:'+1 473 555 0123',company_id:'a',company_name:'Coyaba Transport',phone_app_access:false};
  await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
-  if(url.includes('/functions/driverAccounts')){
+  if(url.includes('/functions/v1/driverAccounts')){
    saves.push(route.request().postDataJSON());
    return route.fulfill({json:issued});
   }
-  if(url.includes('/functions/entityAccess')) {
+  if(url.includes('/functions/v1/entityAccess')) {
    const body=route.request().postDataJSON();let result=[];
    if(body.entity==='User' && body.operation==='get') result={id:'admin',email:'admin@test.local',full_name:'Admin',role:'admin'};
    else if(body.entity==='Driver') result=[driver];
@@ -219,7 +219,7 @@ test('admin provisions phone login without toggling access through the Driver re
    else if(body.entity==='Vehicle') result=[{id:'bus-a',name:'Bus 12',company_id:'a',driver_email:'dana.driver@gmail.com',driver_name:'Dana Driver',status:'idle'}];
    return route.fulfill({json:{result}});
   }
-  if(url.includes('/entities/User/me')) return route.fulfill({json:{id:'admin',role:'admin',email:'admin@test.local'}});
+  if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:{id:'admin',role:'admin',email:'admin@test.local'}}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  }));
  await page.setViewportSize({width:1280,height:900});
@@ -242,7 +242,7 @@ test('phone loading follows real requests, displays bus artwork, and respects re
  await page.emulateMedia({reducedMotion:'reduce'});
  await phone(page,{today:{...TODAY,bus:{...TODAY.bus,image_url:'/images/transit-bus-3d.webp'}}});
  let release;const pending=new Promise(resolve=>{release=resolve});
- await page.route('**/functions/driverPhone',async r=>{
+ await page.route('**/functions/v1/driverPhone',async r=>{
   if(r.request().postDataJSON().action==='messages')await pending;
   return r.fallback();
  });

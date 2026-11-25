@@ -85,7 +85,7 @@ export default function LostItemReport({ company, vehicles = [] }) {
 
       {mine.length > 0 && (
         <div className="pt-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Your reports</p>
+          <p className="text-xs font-semibold text-muted-foreground mb-1.5">Your reports</p>
           <ul className="space-y-1.5">
             {mine.map((r) => (
               <li key={r.id} className="flex items-center gap-2 text-sm rounded-lg border px-3 py-2">

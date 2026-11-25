@@ -1,5 +1,7 @@
-import React, { useRef, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, RefreshCw } from "lucide-react";
+import { PageSlots } from "@/components/admin/kit";
 const THRESHOLD=64;
 function atTop(target){
  for(let el=target;el&&el!==document.body;el=el.parentElement){
@@ -8,7 +10,10 @@ function atTop(target){
  }
  return window.scrollY<=0;
 }
-export default function PullToRefresh({onRefresh,children,className}){
+// `inPageActions`: put the Refresh button in the page's own action row (beside
+// the title) when the shell has one, instead of on a row of its own.
+export default function PullToRefresh({onRefresh,children,className,inPageActions=false}){
+ const {actions}=useContext(PageSlots);
  const gesture=useRef(null),busy=useRef(false);
  const [pull,setPull]=useState(0),[refreshing,setRefreshing]=useState(false),[error,setError]=useState("");
  const refresh=async()=>{
@@ -29,12 +34,12 @@ export default function PullToRefresh({onRefresh,children,className}){
   g.pull=Math.min(dy*.5,88);setPull(g.pull);
  };
  const end=()=>{const ready=gesture.current?.pull>=THRESHOLD;gesture.current=null;if(ready)void refresh();else setPull(0);};
+ const button=<button type="button" onClick={refresh} disabled={refreshing} aria-label="Refresh list" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs text-muted-foreground hover:bg-accent">
+   {refreshing?<Loader2 className="h-4 w-4 animate-spin" />:<RefreshCw className="h-4 w-4" />} {refreshing?"Refreshing…":"Refresh"}
+  </button>;
+ const slot=inPageActions?actions:null;
  return <div className={className} onTouchStart={start} onTouchMove={move} onTouchEnd={end} onTouchCancel={()=>{gesture.current=null;setPull(0);}}>
-  <div className="flex items-center justify-end pb-2">
-   <button type="button" onClick={refresh} disabled={refreshing} aria-label="Refresh list" className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs text-muted-foreground hover:bg-accent">
-    {refreshing?<Loader2 className="h-4 w-4 animate-spin" />:<RefreshCw className="h-4 w-4" />} {refreshing?"Refreshing…":"Refresh"}
-   </button>
-  </div>
+  {slot?createPortal(button,slot):<div className="flex items-center justify-end pb-2">{button}</div>}
   {pull>0&&<div role="status" className="grid place-items-center text-xs text-muted-foreground" style={{height:pull}}>{pull>=THRESHOLD?"Release to refresh":"Pull to refresh"}</div>}
   {error&&<p role="alert" className="mb-2 text-sm text-destructive">{error}</p>}
   {children}

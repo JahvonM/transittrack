@@ -98,7 +98,7 @@ export default function DriverDocumentsViewer({ invoke, busName }) {
                         <div className="p-4">
                           {!d.url ? <p className="text-body-sm text-muted-foreground">No photo added yet.</p>
                             : pdf ? <a href={d.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 font-semibold underline underline-offset-4"><FileText className="h-5 w-5" aria-hidden="true" /> Open {LABEL[d.kind].toLowerCase()} (PDF)</a>
-                              : <img src={d.url} alt={`${LABEL[d.kind]} photo`} className="max-h-[60vh] w-full rounded-xl bg-muted object-contain" />}
+                              : <img src={d.url} alt={`${LABEL[d.kind]} photo`} loading="lazy" decoding="async" className="max-h-[60vh] w-full rounded-xl bg-muted object-contain" />}
                         </div>
                       </section>
                     );

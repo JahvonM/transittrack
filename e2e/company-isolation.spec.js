@@ -1,4 +1,5 @@
 import {withAdminBatch} from "./helpers/adminBatchMock.js";
+import {googleReturn,savedAccessToken,signInProviders} from "./helpers/supabaseAuth.js";
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {test,expect} from '@playwright/test';
@@ -10,14 +11,14 @@ const vehicles=[{id:'bus-a',name:'Bus A',company_id:'a',company_name:'Company A'
 async function session(page,role) {
  const calls=[],direct=[];
  await page.addInitScript(()=>{
-   localStorage.setItem('base44_access_token','mock-authenticated-session');
+   localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
    localStorage.setItem('tt-map-engine','basic');
  });
  await page.route('https://api.mapbox.com/**', r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',withAdminBatch(async route=>{
   const request=route.request(), url=request.url();
   if(url.includes('/entities/')) {direct.push(url);return route.fulfill({status:403,json:{error:'Direct entity access blocked'}});}
-  if(url.includes('/functions/entityAccess')) {
+  if(url.includes('/functions/v1/entityAccess')) {
    const body=request.postDataJSON();calls.push(body);
    let result=[];
    if(body.entity==='User' && body.operation==='get') result={id:'caller',email:'caller@test.local',full_name:'Test Caller',role,company_id:role==='company'?'a':''};
@@ -27,6 +28,7 @@ async function session(page,role) {
   }
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  }));
+ await signInProviders(page);
  return {calls,direct};
 }
 test('mechanic sees vehicles from both companies through scoped backend access',async({page})=>{
@@ -50,17 +52,22 @@ test('company fleet uses approved context and scoped entity access',async({page}
  expect(direct.filter(url=>!url.endsWith('/entities/User/me'))).toEqual([]);
 });
 
-test('email passenger directory links to card issuing without displaying card UIDs',async({page})=>{
+test('email passenger opens with card issuing in their panel without displaying card UIDs',async({page})=>{
  await session(page,'admin');
- await page.route('**/functions/nfcCards',route=>route.fulfill({json:{people:[{key:'user:email-passenger',source:'user',id:'email-passenger',name:'Email Passenger',email:'email@test.invalid',company_id:'a',company_name:'Company A',registered:true,status:'Unassigned'}]}}));
+ await page.route('**/functions/v1/nfcCards',route=>route.fulfill({json:{people:[{key:'user:email-passenger',source:'user',id:'email-passenger',type:'staff',name:'Email Passenger',email:'email@test.invalid',company_id:'a',company_name:'Company A',registered:true,status:'Unassigned'}]}}));
  await page.goto('/admin/directory');
  await expect(page.getByText('Email Passenger',{exact:true})).toBeVisible();
- await expect(page.getByText('Email account',{exact:true})).toBeVisible();
- await expect(page.getByRole('link',{name:'Issue card'})).toHaveAttribute('href','/admin/cards?person=user%3Aemail-passenger');
+ await page.getByRole('button',{name:'Open Email Passenger',exact:true}).click();
+ const panel=page.getByRole('dialog',{name:'Email Passenger'});
+ await expect(panel.getByText('Email account',{exact:true})).toBeVisible();
+ // Their card is programmed right here; with no card yet, no card ID is shown.
+ await expect(panel.getByRole('region',{name:'Card',exact:true}).getByText('No card yet',{exact:true})).toBeVisible();
+ await expect(panel.getByRole('button',{name:'Program card',exact:true})).toBeVisible();
+ await expect(page).toHaveURL(/\/admin\/directory\?person=user%3Aemail-passenger$/);
 });
 test('card designer exports a printable PNG using selected passenger details',async({page})=>{
  await session(page,'admin');
- await page.route('**/functions/nfcCards',route=>route.fulfill({json:{people:[{key:'user:email-passenger',name:'Email Passenger',company_name:'Company A',employee_id:'EMP-12',card:{card_uid:'SECRETUID'}}]}}));
+ await page.route('**/functions/v1/nfcCards',route=>route.fulfill({json:{people:[{key:'user:email-passenger',name:'Email Passenger',company_name:'Company A',employee_id:'EMP-12',card:{card_uid:'SECRETUID'}}]}}));
  await page.goto('/admin/card-designs');
  await page.getByLabel('Card holder',{exact:true}).click();
  await page.getByRole('option',{name:'Email Passenger · Company A',exact:true}).click();
@@ -89,8 +96,8 @@ test('passenger previews walking directions then saves a separate roadside picku
  const saved=[];
  const user={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a'};
  const routeData={id:'route-a',company_id:'a',name:'Main road route',active:true,stops:[{name:'Start',lat:12,lng:-61.7,order:0},{name:'End',lat:12.01,lng:-61.7,order:1}]};
- await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'}}}));
- await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+ await page.route('**/functions/v1/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'}}}));
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
   const body=r.request().postDataJSON();let result=[];
   if(body.entity==='Bootstrap')result={workplace:null,vehicles:[],routes:[routeData],trips:[]};
   if(body.entity==='User'){ if(body.operation==='update'){saved.push(body.data);Object.assign(user,body.data);}result=user;}
@@ -134,15 +141,15 @@ async function passengerShowcase(page, { stale = false, light = false, parked = 
   }, {light,pickup});
   const passenger={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',...(pickup ? {favorite_stop:pickup} : {}),...extra};
   // Where this passenger's pickup was merged with neighbours' along the road.
-  await page.route('**/functions/routeStops',r=>r.fulfill({json:{stop:sharedStop}}));
+  await page.route('**/functions/v1/routeStops',r=>r.fulfill({json:{stop:sharedStop}}));
   const stops=[{name:"St. George's",lat:12.05,lng:-61.75,order:0},{name:'True Blue',lat:12.02,lng:-61.76,order:1},{name:'Grand Anse',lat:12.01,lng:-61.77,order:2},{name:'Morne Rouge',lat:12,lng:-61.78,order:3}];
   const bus={...vehicles[0],name:'TT-102',route_id:'route-a',current_lat:12.022,current_lng:-61.758,tracking_active:!parked,status:parked ? 'active' : 'on_trip',speed:parked ? 0 : 25,driver_name:'K. Thomas',last_location_update:new Date(Date.now()-(stale ? 600000 : 20000)).toISOString()};
   // The bus Admin → Passengers put this passenger on; null once it's removed.
-  await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Grenada Transport Co.'},my_bus:assigned.current ? {id:bus.id,name:bus.name} : null}}));
+  await page.route('**/functions/v1/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Grenada Transport Co.'},my_bus:assigned.current ? {id:bus.id,name:bus.name} : null}}));
   const buses=[bus,{...bus,id:'bus-c',name:'TT-108'}];
   const routes=[{id:'route-a',company_id:'a',name:'Coastal route',active:true,stops}];
   const state={workplace:null};
-  await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+  await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
     const b=r.request().postDataJSON();let result=[];
     // The passenger home asks for its company's workplace, buses, routes and trips in one request.
     if(b.entity==='Bootstrap') result={workplace:state.workplace,vehicles:buses,routes,trips:[]};
@@ -173,7 +180,7 @@ test('approved passenger home shows ETA and opens its map only on request',async
   await expect(page.getByLabel('Live journey map')).toBeVisible();
   await page.getByRole('button',{name:'Hide live map',exact:true}).click();
   await expect(page.getByLabel('Live journey map')).toHaveCount(0);
-  await expect.poll(()=>page.locator('img[src="/images/transit-bus-3d.webp"]').first().evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true);
+  await expect.poll(()=>page.locator('img[src="/images/mcsween-van-cut.webp"]').first().evaluate(img=>img.complete && img.naturalWidth>0)).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-passenger-desktop.png',fullPage:true});
 });
@@ -181,7 +188,7 @@ test('approved passenger home shows ETA and opens its map only on request',async
 test('passenger More has a WhatsApp link for app problems once admin sets the number',async({page})=>{
   await passengerShowcase(page);
   await expect(page.getByRole('link',{name:/Report an app problem/})).toHaveCount(0);
-  await page.route('**/functions/appSupport',r=>r.fulfill({json:{whatsapp_number:'14735551234'}}));
+  await page.route('**/functions/v1/appSupport',r=>r.fulfill({json:{whatsapp_number:'14735551234'}}));
   // The passenger More page (its own page since the Oct 8 redesign), under
   // "More tools".
   await page.goto('/more');
@@ -199,8 +206,8 @@ test('passenger can see other pickup spots nearby or drop their own pin',async({
  const saved=[];
  const user={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a'};
  const routeData={id:'route-a',company_id:'a',name:'Main road route',active:true,stops:[{name:'Start',lat:12,lng:-61.7,order:0},{name:'End',lat:12.01,lng:-61.7,order:1}]};
- await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'}}}));
- await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+ await page.route('**/functions/v1/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'}}}));
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
   const body=r.request().postDataJSON();let result=[];
   if(body.entity==='Bootstrap')result={workplace:null,vehicles:[],routes:[routeData],trips:[]};
   if(body.entity==='User'){ if(body.operation==='update'){saved.push(body.data);Object.assign(user,body.data);}result=user;}
@@ -268,7 +275,7 @@ test('passenger Home puts the roadside pickup up front and shows the workplace d
    await expect(page.getByText('Find your pickup',{exact:true})).toBeVisible();
   await page.keyboard.press('Escape');
   showcase.workplace={id:'w',company_id:'a',name:'Head office, True Blue',lat:12.0,lng:-61.78};
-  await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
+  await page.route('**/functions/v1/entityAccess',withAdminBatch(async r=>{
     const b=r.request().postDataJSON();
     if(b.entity==='Workplace')return r.fulfill({json:{result:[{id:'w',company_id:'a',name:'Head office, True Blue',lat:12.0,lng:-61.78}]}});
     if(b.entity==='User')return r.fulfill({json:{result:{id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',favorite_stop:'Grand Anse',pickup_lat:12.02,pickup_lng:-61.76,pickup_name:'Roadside by the church',pickup_route_id:'route-a'}}});
@@ -305,7 +312,7 @@ test('turning on notifications says what went wrong instead of claiming success'
 test('admin saves the app support WhatsApp number in Settings',async({page})=>{
   await session(page,'admin');
   const sets=[];
-  await page.route('**/functions/appSupport',r=>{
+  await page.route('**/functions/v1/appSupport',r=>{
     const b=r.request().postDataJSON();
     if(b.action==='set'){sets.push(b.whatsapp_number);return r.fulfill({json:{ok:true,whatsapp_number:'14735551234'}});}
     return r.fulfill({json:{whatsapp_number:''}});
@@ -317,6 +324,28 @@ test('admin saves the app support WhatsApp number in Settings',async({page})=>{
   await expect(page.getByRole('status').filter({hasText:'Saved.'})).toBeVisible();
   expect(sets).toEqual(['+1 473 555 1234']);
   await expect(page.getByRole('link',{name:'Test the link'})).toHaveAttribute('href',/wa\.me\/14735551234/);
+});
+
+test('admin saves the business details shown on the Terms page',async({page})=>{
+  await session(page,'admin');
+  const saved=[];
+  await page.route('**/functions/v1/appSupport',r=>{
+    const b=r.request().postDataJSON();
+    if(b.action==='set_business'){saved.push(b);return r.fulfill({json:{ok:true,business:{contact_email:'bookings@example.com',contact_phone:'+1 473 555 1234',business_address:'',cancel_free_hours:24,cancel_late_charge:'the full price'}}});}
+    return r.fulfill({json:{whatsapp_number:'',business:{}}});
+  });
+  await page.goto('/admin/profile');
+  const panel=page.getByRole('region',{name:'Business details'});
+  await panel.getByLabel('Email').fill('bookings@example.com');
+  await panel.getByLabel('Phone').fill('+1 473 555 1234');
+  await panel.getByLabel('Free until (hours before)').fill('24');
+  await panel.getByLabel('After that, the charge is').fill('the full price');
+  await expect(panel).toContainText('Cancelling is free until 24 hours before the pickup time. After that, the full price may be charged.');
+  await panel.getByRole('button',{name:'Save business details'}).click();
+  await expect(panel.getByRole('status')).toHaveText('Saved. The Terms page shows these now.');
+  expect(saved).toHaveLength(1);
+  expect(saved[0]).toMatchObject({contact_email:'bookings@example.com',contact_phone:'+1 473 555 1234',cancel_free_hours:'24',cancel_late_charge:'the full price'});
+  await expect(panel.getByRole('button',{name:'Save business details'})).toBeDisabled();
 });
 
 test('approved passenger mobile layout keeps four navigation items and more menu',async({page})=>{
@@ -351,20 +380,21 @@ test('admin showcase keeps metrics, fleet list and working section navigation',a
   await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
   await page.goto('/admin');
   await expect(page.getByRole('region',{name:'Live Fleet'})).toBeVisible();
-  await expect(page.getByText('Active buses',{exact:true})).toBeVisible();
+  await expect(page.getByRole('region',{name:'Fleet overview'}).getByText('On trip',{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-admin-desktop.png',fullPage:true});
+  // Card design opens on the Passengers page; it is not a menu link of its own.
   await expect(page.getByRole('button',{name:'Card designer',exact:true})).toHaveCount(0);
-  await page.getByRole('button',{name:'People & access',exact:true}).click();
-  await page.getByRole('button',{name:'Card designer',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Download PNG',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Passengers',exact:true}).click();
+  await page.getByRole('region',{name:'Card tools'}).getByRole('button',{name:'Card design',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Card design'}).getByRole('button',{name:'Download PNG',exact:true})).toBeVisible();
 });
 
 
 test('driver PIN is saved explicitly and retains input after a server failure',async({page})=>{
  await session(page,'admin');
  let fail=true; const pins=[];
- await page.route('**/functions/entityAccess',withAdminBatch(route=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(route=>{
   const b=route.request().postDataJSON(); let result=[];
   if(b.entity==='User') result={id:'caller',role:'admin',email:'admin@test.invalid'};
   if(b.entity==='Driver') result=[{id:'d',full_name:'Test Driver',email:'driver@test.invalid',company_id:'a'}];
@@ -372,7 +402,7 @@ test('driver PIN is saved explicitly and retains input after a server failure',a
   if(b.entity==='Company') result=[{id:'a',name:'Company A'}];
   return route.fulfill({json:{result}});
  }));
- await page.route('**/functions/manageDriverPin',route=>{
+ await page.route('**/functions/v1/manageDriverPin',route=>{
   pins.push(route.request().postDataJSON());
   return route.fulfill(fail?{status:500,json:{error:'Please retry PIN save'}}:{json:{ok:true}});
  });
@@ -392,23 +422,36 @@ test('driver PIN is saved explicitly and retains input after a server failure',a
 
 test('existing card status and bulk role dropdown are clear',async({page})=>{
  await session(page,'admin');
- const people=[{key:'user:p',source:'user',id:'p',name:'Existing Passenger',type:'staff',status:'Card Issued',company_id:'a',registered:true},
+ const card={id:'card-p',card_uid:'04A28B22',holder_source:'user',holder_id:'p',holder_name:'Existing Passenger',access_level:'STAFF_BUS_BOARDING',is_active:true,status:'active',issue_date:'2026-10-01'};
+ const people=[{key:'user:p',source:'user',id:'p',name:'Existing Passenger',type:'staff',status:'Card Issued',company_id:'a',registered:true,card},
  {key:'driver:d',source:'driver',id:'d',name:'New Driver',type:'driver',status:'Unassigned',company_id:'a'}];
- await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people,cards:[],vehicles,tablets:[]}}));
+ await page.route('**/functions/v1/nfcCards',r=>r.fulfill({json:{people,cards:[card],vehicles,tablets:[]}}));
  await page.goto('/admin/directory');
  await expect(page.getByText('Card issued',{exact:true})).toBeVisible();
- await expect(page.getByRole('link',{name:'Manage card'})).toBeVisible();
+ // The card status menu narrows the list to one status.
+ await page.getByRole('combobox',{name:'Card status'}).click();
+ await page.getByRole('option',{name:'Never had a card',exact:true}).click();
+ await expect(page.getByText('No passengers match',{exact:true})).toBeVisible();
+ await page.getByRole('combobox',{name:'Card status'}).click();
+ await page.getByRole('option',{name:'Card issued',exact:true}).click();
+ await expect(page.getByRole('button',{name:'With a card'})).toHaveAttribute('aria-pressed','true');
+ // Their panel offers to replace the card and to stop it.
+ await page.getByRole('button',{name:'Open Existing Passenger',exact:true}).click();
+ const panel=page.getByRole('dialog',{name:'Existing Passenger'});
+ await expect(panel.getByRole('button',{name:'Replace card',exact:true})).toBeVisible();
+ await expect(panel.getByRole('button',{name:"Stop Existing Passenger's card"})).toBeVisible();
  await page.goto('/admin/cards');
- await page.getByRole('tab',{name:'Bulk setup',exact:true}).click();
- await page.getByRole('combobox',{name:'Card holder role'}).click();
+ const tools=page.getByRole('dialog',{name:'Card tools'});
+ await tools.getByRole('tab',{name:'Bulk setup',exact:true}).click();
+ await tools.getByRole('combobox',{name:'Card holder role'}).click();
  await page.getByRole('option',{name:'Drivers',exact:true}).click();
- await expect(page.getByText('New Driver',{exact:true})).toBeVisible();
- await expect(page.getByText('Existing Passenger',{exact:true})).toHaveCount(0);
+ await expect(tools.getByText('New Driver',{exact:true})).toBeVisible();
+ await expect(tools.getByText('Existing Passenger',{exact:true})).toHaveCount(0);
 });
 
 test('avatar can replace a photo in exported card artwork',async({page})=>{
  await session(page,'admin');
- await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people:[]}}));
+ await page.route('**/functions/v1/nfcCards',r=>r.fulfill({json:{people:[]}}));
  await page.goto('/admin/card-designs');
  await page.getByRole('button',{name:'Ocean avatar',exact:true}).click();
  await expect(page.getByTestId('card-artwork-preview').locator('image')).toHaveAttribute('href',/^data:image\/png;base64,/);
@@ -421,7 +464,7 @@ test('avatar can replace a photo in exported card artwork',async({page})=>{
 test('admin sees when a tablet\'s card reader helper cannot reach its screen',async({page})=>{
  await session(page,'admin');
  const ago=m=>new Date(Date.now()-m*60000).toISOString();
- await page.route('**/functions/entityAccess',withAdminBatch(route=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(route=>{
   const b=route.request().postDataJSON(); let result=[];
   if(b.entity==='User') result={id:'caller',role:'admin',email:'admin@test.invalid'};
   if(b.entity==='KioskDevice') result=[
@@ -437,7 +480,7 @@ test('admin sees when a tablet\'s card reader helper cannot reach its screen',as
 
 test('tablet details and admin menu stay aligned on narrow screens',async({page})=>{
  await session(page,'admin'); await page.setViewportSize({width:390,height:844});
- await page.route('**/functions/entityAccess',withAdminBatch(route=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(route=>{
   const b=route.request().postDataJSON(); let result=[];
   if(b.entity==='User') result={id:'caller',role:'admin',email:'admin@test.invalid'};
   if(b.entity==='KioskDevice') result=[{id:'tablet-test',label:'Bus 2 long tablet name',kiosk_type:'driver',company_name:'Island Transit Company',vehicle_name:'Test vehicle with a long name',paired:true,status:'active',pairing_code:'TESTPAIRCODE12',helper_health:{version:'1.5',battery:79,parked:true,gps:'Not plugged in',reader:'Connected',reported_at:new Date().toISOString()},app_health:{build:'2026-10-04 12:00'}}];
@@ -456,7 +499,7 @@ test('tablet details and admin menu stay aligned on narrow screens',async({page}
 test('company join QR checks its code after sign-in and keeps it out of the address bar',async({page})=>{
  await session(page,'staff');
  const verifies=[];
- await page.route('**/functions/companyAccess',r=>{
+ await page.route('**/functions/v1/companyAccess',r=>{
   const b=r.request().postDataJSON();
   if(b.action==='verify'){verifies.push(b);return r.fulfill({json:{company:{id:'a',name:'Company A'},grant:'b'.repeat(64)}});}
   return r.fulfill({status:401,json:{error:'Company code required'}});
@@ -491,7 +534,7 @@ test('a damaged company join QR is refused without calling the server',async({pa
 
 test('company dashboard shows a passenger QR for its access code',async({page})=>{
  await session(page,'company');
- await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
   const b=r.request().postDataJSON(); let result=[];
   if(b.entity==='User') result={id:'caller',email:'caller@test.local',full_name:'Test Caller',role:'company',company_id:'a'};
   if(b.entity==='Company') result=b.operation==='get'?{id:'a',name:'Company A',access_code:'ABCD2345EFGH'}:[{id:'a',name:'Company A',access_code:'ABCD2345EFGH'}];
@@ -504,16 +547,19 @@ test('company dashboard shows a passenger QR for its access code',async({page})=
  await expect(img).toHaveAttribute('src',/^data:image\/png;base64,/);
 });
 
-test('admin keeps the current menu group open and message bubble stays above AI',async({page})=>{
+test('admin keeps the current menu entry marked and message bubble stays above AI',async({page})=>{
  await session(page,'admin');
  await page.goto('/admin/drivers');
- const nav=page.getByRole('navigation',{name:'Admin'});
- await expect(nav.getByRole('button',{name:'Drivers',exact:true})).toHaveAttribute('aria-current','page');
- await expect(nav.getByRole('button',{name:'People & access',exact:true})).toHaveAttribute('aria-expanded','true');
- await expect(nav.getByRole('button',{name:'Fleet',exact:true})).toHaveAttribute('aria-expanded','false');
- await nav.getByRole('button',{name:'Card designer',exact:true}).click();
- await expect(nav.getByRole('button',{name:'Card designer',exact:true})).toHaveAttribute('aria-current','page');
- await expect(nav.getByRole('button',{name:'People & access',exact:true})).toHaveAttribute('aria-expanded','true');
+ const nav=page.getByRole('navigation',{name:'Admin',exact:true});
+ // Drivers is a tab of Vehicles & drivers: the menu marks the hub, the tab row the tab.
+ await expect(nav.getByRole('button',{name:'Vehicles & drivers',exact:true})).toHaveAttribute('aria-current','page');
+ const tabs=page.getByRole('navigation',{name:'Vehicles & drivers tabs'});
+ await expect(tabs.getByRole('link',{name:'Drivers',exact:true})).toHaveAttribute('aria-current','page');
+ await expect(nav.getByRole('button',{name:'Maintenance',exact:true})).toHaveAttribute('aria-expanded','false');
+ await tabs.getByRole('link',{name:'Driver shifts',exact:true}).click();
+ await expect(page).toHaveURL(/\/admin\/shifts$/);
+ await expect(tabs.getByRole('link',{name:'Driver shifts',exact:true})).toHaveAttribute('aria-current','page');
+ await expect(nav.getByRole('button',{name:'Vehicles & drivers',exact:true})).toHaveAttribute('aria-current','page');
  const tools=nav.getByRole('button',{name:'All tools',exact:true});
  await expect(tools).toHaveAttribute('aria-expanded','false');
  await expect(nav.getByRole('button',{name:'Change history',exact:true})).toHaveCount(0);
@@ -529,7 +575,7 @@ test('admin keeps the current menu group open and message bubble stays above AI'
 test('message bubble starts a new conversation without prior messages',async({page})=>{
  await session(page,'admin');
  const sent=[];
- await page.route('**/functions/entityAccess', withAdminBatch(async r=>{
+ await page.route('**/functions/v1/entityAccess', withAdminBatch(async r=>{
    const b=r.request().postDataJSON();let result=[];
    if(b.entity==='User')result={id:'caller',email:'caller@test.local',role:'admin'};
    if(b.entity==='Vehicle')result=vehicles;
@@ -552,7 +598,7 @@ test('fleet history opens latest recorded day for an offline bus and replaces ti
  await session(page,'admin');
  await page.addInitScript(()=>localStorage.setItem('tt-map-engine','basic'));
  const recorded='2026-09-30';
- await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(async r=>{
    const b=r.request().postDataJSON();let result=[];
    if(b.entity==='User')result={id:'caller',role:'admin',email:'caller@test.local'};
    if(b.entity==='Vehicle')result=vehicles;
@@ -608,8 +654,8 @@ test('fleet map centers on a late GPS fix and accepts newer less accurate positi
 test('tablet setup download is one file with the verified helper built in',async({page})=>{
  await session(page,'admin');
  const apk=Buffer.from([80,75,3,4,1,7]);
- await page.route('**/functions/helperRelease',r=>r.fulfill({json:{version:'1.7',version_code:8,file_name:'TransitTrack-Kiosk-Helper.apk',sha256:createHash('sha256').update(apk).digest('hex'),apk_base64:apk.toString('base64')}}));
- await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+ await page.route('**/functions/v1/helperRelease',r=>r.fulfill({json:{version:'1.7',version_code:8,file_name:'TransitTrack-Kiosk-Helper.apk',sha256:createHash('sha256').update(apk).digest('hex'),apk_base64:apk.toString('base64')}}));
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
    const b=r.request().postDataJSON();let result=[];
    if(b.entity==='User')result={id:'caller',role:'admin',email:'admin@test.invalid'};
    if(b.entity==='KioskDevice')result=[{id:'tablet-test',label:'Bus 2',kiosk_type:'bus_boarding',paired:true,status:'active',vehicle_name:'Bus 2',pairing_code:'TESTPAIR12'}];
@@ -641,10 +687,10 @@ test('company logo upload previews the banner and saves its URL',async({page})=>
  await session(page,'admin');
  let saved;
  await page.route('**/api/**',withAdminBatch(async r=>{
-  if(/Upload(?:Public)?File/i.test(r.request().url()))return r.fulfill({json:{file_url:'https://test.invalid/company-logo.png'}});
+  if(r.request().url().includes('/functions/v1/integrations')&&(r.request().headers()['content-type']||'').startsWith('multipart/form-data'))return r.fulfill({json:{file_url:'https://test.invalid/company-logo.png'}});
   return r.fallback();
  }));
- await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='Company'&&b.operation==='create'){saved=b.data;return r.fulfill({json:{result:{id:'new-company',...b.data}}});}
   return r.fallback();
@@ -791,7 +837,7 @@ test('card issuing sends the card list to every paired boarding tablet at once',
  await session(page,'admin');
  const sent=[];
  const tablets=[{id:'t1',vehicle_id:'bus-a',paired:true,active:true},{id:'t2',vehicle_id:'bus-a',paired:true,active:true},{id:'t3',vehicle_id:'bus-b',paired:true,active:true},{id:'t4',vehicle_id:'bus-c',paired:false,active:true}];
- await page.route('**/functions/nfcCards',r=>{
+ await page.route('**/functions/v1/nfcCards',r=>{
   const b=r.request().postDataJSON();
   if(b.action==='send_to_bus'){sent.push(b.vehicle_id);return r.fulfill({json:{ok:true,sent:tablets.filter(t=>t.vehicle_id===b.vehicle_id&&t.paired).length}});}
   return r.fulfill({json:{people:[],cards:[],vehicles:[{id:'bus-a',name:'Bus A'},{id:'bus-b',name:'Bus B'}],tablets}});
@@ -805,7 +851,7 @@ test('card issuing sends the card list to every paired boarding tablet at once',
 test('admin pages ride out Base44 "too many requests" instead of going blank',async({page})=>{
  await session(page,'admin');
  const limited=new Set();
- await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
    const b=r.request().postDataJSON();
    // The first request for each list is rate limited, as Base44 does under a burst.
    const key=`${b.entity}:${b.operation}`;
@@ -832,11 +878,11 @@ test('admin uploads actual bus artwork and saves its URL',async({page})=>{
  await session(page,'admin');
  let saved;
  await page.route('**/api/**',withAdminBatch(async r=>{
-  if(/UploadFile/i.test(r.request().url()))return r.fulfill({json:{file_url:'https://test.invalid/bus-render.webp'}});
+  if(r.request().url().includes('/functions/v1/integrations')&&(r.request().headers()['content-type']||'').startsWith('multipart/form-data'))return r.fulfill({json:{file_url:'https://test.invalid/bus-render.webp'}});
   return r.fallback();
  }));
  await page.route('https://test.invalid/bus-render.webp',r=>r.fulfill({path:repoFile('public/images/transit-bus-3d.webp'),contentType:'image/webp'}));
- await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='Vehicle'&&b.operation==='update'){saved=b.data;return r.fulfill({json:{result:{...vehicles[0],...b.data}}});}
   return r.fallback();
@@ -853,7 +899,7 @@ test('pickup selection is a draft until confirmed, supports search, and keeps th
  await page.setViewportSize({width:390,height:844});
  await passengerShowcase(page);
  const saved=[];
- await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='User'&&b.operation==='update'){saved.push(b.data);return r.fulfill({json:{result:{id:'caller',...b.data}}});}
   return r.fallback();
@@ -886,7 +932,7 @@ test('pickup selection is a draft until confirmed, supports search, and keeps th
 test('failed pickup save retains the old choice and allows retry',async({page})=>{
  await passengerShowcase(page);
  let fail=true;
- await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='User'&&b.operation==='update')return r.fulfill(fail?{status:503,json:{error:'Unavailable'}}:{json:{result:{id:'caller',...b.data}}});
   return r.fallback();
@@ -908,7 +954,7 @@ test('failed pickup save retains the old choice and allows retry',async({page})=
 test('admin overview filters actual companies and opens existing vehicle form',async({page})=>{
  await session(page,'admin');
  const now=new Date().toISOString();
- await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
   const b=r.request().postDataJSON();let result=[];
   if(b.entity==='User')result={id:'caller',role:'admin',email:'admin@test.invalid'};
   if(b.entity==='Vehicle')result=vehicles;
@@ -945,9 +991,11 @@ test('admin overview fits a phone and opens grouped navigation',async({page})=>{
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
  await page.screenshot({path:'/tmp/tt-admin-mobile.png',fullPage:true});
  await page.getByRole('button',{name:'Open menu',exact:true}).click();
- await page.getByRole('button',{name:'People & access',exact:true}).click();
- await page.getByRole('button',{name:'Drivers',exact:true}).click();
+ await page.getByRole('button',{name:'Vehicles & drivers',exact:true}).click();
+ await expect(page).toHaveURL(/admin\/vehicles/);
+ await page.getByRole('navigation',{name:'Vehicles & drivers tabs'}).getByRole('link',{name:'Drivers',exact:true}).click();
  await expect(page).toHaveURL(/admin\/drivers/);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 });
 
 
@@ -1001,7 +1049,7 @@ test('admin refresh reads lists again and preserves saved offline work',async({p
 test('chat shows sending immediately and retains text after a failed send',async({page})=>{
  await session(page,'admin');
  let release;
- await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='GroupMessage'&&b.operation==='create'){
    await new Promise(resolve=>release=resolve);
@@ -1051,7 +1099,7 @@ test('reference bus directory filters real records and keeps bus selection',asyn
  await passengerShowcase(page);
  const live={id:'actual-live',name:'Actual live bus',capacity:25,current_lat:12.02,current_lng:-61.76,tracking_active:true,last_location_update:new Date().toISOString(),status:'on_trip',image_url:'/images/transit-bus-3d.webp'};
  const parked={id:'actual-parked',name:'Actual parked bus',capacity:18,tracking_active:false,status:'idle'};
- await page.route('**/functions/entityAccess',withAdminBatch(r=>r.request().postDataJSON().entity==='Vehicle'?r.fulfill({json:{result:[live,parked]}}):r.fallback()));
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>r.request().postDataJSON().entity==='Vehicle'?r.fulfill({json:{result:[live,parked]}}):r.fallback()));
  await page.goto('/buses');
  await expect(page.getByText('Actual live bus',{exact:true})).toBeVisible();
  await expect(page.getByText('Actual parked bus',{exact:true})).toBeVisible();
@@ -1078,7 +1126,7 @@ test('passenger arrival alerts stay off when notification setup fails',async({pa
  });
  await passengerShowcase(page);
  const updates=[];
- await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='User' && b.operation==='update'){updates.push(b.data);return r.fulfill({json:{result:{id:'caller',...b.data}}});}
   return r.fallback();
@@ -1129,9 +1177,10 @@ for (const width of [320,390,430]) {
 test('desktop setup opens native views while Connect reader connects to the running helper',async({page})=>{
  await session(page,'admin');
  await page.addInitScript(()=>{window.setupCalls=[];window.transittrackDesktop={openSetup:async view=>{window.setupCalls.push(view);return {ok:true};}};});
- await page.route('**/functions/nfcCards',r=>r.fulfill({json:{people:[],cards:[],vehicles:[],tablets:[]}}));
- await page.goto('/admin/cards');
- await page.getByRole('button',{name:'NFC setup',exact:true}).click();
+ const people=[{key:'user:r',source:'user',id:'r',type:'staff',name:'Reader Passenger',company_id:'a',company_name:'Company A',status:'Unassigned'}];
+ await page.route('**/functions/v1/nfcCards',r=>r.fulfill({json:{people,cards:[],vehicles:[],tablets:[]}}));
+ await page.goto('/admin/directory');
+ await page.getByRole('region',{name:'Card tools'}).getByRole('button',{name:'NFC setup',exact:true}).click();
  expect(await page.evaluate(()=>window.setupCalls)).toEqual(['nfc']);
  await page.route('http://127.0.0.1:8765/status',r=>r.fulfill({json:{reader:'ACS ACR122U'}}));
  await page.addInitScript(()=>{
@@ -1142,12 +1191,15 @@ test('desktop setup opens native views while Connect reader connects to the runn
   };
  });
  await page.reload();
- await page.getByRole('button',{name:'Connect reader',exact:true}).click();
- await expect(page.getByText('ACS ACR122U',{exact:true})).toBeVisible();
+ // A passenger's panel connects the reader for their card.
+ await page.getByRole('button',{name:'Open Reader Passenger',exact:true}).click();
+ const panel=page.getByRole('dialog',{name:'Reader Passenger'});
+ await panel.getByRole('button',{name:'Connect reader',exact:true}).click();
+ await expect(panel.getByText('ACS ACR122U',{exact:true})).toBeVisible();
  expect(await page.evaluate(()=>window.setupCalls)).toEqual([]);
  expect(await page.evaluate(()=>window.readerStreams.map(stream=>stream.url))).toEqual(['http://127.0.0.1:8765/events']);
  await page.evaluate(()=>window.readerStreams[0].onmessage({data:JSON.stringify({type:'card',uid:'04AABBCC',cardType:'MIFARE'})}));
- await expect(page.getByRole('button',{name:/Reader log · Card detected · UID 04:AA:BB:CC/})).toBeVisible();
+ await expect(panel.getByRole('button',{name:/Reader log · Card detected · UID 04:AA:BB:CC/})).toBeVisible();
  await page.goto('/admin/kiosks');
  await page.getByRole('button',{name:'Open tablet setup',exact:true}).click();
  expect(await page.evaluate(()=>window.setupCalls)).toEqual(['tablet']);
@@ -1176,7 +1228,7 @@ test('older desktop restart restores a valid saved session instead of showing lo
  await expect(page.getByLabel('Email address')).toHaveCount(0);
  await page.goto('/login?returnTo=%2F');
  await expect(page).toHaveURL(/\/admin$/);
- expect(await page.evaluate(()=>localStorage.getItem('base44_access_token'))).toBe('mock-authenticated-session');
+ expect(await savedAccessToken(page)).toBe('mock-authenticated-session');
 });
 test('desktop explicit switch account still opens the sign-in form',async({page})=>{
  await session(page,'admin');
@@ -1189,7 +1241,7 @@ for(const status of [401,503]){
  test('desktop restart handles session response '+status+' without bypassing authentication',async({page})=>{
   await session(page,'admin');
   await page.addInitScript(()=>Object.defineProperty(navigator,'userAgent',{get:()=> 'TransitTrack Electron/44.7.0'}));
-  await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+  await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
    const b=r.request().postDataJSON();
    if(b.entity==='User'&&b.id==='me')return r.fulfill({status,json:{error:status===401?'Authentication required':'Temporarily unavailable'}});
    return r.fallback();
@@ -1200,7 +1252,7 @@ for(const status of [401,503]){
    await expect(page.getByRole('alert').getByText("Couldn't check your sign-in",{exact:true})).toBeVisible();
    await expect(page.getByLabel('Email address')).toHaveCount(0);
   }
-  expect(await page.evaluate(()=>localStorage.getItem('base44_access_token'))).toBe('mock-authenticated-session');
+  expect(await savedAccessToken(page)).toBe('mock-authenticated-session');
   await expect(page).toHaveURL(/\/login\?returnTo=/);
  });
 }
@@ -1209,31 +1261,33 @@ test('welcome waits for Google callback session verification before opening acco
  await session(page,'admin');
  let release;
  const gate=new Promise(resolve=>{release=resolve;});
- await page.route('**/functions/entityAccess',withAdminBatch(async r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(async r=>{
   const b=r.request().postDataJSON();
   if(b.entity==='User'&&b.id==='me')await gate;
   return r.fallback();
  }));
- await page.goto('/?access_token=mock-google-callback');
+ await googleReturn(page,'mock-google-callback');
+ await page.goto('/?tt_oauth=1&code=test-auth-code');
  await expect(page.getByRole('region',{name:'McSween Transport loading screen'})).toBeVisible();
  await expect(page.getByRole('link',{name:/^Sign in/})).toHaveCount(0);
  release();
  await expect(page).toHaveURL(/\/admin$/);
- expect(await page.evaluate(()=>localStorage.getItem('base44_access_token'))).toBe('mock-google-callback');
+ expect(await savedAccessToken(page)).toBe('mock-google-callback');
 });
 
 test('welcome shows recovery after Google callback verification failure and retry opens account',async({page})=>{
  await session(page,'admin');
  let failing=true;
- await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
   const b=r.request().postDataJSON();
   if(failing&&b.entity==='User'&&b.id==='me')return r.fulfill({status:503,json:{error:'Temporarily unavailable'}});
   return r.fallback();
  }));
- await page.goto('/?access_token=mock-google-callback');
+ await googleReturn(page,'mock-google-callback');
+ await page.goto('/?tt_oauth=1&code=test-auth-code');
  await expect(page.getByRole('alert').getByText("Couldn't check your sign-in",{exact:true})).toBeVisible();
  await expect(page.getByRole('link',{name:/^Sign in/})).toHaveCount(0);
- expect(await page.evaluate(()=>localStorage.getItem('base44_access_token'))).toBe('mock-google-callback');
+ expect(await savedAccessToken(page)).toBe('mock-google-callback');
  failing=false;
  await page.getByRole('button',{name:/Try again/i}).click();
  await expect(page).toHaveURL(/\/admin$/);
@@ -1241,13 +1295,14 @@ test('welcome shows recovery after Google callback verification failure and retr
 
 test('Google return screen opens the server-confirmed account on a phone',async({page})=>{
  await session(page,'admin');
- await page.goto('/login?authReturn=1&returnTo=%2F&access_token=mock-google-return');
+ await googleReturn(page,'mock-google-return');
+ await page.goto('/login?authReturn=1&returnTo=%2F&tt_oauth=1&code=test-auth-code');
  await expect(page).toHaveURL(/\/admin$/);
- expect(await page.evaluate(()=>localStorage.getItem('base44_access_token'))).toBe('mock-google-return');
+ expect(await savedAccessToken(page)).toBe('mock-google-return');
 });
 test('Google return without a session shows incomplete sign-in instead of Welcome',async({page})=>{
  await session(page,'staff');
- await page.addInitScript(()=>{localStorage.removeItem('base44_access_token');localStorage.removeItem('token');});
+ await page.addInitScript(()=>{localStorage.removeItem('sb-localhost-auth-token');});
  await page.goto('/login?authReturn=1&returnTo=%2F');
  await expect(page.getByRole('alert')).toContainText('Sign-in did not complete');
  await expect(page.getByRole('button',{name:'Continue with Google',exact:true})).toBeVisible();
@@ -1255,11 +1310,12 @@ test('Google return without a session shows incomplete sign-in instead of Welcom
 });
 test('Google button returns through session verification and preserves destination',async({page})=>{
  await session(page,'staff');
- await page.route('**/api/apps/auth/login?*',r=>r.fulfill({contentType:'text/html',body:'<p>Mock Google redirect</p>'}));
+ // Supabase Auth's Google sign-in starts at /authorize.
+ await page.route('**/api/auth/v1/authorize?*',r=>r.fulfill({contentType:'text/html',body:'<p>Mock Google redirect</p>'}));
  await page.goto('/login?returnTo=%2Fstaff');
  await page.getByRole('button',{name:'Continue with Google',exact:true}).click();
  await expect(page.getByText('Mock Google redirect')).toBeVisible();
- const destination=new URL(new URL(page.url()).searchParams.get('from_url'));
+ const destination=new URL(new URL(page.url()).searchParams.get('redirect_to'));
  expect(destination.pathname).toBe('/login');
  expect(destination.searchParams.get('authReturn')).toBe('1');
  expect(destination.searchParams.get('returnTo')).toBe('/staff');
@@ -1269,7 +1325,7 @@ test('directory batch selection issues one card per selected name and stays on a
  await session(page,'admin');
  const people=['Alice','Beth','Carla'].map((name,i)=>({key:'user:'+i,id:String(i),source:'user',name,email:name+'@test.invalid',company_id:'a',company_name:'A',type:'staff',directory_type:'staff',status:'Unassigned',default_access:'STAFF_BUS_BOARDING',registered:true}));
  const issued=[];
- await page.route('**/functions/nfcCards',r=>{
+ await page.route('**/functions/v1/nfcCards',r=>{
   const body=r.request().postDataJSON();
   if(body.action==='directory'||body.action==='people')return r.fulfill({json:{people,cards:[],vehicles:[],tablets:[]}});
   if(body.action==='issue'){
@@ -1285,8 +1341,11 @@ test('directory batch selection issues one card per selected name and stays on a
  await page.getByRole('button',{name:'Bulk issue cards',exact:true}).click();
  await expect(page.getByRole('alertdialog')).toContainText('2 passengers');
  await page.getByRole('button',{name:'Start bulk issuing',exact:true}).click();
- await expect(page).toHaveURL(/\/admin\/cards$/);
- const active=page.getByRole('status').filter({hasText:'Place a card for'});
+ // Bulk setup opens over the same page.
+ await expect(page).toHaveURL(/\/admin\/directory$/);
+ const tools=page.getByRole('dialog',{name:'Card tools'});
+ await expect(tools.getByRole('tab',{name:'Bulk setup',exact:true})).toHaveAttribute('aria-selected','true');
+ const active=tools.getByRole('status').filter({hasText:'Place a card for'});
  await expect(active).toContainText('Alice');
  await page.getByRole('textbox',{name:'Card ID',exact:true}).fill('BAD00000');
  await page.getByRole('button',{name:'Use ID',exact:true}).click();
@@ -1310,7 +1369,7 @@ test('route deletion requires confirmation and removes only the selected route',
  await session(page,'admin');
  const routes=[{id:'route-a',name:'Morning route',company_id:'a',company_name:'A',type:'staff',stops:[]},{id:'route-b',name:'Evening route',company_id:'a',company_name:'A',type:'staff',stops:[]}];
  const deletes=[];
- await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
   const body=r.request().postDataJSON();
   if(body.entity==='Route'){
    if(body.operation==='delete'){deletes.push(body.id);return r.fulfill({json:{result:{ok:true}}});}
@@ -1331,14 +1390,45 @@ test('route deletion requires confirmation and removes only the selected route',
  await expect(page.getByRole('button',{name:/Evening route A/}).last()).toBeVisible();
 });
 
+test('remove passenger takes them out completely after a confirmation',async({page})=>{
+ await session(page,'admin');
+ let people=[{key:'user:gone',source:'user',id:'gone',type:'staff',name:'Gone Passenger',email:'gone@test.invalid',company_id:'a',company_name:'Company A',registered:true,status:'Card Issued'},
+  {key:'contact:stay',source:'contact',id:'stay',type:'staff',name:'Staying Passenger',company_id:'a',company_name:'Company A',status:'Unassigned'}];
+ const removes=[];
+ await page.route('**/functions/v1/nfcCards',r=>{
+  const b=r.request().postDataJSON();
+  if(b.action==='remove_person'){removes.push(b);people=people.filter(p=>p.key!==b.person_key);return r.fulfill({json:{ok:true,cards_stopped:1,login_deleted:true}});}
+  return r.fulfill({json:{people,cards:[],vehicles:[],tablets:[]}});
+ });
+ await page.goto('/admin/directory');
+ await page.getByRole('button',{name:'Open Gone Passenger',exact:true}).click();
+ const panel=page.getByRole('dialog',{name:'Gone Passenger'});
+ // Cancelling changes nothing.
+ await panel.getByRole('button',{name:'Remove Gone Passenger',exact:true}).click();
+ const confirm=page.getByRole('alertdialog');
+ await expect(confirm).toContainText('Their app login is deleted too');
+ await confirm.getByRole('button',{name:'Cancel',exact:true}).click();
+ expect(removes).toHaveLength(0);
+ await expect(panel).toBeVisible();
+ // Confirming removes them and closes their panel; the others stay.
+ await panel.getByRole('button',{name:'Remove Gone Passenger',exact:true}).click();
+ await page.getByRole('alertdialog').getByRole('button',{name:'Remove passenger',exact:true}).click();
+ await expect(panel).toBeHidden();
+ expect(removes).toEqual([{action:'remove_person',person_key:'user:gone'}]);
+ await expect(page.getByText('Gone Passenger removed',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Open Gone Passenger',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Open Staying Passenger',exact:true})).toBeVisible();
+ await expect(page).toHaveURL(/\/admin\/directory$/);
+});
+
 for (const source of ['user','contact']) test('directory pickup editor saves and retries for '+source,async({page})=>{
  await session(page,'admin');
  const writes=[];
  let fail=true;
- let person={key:source+':pat',source,id:'pat',name:'Pat Passenger',company_id:'a',company_name:'Company A',registered:source==='user',directory_type:'staff',status:'Card Issued'};
- await page.route('**/functions/nfcCards',async r=>{
+ let person={key:source+':pat',source,id:'pat',type:'staff',name:'Pat Passenger',company_id:'a',company_name:'Company A',registered:source==='user',directory_type:'staff',status:'Card Issued'};
+ await page.route('**/functions/v1/nfcCards',async r=>{
   const b=r.request().postDataJSON();
-  if(b.action==='directory')return r.fulfill({json:{people:[person],vehicles:[vehicles[0]]}});
+  if(b.action==='people')return r.fulfill({json:{people:[person],cards:[],vehicles:[vehicles[0]],tablets:[]}});
   if(b.action==='set_pickup'){
     writes.push(b);
     if(fail)return r.fulfill({status:503,json:{error:'Pickup could not be saved'}});
@@ -1349,8 +1439,11 @@ for (const source of ['user','contact']) test('directory pickup editor saves and
  });
  await page.route('https://api.mapbox.com/geocoding/**',r=>r.fulfill({json:{features:[{id:'belmont',text:'Belmont junction',place_name:'Belmont junction, Grenada',center:[-61.748,12.049]}]}}));
  await page.goto('/admin/directory');
- await page.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
- const dialog=page.getByRole('dialog');
+ // The pickup is set from their panel.
+ await page.getByRole('button',{name:'Open Pat Passenger',exact:true}).click();
+ const panel=page.getByRole('dialog',{name:'Pat Passenger'});
+ await panel.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
+ const dialog=page.getByRole('dialog').filter({has:page.getByRole('heading',{name:'Pickup spot for Pat Passenger'})});
  await expect(dialog.getByRole('heading',{name:'Pickup spot for Pat Passenger'})).toBeVisible();
  await expect(dialog.getByRole('button',{name:'Save pickup spot'})).toBeDisabled();
  await dialog.getByRole('textbox',{name:'Search a place by name'}).fill('Belmont');
@@ -1366,16 +1459,25 @@ for (const source of ['user','contact']) test('directory pickup editor saves and
  await expect(dialog).toHaveCount(0);
  expect(writes).toHaveLength(2);
  expect(writes[1]).toEqual({action:'set_pickup',person_key:source+':pat',pickup_name:'Belmont junction',pickup_lat:12.049,pickup_lng:-61.748});
- await expect(page.locator('li').filter({has:page.getByRole('button',{name:'Set pickup for Pat Passenger'})})).toContainText('Belmont junction');
- await page.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
- await expect(page.getByRole('dialog').getByLabel('Pickup name')).toHaveValue('Belmont junction');
- await page.getByRole('dialog').getByLabel('Pickup name').fill('Unsaved edit');
- await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
+ // Their panel shows it (and, once it closes, their row in the list).
+ await expect(panel.getByRole('region',{name:'Company, bus and pickup'})).toContainText('Belmont junction');
+ await panel.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
+ await expect(dialog.getByLabel('Pickup name')).toHaveValue('Belmont junction');
+ await dialog.getByLabel('Pickup name').fill('Unsaved edit');
+ await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+ await expect(dialog).toHaveCount(0);
  expect(writes).toHaveLength(2);
+ await expect(panel).toBeVisible();
  await page.setViewportSize({width:390,height:844});
- await page.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
- await expect(page.getByRole('dialog').getByLabel('Pickup name')).toHaveValue('Belmont junction');
+ await panel.getByRole('button',{name:'Set pickup for Pat Passenger'}).click();
+ await expect(dialog.getByLabel('Pickup name')).toHaveValue('Belmont junction');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+ await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+ await expect(dialog).toHaveCount(0);
+ await panel.getByRole('button',{name:'Close',exact:true}).click();
+ await expect(panel).toBeHidden();
+ await expect(page.getByRole('list',{name:'Passengers'}).getByRole('listitem').filter({hasText:'Pat Passenger'})).toContainText('Pickup: Belmont junction');
+ expect(writes).toHaveLength(2);
 });
 
 async function returnPassenger(page,phase,stale=false) {
@@ -1384,8 +1486,8 @@ async function returnPassenger(page,phase,stale=false) {
  await page.addInitScript(()=>localStorage.setItem('tt_company_access_grant','a'.repeat(64)));
  const user={id:'caller',role:'staff',email:'caller@test.local',full_name:'Test Passenger',company_id:'a',pickup_name:'Home gate',pickup_lat:12.02,pickup_lng:-61.7};
  const bus={...vehicles[0],trip_direction:'to_home',return_pickup_state:phase,tracking_active:true,current_lat:12.005,current_lng:-61.7,last_location_update:new Date(Date.now()-(stale?300000:0)).toISOString()};
- await page.route('**/functions/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'},my_bus:{id:'bus-a',name:'Bus A'}}}));
- await page.route('**/functions/entityAccess',withAdminBatch(r=>{
+ await page.route('**/functions/v1/companyAccess',r=>r.fulfill({json:{company:{id:'a',name:'Company A'},my_bus:{id:'bus-a',name:'Bus A'}}}));
+ await page.route('**/functions/v1/entityAccess',withAdminBatch(r=>{
   const body=r.request().postDataJSON();let result=[];
   if(body.entity==='User')result=user;
   if(body.entity==='Bootstrap')result={workplace:{id:'work',company_id:'a',name:'Company A',lat:12,lng:-61.7},vehicles:[bus],routes:[],trips:[]};

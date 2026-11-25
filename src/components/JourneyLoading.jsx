@@ -2,12 +2,15 @@ import React, { useEffect, useState } from "react";
 import { Bus } from "lucide-react";
 import Logo from "@/components/Logo";
 import BusArtwork from "@/components/BusArtwork";
+import TabletBattery from "@/components/kiosk/TabletBattery";
 
 // Pure presentation: requests, offline caches and access checks stay with the
 // caller. No simulated percentages, completed steps or artificial loading delay.
 export default function JourneyLoading({
  label = "Opening McSween Transport…", heading = "Getting ready for your journey",
  company, vehicle, context, onRetry, fullScreen = true,
+ // battery: show the tablet's battery (kiosk and driver tablets).
+ battery = false,
 }) {
  const [slow, setSlow] = useState(false);
  useEffect(() => {
@@ -20,7 +23,7 @@ export default function JourneyLoading({
    <div className="tt-loading-contours" aria-hidden="true" />
    <header className="tt-loading-header">
     <div className="tt-loading-brand"><Logo className="w-9 h-9" /><span>McSween <span className="tt-loading-accent">Transport</span></span></div>
-    {context && <span className="tt-loading-context">{context}</span>}
+    {(context || battery) && <span className="tt-loading-status">{battery && <TabletBattery />}{context && <span className="tt-loading-context">{context}</span>}</span>}
    </header>
    <div className="tt-loading-body">
     {company?.name && <div className="tt-loading-company">

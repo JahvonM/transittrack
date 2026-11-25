@@ -91,7 +91,7 @@ export default function MessagesTab({ messages, loaded, hasBus, onSend, seen = "
           <li key={m.id} className={cn("max-w-[85%] rounded-2xl px-3 py-2", m.mine ? "self-end bg-primary/15" : "self-start border border-border bg-card")}>
             {!m.mine && <p className="text-caption font-semibold text-muted-foreground">{m.sender_name || current.label}</p>}
             {m.message_type === "image" && m.media_url ? (
-              <img src={m.media_url} alt={`Photo from ${m.sender_name || current.who}`} className="mt-1 max-h-64 rounded-lg" />
+              <img src={m.media_url} alt={`Photo from ${m.sender_name || current.who}`} loading="lazy" decoding="async" className="mt-1 max-h-64 rounded-lg" />
             ) : m.message_type === "audio" && m.media_url ? (
               <audio controls src={m.media_url} className="mt-1 w-56 max-w-full" />
             ) : (

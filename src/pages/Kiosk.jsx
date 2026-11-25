@@ -8,6 +8,9 @@ import { useBlockOtherSites } from "@/lib/kioskLinkLock";
 import { saveBoardingDirectory, localCardLookup } from "@/lib/boardingDirectory";
 import { deviceRequest, saveDeviceToken, forgetDeviceToken, pairingProfile } from "@/lib/deviceAuth";
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { rememberTabletMode } from "@/lib/kioskApp";
+import { CHOOSE_SCREEN_PATH, pairingPath, screenForCode } from "@/lib/tabletPairing";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
 import JourneyLoading from "@/components/JourneyLoading";
 import { base44 } from "@/api/base44Client";
@@ -20,6 +23,7 @@ import BusInfoDisplay from "@/components/kiosk/BusInfoDisplay";
 import { boardingLayout, KIOSK_LAYOUT_KEY } from "@/lib/kioskLayout";
 import JobSigningKiosk from "@/components/kiosk/JobSigningKiosk";
 import KioskConnectionBadge from "@/components/kiosk/KioskConnectionBadge";
+import TabletBattery from "@/components/kiosk/TabletBattery";
 import { saveDevice, loadDevice, forgetTablet, saveDirectory, directoryInfo, warmPhotos, offlineLookup, noteStatus } from "@/lib/kioskOffline";
 import { isNetworkFailure } from "@/lib/offlineQueue";
 import { httpStatus } from "@/lib/requestError";
@@ -119,6 +123,13 @@ export default function Kiosk() {
         heartbeatId.current = startTabletPoll(()=>heartbeat(res.data.device_id),HEARTBEAT_MS);
       })
       .catch((e) => {
+        // A driver tablet's code: this tablet is becoming a driver tablet.
+        // Open the driver screen, which pairs with the same code.
+        if (screenForCode(e) === "driver") {
+          rememberTabletMode("driver");
+          window.location.replace(pairingPath("driver", value));
+          return;
+        }
         setStatus("error");
         setError(e?.response?.data?.error || "Invalid or expired pairing code.");
       })
@@ -258,8 +269,13 @@ export default function Kiosk() {
   // Every kiosk action (search/lookup/check-in/register/sign-in) goes
   // through this one backend function, keyed by device_id like driverSession.
   // NFC uses the scoped local index first. Codes still require the server.
+  // A card tap that records by itself (tap on, tap again to get off) asks the
+  // server first: it knows taps from every tablet on the bus and the driver's
+  // corrections. The saved list answers when the server can't.
   const invoke = useCallback(async (action, payload = {}) => {
-    if (action === "lookup_tag" && device?.kiosk_type === "bus_boarding") {
+    const cardTap = action === "lookup_tag" && device?.kiosk_type === "bus_boarding";
+    const automatic = cardTap && payload.auto_toggle === true;
+    if (cardTap && !automatic) {
       const local = await localCardLookup(payload.card_tag, device);
       if (local) return local;
     }
@@ -269,29 +285,36 @@ export default function Kiosk() {
       // the saved list and check-ins are queued instead of hanging.
       const ms = action === "lookup_tag" || action === "lookup_code" ? 4000 : action === "check_in" ? 12000 : 20000;
       const res = await withTimeout(base44.functions.invoke("kioskCheckIn", deviceRequest(deviceId, { ...payload, action })), ms);
-      if (action === "check_in" && payload.staff_id) noteStatus(payload.staff_id, payload.status);
+      if (action === "check_in" && payload.staff_id) noteStatus(payload.staff_id, res.data?.record?.status || payload.status, res.data?.record?.boarded_at || payload.occurred_at || Date.now());
       setOnline(true);
       return res.data;
     } catch (e) {
       // "Too many attempts" (429) is the server answering, not a lost
       // connection: show it as it is rather than falling back offline.
-      if (isNetworkFailure(e) && httpStatus(e) !== 429 && (action === "lookup_tag" || action === "lookup_code")) {
+      // For automatic card taps a busy server is answered from the saved
+      // list too (the card is checked against this tablet's own list); with
+      // no saved list the rider still sees "Too many attempts".
+      const busy = httpStatus(e) === 429;
+      if (isNetworkFailure(e) && (!busy || automatic) && (action === "lookup_tag" || action === "lookup_code")) {
         // Only a request with no answer means the connection is gone; a
         // server error still uses the saved list but keeps the tablet online.
         if (!e?.response) setOnline(false);
+        const saved = automatic ? await localCardLookup(payload.card_tag, device, { automatic: true }) : null;
+        if (saved) return saved;
+        if (busy) throw e;
         const local = offlineLookup(action, payload);
         if (local) return local;
       }
       throw e;
     }
-  }, [deviceId, device?.company_id, device?.vehicle_id, device?.kiosk_type]);
+  }, [deviceId, device?.company_id, device?.vehicle_id, device?.kiosk_type, device?.reader_mode]);
 
   const meta = device ? (TYPE_META[device.kiosk_type] || TYPE_META.bus_boarding) : null;
   const Icon = meta?.icon || Bus;
 
   if (status === "pairing")
     return (
-      <JourneyLoading context="Boarding tablet" label="Connecting this tablet…" company={device?.company_name ? {name:device.company_name,logo_url:device.company_logo_url} : null} vehicle={device?.context?.vehicle} onRetry={() => window.location.reload()} />
+      <JourneyLoading battery context="Boarding tablet" label="Connecting this tablet…" company={device?.company_name ? {name:device.company_name,logo_url:device.company_logo_url} : null} vehicle={device?.context?.vehicle} onRetry={() => window.location.reload()} />
     );
 
   if (status === "error")
@@ -319,6 +342,8 @@ export default function Kiosk() {
               </div>
             </div>
             <Button variant="outline" className="w-full h-11" onClick={() => { forgetDeviceToken(deviceId); localStorage.removeItem("tt_kiosk_device_id"); forgetTablet(); window.location.reload(); }}>Retry</Button>
+            {/* A tablet set up for the wrong job (say, now a driver tablet). */}
+            <Button asChild variant="ghost" className="w-full h-11"><Link to={CHOOSE_SCREEN_PATH}>Choose tablet screen</Link></Button>
           </CardContent>
         </Card>
       </div>
@@ -346,7 +371,7 @@ export default function Kiosk() {
     <div className="min-h-[100dvh] flex items-center justify-center p-4 bg-gradient-to-br from-primary/15 via-background to-background">
       <div className="max-w-md w-full space-y-4">
         <Card className="relative rounded-3xl shadow-xl border-border/60 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
-          <KioskConnectionBadge online={online} className="absolute top-3 right-3 z-10" />
+          <div className="absolute top-3 right-3 z-10 flex items-center gap-2"><TabletBattery /><KioskConnectionBadge online={online} /></div>
           <CardHeader className="text-center pb-4 pt-6">
             {device?.company_logo_url ? (
               <img

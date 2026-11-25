@@ -62,7 +62,7 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
    <h1 className="sr-only">Your journey</h1>
    {directionControl}
    <section className="dk-simple-next" aria-label="Next stop">
-    <small>{atWork && !target?"COMPANY PICKUP":home?"NEXT DROP-OFF":"NEXT PICKUP"}</small>
+    <small>{atWork && !target?"Company pickup":home?"Next drop-off":"Next pickup"}</small>
     <h2>{focus?.name || (stops.length?"Route complete":"No route assigned")}</h2>
     <p>{sharing && fresh && nav?.remainingS!=null && nav?.nextStop?.lat===focus?.lat && nav?.nextStop?.lng===focus?.lng ? Math.max(1,Math.round(nav.remainingS/60))+" min away" : target?"Selected next stop":count!=null?count+" assigned to this stop":focus?"Ready to navigate":"Ask dispatch to assign a route"}</p>
     <div className="dk-next-actions"><Button onClick={navigate} disabled={!focus}><Navigation/>Navigate</Button><Button variant="outline" onClick={()=>{setPickedStop(null);setChoosing(true);}}><MapPinned/>Change stop</Button></div>
@@ -73,7 +73,7 @@ export default function DriverPortraitDrive({session,vehicle,nav,sharing,shiftAc
 
    <details className="dk-details"><summary>Trip details<ChevronRight/></summary><div><p>{session?.occupancy ?? 0} on board{vehicle?.capacity?" · "+vehicle.capacity+" seats":""}</p><Button variant="outline" onClick={onOpenPassengers}><Users/>Passengers</Button><StatusStrip items={statusItems}/><Button variant="outline" onClick={onOpenStops}>All stops & pickup tools</Button>{panelBottom}<Button variant="outline" onClick={onReportIncident}>Report an incident</Button></div></details>
   </div></div><div className="dk-fixed-controls"><div className="dk-drive-controls" aria-label="Driving controls">{!shiftActive && shiftControl}{trackingButton}{shiftActive && shiftControl}</div>
-   <div className="dk-drive-footer"><Button variant="ghost" onClick={onOpenMessages}><MessageCircle/>Messages</Button><SosButton vehicle={vehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} compact/></div>
+   <div className="dk-drive-footer"><Button variant="ghost" onClick={onOpenMessages}><MessageCircle/>Messages</Button><SosButton vehicle={vehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} driverName={session?.driver_name} compact/></div>
   </div>
  {stopChooser}
  </div>;

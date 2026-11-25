@@ -6,7 +6,9 @@ import { addBreadcrumb } from "@/lib/breadcrumbs";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SupportNumberSetting from "@/components/admin/SupportNumberSetting";
+import BusinessDetailsSetting from "@/components/admin/BusinessDetailsSetting";
 import { Navigate, Link, useParams, useNavigate } from "react-router-dom";
+import { adminPath } from "@/lib/adminMenu";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { EmbeddedLayout } from "@/components/AppLayout";
@@ -14,20 +16,18 @@ import PullToRefresh from "@/components/PullToRefresh";
 import AdminShell from "@/components/admin/AdminShell";
 import AdminOverview from "@/components/admin/AdminOverview";
 import JobsTab from "@/components/jobs/JobsTab";
-import LiveFleetTab from "@/components/admin/LiveFleetTab";
+import LiveFleetPage from "@/components/admin/fleet/LiveFleetPage";
 import CompletedTripsTab from "@/components/admin/CompletedTripsTab";
 import ProfileInfo from "@/components/ProfileInfo";
 import DriversTab from "@/components/admin/DriversTab";
 import VehiclesTab from "@/components/admin/VehiclesTab";
 import KioskTablets from "@/components/admin/KioskTablets";
-import CheckInLog from "@/components/admin/CheckInLog";
 import MessagingTab from "@/components/admin/MessagingTab";
 import AdsTab from "@/components/admin/AdsTab";
 import CompaniesTab from "@/components/admin/CompaniesTab";
 import UsersTab from "@/components/admin/UsersTab";
 import ServiceQueueTab from "@/components/admin/ServiceQueueTab";
 import FaultsTab from "@/components/admin/FaultsTab";
-import PartsTab from "@/components/admin/PartsTab";
 import MaintenanceScheduleTab from "@/components/admin/MaintenanceScheduleTab";
 import MaintenanceCalendarTab from "@/components/admin/MaintenanceCalendarTab";
 import InspectionTemplatesTab from "@/components/admin/InspectionTemplatesTab";
@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Car,
+  Tv,
   ChevronDown,
   ExternalLink,
   FlaskConical,
@@ -77,14 +78,11 @@ import { DATASETS, PAGE, SECTION_DATA } from "@/lib/adminData";
 import BusLoader from "@/components/BusLoader";
 import ShiftsTab from "@/components/admin/ShiftsTab";
 import AuditLogTab from "@/components/admin/AuditLogTab";
-import CardIssuingTab from "@/components/admin/CardIssuingTab";
-import CardDesignerTab from "@/components/admin/CardDesignerTab";
-import FleetHealthTab from "@/components/admin/FleetHealthTab";
 import LostItemsTab from "@/components/admin/LostItemsTab";
-import FleetWorkspace from "@/components/admin/FleetWorkspace";
 import TravelTimesTab from "@/components/admin/TravelTimesTab";
 import { loadScreen, saveScreen } from "@/lib/savedScreen";
 import "@/components/admin/adminApple.css";
+import "@/components/admin/adminSea.css";
 
 // The overview's lists are kept on this device (for this admin, up to a day)
 // so the console opens with them straight away and refreshes behind them.
@@ -116,7 +114,6 @@ const ADMIN_PAGES = {
   "service-history": lazy(() => import("@/pages/ServiceHistory")),
   "incident-reports": lazy(() => import("@/pages/IncidentReports")),
   "safety-standards": lazy(() => import("@/pages/SafetyStandards")),
-  directory: lazy(() => import("@/pages/StaffDirectory")),
   // A team at a hotel signs its staff up together, each on their own device.
   "signup-day": lazy(() => import("@/components/admin/signup/SignupDayTab")),
   "office-displays": lazy(() => import("@/components/admin/displays/OfficeDisplaysTab")),
@@ -140,14 +137,27 @@ const MGMT_LINKS = [
   { to: "/admin/fleet-analytics", label: "Fleet Analytics", icon: LineChart },
   { to: "/admin/ride-history", label: "Ride History", icon: History },
   { to: "/admin/passenger-bookings", label: "Passenger Bookings", icon: BookOpen },
-  { to: "/admin/directory", label: "Passenger directory", icon: Users },
+  { to: "/admin/directory", label: "Passengers", icon: Users },
   { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/admin/support", label: "Passenger Support", icon: LifeBuoy },
 ];
 
+// Passengers is one page; card issuing, card design and the sign-in log open on it.
+const PassengersPage = lazy(() => import("@/components/admin/passengers/PassengersPage"));
+const PASSENGER_SECTIONS = ["directory", "cards", "card-designs", "checkins"];
+// Live fleet is one page too; Fleet workspace and Fleet health open on it.
+const FLEET_SECTIONS = ["fleet", "fleet-workspace", "health"];
+
 export default function Admin() {
   const { user, logout, checkUserAuth } = useAuth();
   useFutureAppearance(user?.role === "admin", "tt-admin-app");
+  // The website look (adminSea.css), on <html> so dialogs get it too.
+  useEffect(() => {
+    if (user?.role !== "admin") return undefined;
+    const root = document.documentElement;
+    root.classList.add("tt-admin-sea");
+    return () => root.classList.remove("tt-admin-sea");
+  }, [user?.role]);
   const { permission: pushPermission, enableNotifications } = usePushNotifications({ email: user?.email, role: "admin" });
   const navigate = useNavigate();
   const { section: urlSection } = useParams();
@@ -171,10 +181,10 @@ export default function Admin() {
   const adminLoader=useMemo(()=>createAdminBatchLoader(keys=>withRateLimitRetry(()=>base44.functions.invoke("entityAccess",{entity:"AdminBootstrap",operation:"list",datasets:keys}))),[user?.id]);
 
 
-  const go = (s) => navigate("/admin/" + s);
+  const go = (s) => navigate(adminPath(s));
 
   const sectionKeys = useMemo(
-    () => section === "directory" ? [] : ["vehicles", ...(SECTION_DATA[section] || [])].filter((k, i, a) => a.indexOf(k) === i),
+    () => PASSENGER_SECTIONS.includes(section) ? [] : ["vehicles", ...(SECTION_DATA[section] || [])].filter((k, i, a) => a.indexOf(k) === i),
     [section]
   );
 
@@ -244,6 +254,8 @@ export default function Admin() {
   // A tab that saved something re-reads its own section, not the whole console.
   // Whatever another section had cached may now be out of date, so it re-reads
   // the next time it is opened instead of showing a stale number.
+  // Pages that load their own lists (Passengers) reload when this changes.
+  const [refreshTick, setRefreshTick] = useState(0);
   const refresh = async () => {
     // Pages that load their own data (App errors, Notifications) reload too.
     window.dispatchEvent(new Event("tt-admin-refresh"));
@@ -414,7 +426,7 @@ export default function Admin() {
 
   const linkGroup = (title, Icon, links, note) => (
     <div>
-      <h3 className="flex items-center gap-2 text-body-sm font-bold uppercase tracking-wide text-muted-foreground">
+      <h3 className="flex items-center gap-2 text-body-sm font-bold text-muted-foreground">
         <Icon className="h-4 w-4" aria-hidden="true" /> {title}
       </h3>
       {note && <p className="mt-1 text-body-sm text-muted-foreground">{note}</p>}
@@ -459,7 +471,7 @@ export default function Admin() {
         pushPermission={pushPermission}
         onEnableNotifications={enableNotifications}
       >
-        <PullToRefresh onRefresh={refresh}>
+        <PullToRefresh inPageActions onRefresh={async () => { setRefreshTick((t) => t + 1); await refresh(); }}>
         {failedKeys.length>0 && <ErrorState compact title={problem.title} description={problem.description} onRetry={retryFailed} retrying={retrying}/>}
         {section === "overview" && (
           <AdminOverview
@@ -490,11 +502,16 @@ export default function Admin() {
             onChange={refresh}
           />
         )}
-        {section === "fleet" && (
-          <LiveFleetTab
+        {FLEET_SECTIONS.includes(section) && (
+          <LiveFleetPage
+            mode={urlSection === "location-timeline" ? "location-timeline" : section}
             vehicles={vehicles}
             routes={routes}
-            initialView={urlSection === "location-timeline" ? "history" : "live"}
+            kiosks={kiosks}
+            checkIns={data.checkIns || []}
+            faults={faultsOpen}
+            inspections={inspectionResults}
+            refreshTick={refreshTick}
             onVehicleUpdate={(updated) =>
               setData((prev) => ({
                 ...prev,
@@ -514,10 +531,7 @@ export default function Admin() {
             inspectionResults={inspectionResults}
           />
         )}
-        {section === "fleet-workspace" && <FleetWorkspace vehicles={vehicles} kiosks={kiosks} checkIns={data.checkIns || []} faults={faultsOpen} inspections={inspectionResults} />}
-        {section === "health" && <FleetHealthTab vehicles={vehicles} />}
         {section === "kiosks" && <KioskTablets vehicles={vehicles} companies={companies} onChange={refresh} />}
-        {section === "checkins" && <CheckInLog vehicles={vehicles} onChange={refresh} />}
         {section === "billing" && (
           <CompletedTripsTab
             trips={completedTrips}
@@ -543,7 +557,6 @@ export default function Admin() {
           />
         )}
         {section === "faults" && <FaultsTab faults={faults} onChange={refresh} />}
-        {section === "parts" && <PartsTab parts={parts} companies={companies} onChange={refresh} />}
         {section === "schedule" && <MaintenanceScheduleTab schedules={schedules} vehicles={vehicles} onChange={refresh} />}
         {section === "calendar" && <MaintenanceCalendarTab schedules={schedules} vehicles={vehicles} />}
         {section === "templates" && <InspectionTemplatesTab templates={templates} companies={companies} vehicles={vehicles} onChange={refresh} />}
@@ -551,9 +564,12 @@ export default function Admin() {
         {section === "drivers" && (
           <DriversTab drivers={drivers} vehicles={vehicles} companies={companies} routes={routes} onChange={refresh} />
         )}
-        {section === "shifts" && <ShiftsTab />}
-        {section === "cards" && <CardIssuingTab companies={companies} />}
-        {section === "card-designs" && <CardDesignerTab />}
+        {section === "shifts" && <ShiftsTab vehicles={vehicles} />}
+        {PASSENGER_SECTIONS.includes(section) && (
+          <Suspense fallback={<BusLoader className="py-12" />}>
+            <PassengersPage mode={section} refreshTick={refreshTick} />
+          </Suspense>
+        )}
         {section === "audit" && <AuditLogTab />}
         {section === "lost-items" && <LostItemsTab />}
         {section === "companies" && <CompaniesTab companies={companies} onChange={refresh} />}
@@ -575,6 +591,7 @@ export default function Admin() {
             <div className="space-y-4">
               <ProfileInfo />
               <SupportNumberSetting />
+              <BusinessDetailsSetting />
             </div>
             <section className="rounded-2xl border border-border bg-card" aria-label="Settings">
               <h2 className="px-5 pb-2 pt-4 text-title-sm font-bold">Settings</h2>
@@ -583,6 +600,7 @@ export default function Admin() {
                   { to: "/account", icon: Palette, title: "Account and appearance", detail: "Theme, colours, password and sign-in" },
                   { go: "companies", icon: Building2, title: "Companies", detail: "Operators, contact numbers and access codes" },
                   { go: "kiosks", icon: Smartphone, title: "Kiosk tablets", detail: "Pair and update boarding and driver tablets" },
+                  { go: "office-displays", icon: Tv, title: "Office displays", detail: "Set up and manage office screens" },
                   { go: "templates", icon: ListChecks, title: "Inspection templates", detail: "Checklists drivers and mechanics complete" },
                   { go: "notifications", icon: BellRing, title: "Notifications", detail: "Who gets each email and phone alert" },
                   { go: "app-errors", icon: Bug, title: "App errors", detail: "Crashes people hit, and what led to them" },

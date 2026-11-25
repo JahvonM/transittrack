@@ -33,7 +33,7 @@
 /* Where to tap the card (phone and validator layouts). */
 .tt-board-tap-detail{display:block;margin-top:4px;font-size:12px;color:hsl(var(--muted-foreground))}
 /* Validator: the card reader is above the screen, so the screen points up to it. */
-.tt-kiosk-validator .tt-validator-tap{order:-1;display:flex;align-items:center;justify-content:center;gap:8px;margin:0;padding:10px 16px;background:hsl(var(--primary));color:hsl(var(--primary-foreground));font-size:16px;font-weight:700;letter-spacing:.2px}
+.tt-kiosk-validator .tt-validator-tap{order:-1;display:flex;align-items:center;justify-content:center;gap:8px;margin:0;padding:10px 16px;background:hsl(var(--primary));color:hsl(var(--primary-foreground));font-size:16px;font-weight:600;letter-spacing:.2px}
 .tt-kiosk-validator .tt-validator-tap svg{width:22px;height:22px;animation:tt-tap-up 1.6s ease-in-out infinite}
 @keyframes tt-tap-up{0%,100%{transform:translateY(2px)}50%{transform:translateY(-3px)}}
 @media (prefers-reduced-motion:reduce){.tt-kiosk-validator .tt-validator-tap svg{animation:none}}

@@ -4,11 +4,11 @@ async function setup(page,{fail=false}={}){
  const profile={id:'admin',role:'admin',email:'admin@test.invalid',full_name:'Admin'};
  let shouldFail=fail;
  const workspace=id=>({vehicles:[{id:'bus-'+id,name:id==='a'?'Coastal Bus':'Mountain Bus',route_id:'r1',driver_name:'Test Driver'}],routes:[{id:'r1',name:'Coast Route'},{id:'r2',name:'Town Route'}],drivers:[],devices:[],workplaces:[],contacts:[{id:'p-'+id,name:id==='a'?'Alice Rider':'Bob Rider',type:'staff'}],people:[],limited:false});
- await page.addInitScript(()=>{localStorage.setItem('base44_access_token','mock-session');localStorage.setItem('tt-map-engine','basic');});
+ await page.addInitScript(()=>{localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));localStorage.setItem('tt-map-engine','basic');});
  await page.route('**/api/**',async route=>{
   const req=route.request(),url=req.url();let b={};try{b=req.postDataJSON()||{};}catch{}
-  if(url.includes('/entities/User/me'))return route.fulfill({json:profile});
-  if(url.includes('/functions/entityAccess')){
+  if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:profile}});
+  if(url.includes('/functions/v1/entityAccess')){
    let result=[];
    if(b.entity==='User')result=profile;
    if(b.entity==='AdminBootstrap')result={datasets:Object.fromEntries((b.datasets||[]).map(k=>[k,k==='companies'?companies:[]])),errors:{}};
@@ -16,14 +16,14 @@ async function setup(page,{fail=false}={}){
    if(b.entity==='Vehicle' && b.operation==='update'){calls.push(b);result={id:b.id,...b.data};}
    return route.fulfill({json:{result}});
   }
-  if(url.includes('/functions/companyCleanupPreview')) return route.fulfill({json:{orphans:[{company_id:'removed',company_name:'Old Transit',counts:{Driver:1,Vehicle:2},history:{Incident:3,Trip:1}}],read_only:true}});
-  if(url.includes('/functions/deleteCompanySafely')) { calls.push({cleanup:b});return route.fulfill({json:{ok:true}}); }
-  if(url.includes('/functions/companyWorkspace')){
+  if(url.includes('/functions/v1/companyCleanupPreview')) return route.fulfill({json:{orphans:[{company_id:'removed',company_name:'Old Transit',counts:{Driver:1,Vehicle:2},history:{Incident:3,Trip:1}}],read_only:true}});
+  if(url.includes('/functions/v1/deleteCompanySafely')) { calls.push({cleanup:b});return route.fulfill({json:{ok:true}}); }
+  if(url.includes('/functions/v1/companyWorkspace')){
    calls.push({workspace:b});
    if(shouldFail){shouldFail=false;return route.fulfill({status:503,json:{error:'Company temporarily unavailable'}});}
    return route.fulfill({json:workspace(b.company_id)});
   }
-  if(url.includes('/functions/routeStops')){
+  if(url.includes('/functions/v1/routeStops')){
    calls.push({plan:b});return route.fulfill({json:{companies,people:[],buses:[],routes:[]}});
   }
   if(url.includes('/entities/'))return route.fulfill({status:403,json:{error:'Blocked'}});

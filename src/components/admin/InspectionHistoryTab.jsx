@@ -131,7 +131,7 @@ export default function InspectionHistoryTab({ results = [], vehicles = [] }) {
                   <div id={panelId} className="space-y-4 border-t border-border px-4 py-4">
                     {sectionsFor(items).map(([sectionName, sectionItems]) => (
                       <div key={sectionName}>
-                        <h3 className="mb-2 text-caption font-semibold uppercase tracking-wide text-muted-foreground">{sectionName}</h3>
+                        <h3 className="mb-2 text-caption font-semibold text-muted-foreground">{sectionName}</h3>
                         <ul className="divide-y divide-border rounded-xl border border-border">
                           {sectionItems.map((r) => (
                             <li key={r.id} className="px-3 py-2.5 text-body-sm">

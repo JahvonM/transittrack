@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
-import { forwardToSupabase } from '../../shared/forwardToSupabase.ts';
 import { reserveAttempt } from '../../shared/atomicOps.ts';
 import { emailWithPolicy } from '../../shared/notificationPolicy.ts';
 import { issueVisitorLink, sha256Hex } from '../../shared/visitorLinks.ts';
@@ -16,6 +15,10 @@ import { riderMembershipLive } from '../../shared/routeRiders.ts';
 //   { action: 'decline', request_id, reason }    admins: customer emailed
 //   { action: 'spam', request_id }               admins: closed, nobody emailed
 //   { action: 'send_tracking', trip_id }         admins: a fresh tracking link emailed
+//   { action: 'cancel_notice', trip_id, reason } admins, after cancelling a job: whoever
+//                                                asked for it (the website or company
+//                                                request it came from, else the job's
+//                                                client) is emailed that it's cancelled
 //   { action: 'company_request', ...form }       a company account: a job asked for
 //                                                from its portal; dispatch is emailed
 //   { action: 'company_requests' }               a company account: its own requests
@@ -95,6 +98,7 @@ export function grenadaTime(iso: string) {
 // at most one button.
 const WEBSITE_FOOTER = 'You\'re getting this because a ride was requested with this email address on mcsweenstransport.com.';
 const COMPANY_FOOTER = 'You\'re getting this because your company account asked for this ride in the McSween Transport app.';
+const CLIENT_FOOTER = 'You\'re getting this because this ride was booked for you with McSween Transport.';
 export function emailHtml({ heading, lines = [], rows = [], button = null, footer = WEBSITE_FOOTER }: { heading: string; lines?: string[]; rows?: [string, string][]; button?: { label: string; url: string } | null; footer?: string }) {
   const table = rows.filter(([, v]) => v).map(([k, v]) => `<tr><td style="padding:6px 16px 6px 0;color:#5b6b70;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:6px 0;color:#12262c">${esc(v)}</td></tr>`).join('');
   return `<!doctype html><html><body style="margin:0;background:#eef4f3;font-family:Helvetica,Arial,sans-serif">
@@ -172,8 +176,6 @@ export function readCompanyRequest(body: any, user: any, company: any, now = Dat
 const COMPANY_REQUEST_FIELDS = ['id', 'created_date', 'service', 'requested_time', 'pickup', 'dropoff', 'guests', 'luggage', 'flight_number', 'name', 'phone', 'notes', 'status', 'decline_reason', 'trip_id'];
 
 export default async function (req: Request) {
-  const forwarded = await forwardToSupabase(req, 'bookingRequest');
-  if (forwarded) return forwarded;
   try {
     const body = await req.json().catch(() => ({}));
     const base44 = createClientFromRequest(req), db = base44.asServiceRole.entities;
@@ -276,7 +278,7 @@ export default async function (req: Request) {
           heading: 'Your ride is confirmed',
           footer: fromCompany ? COMPANY_FOOTER : WEBSITE_FOOTER,
           lines: [
-            link ? 'You can follow your bus on the way with the button below.' : 'We will email your tracking link once your bus is assigned.',
+            link ? 'You can follow your ride on the way with the button below.' : 'We will email your tracking link once your ride is assigned.',
             ...(fromCompany ? ['It is also in your company portal under Jobs, with the bus on the map while it is on the way.'] : []),
           ],
           rows: [
@@ -313,6 +315,39 @@ export default async function (req: Request) {
       return json({ ok: true, emailed });
     }
 
+    if (action === 'cancel_notice') {
+      await admin(base44);
+      if (typeof body.trip_id !== 'string' || !ID.test(body.trip_id)) fail(400, 'Choose a job');
+      const reason = clean(body.reason);
+      if (reason.length > 300) fail(400, 'The reason is too long');
+      const trip = await db.Trip.get(body.trip_id).catch(() => null);
+      if (!trip) fail(404, 'That job was not found');
+      // Only ever about a job that really is cancelled.
+      if (trip.status !== 'cancelled') fail(409, 'Cancel the job first');
+      const [row] = await db.BookingRequest.filter({ trip_id: trip.id }, '-created_date', 1).catch(() => []);
+      let to = typeof row?.email === 'string' ? row.email : '';
+      if (!to && typeof trip.client_id === 'string' && ID.test(trip.client_id)) {
+        const client = await db.Client.get(trip.client_id).catch(() => null);
+        to = typeof client?.email === 'string' ? client.email.trim() : '';
+      }
+      if (!to || !EMAIL.test(to)) return json({ ok: true, emailed: false, why: 'no_email' });
+      let emailed = true;
+      try {
+        await send(base44, to, 'Your ride is cancelled', emailHtml({
+          heading: 'Your ride is cancelled',
+          lines: [reason || 'We\'re sorry, we have had to cancel this ride.', 'If you still need a ride, send a new request or message us on WhatsApp.'],
+          rows: [
+            ['Ride', SERVICES[trip.job_type] || SERVICES[row?.service] || 'Ride'],
+            ['When', grenadaTime(trip.scheduled_time || row?.requested_time)],
+            ['Pickup', trip.pickup_name || row?.pickup || ''],
+            ['Drop-off', trip.dropoff_name || row?.dropoff || ''],
+          ],
+          footer: row ? (row.company_id ? COMPANY_FOOTER : WEBSITE_FOOTER) : CLIENT_FOOTER,
+        }));
+      } catch (e) { emailed = false; console.error('[booking] cancel email failed', (e as Error)?.message); }
+      return json({ ok: true, emailed, to: emailed ? to : '' });
+    }
+
     if (action === 'send_tracking') {
       const user = await admin(base44);
       if (typeof body.trip_id !== 'string' || !ID.test(body.trip_id)) fail(400, 'Choose a job');
@@ -323,8 +358,8 @@ export default async function (req: Request) {
       const link = await issueVisitorLink(db, trip);
       if (!link) fail(409, 'Give the job a bus first');
       await send(base44, row.email, 'Track your ride', emailHtml({
-        heading: 'Follow your bus',
-        lines: ['Use the button below to see where your bus is on the way to you.'],
+        heading: 'Follow your ride',
+        lines: ['Use the button below to see where your ride is on the way to you.'],
         rows: [['When', grenadaTime(trip.scheduled_time)], ['Pickup', trip.pickup_name], ['Bus', [trip.vehicle_name, trip.plate_number].filter(Boolean).join(', ')]],
         button: { label: 'Track my ride', url: link.url },
       }));

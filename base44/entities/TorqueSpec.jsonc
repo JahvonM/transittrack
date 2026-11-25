@@ -1,0 +1,113 @@
+{
+  "name": "TorqueSpec",
+  "type": "object",
+  "description": "Workshop: how tight one bolt or nut goes on a vehicle model (e.g. wheel nuts 103 N\u00b7m), shown in the Workshop app and pinned on its bolt maps. Researched values start unchecked until a mechanic confirms them. Fleet-wide: administrators and mechanics only.",
+  "required": [
+    "guide_id",
+    "system",
+    "item"
+  ],
+  "properties": {
+    "guide_id": {
+      "type": "string",
+      "description": "The VehicleGuide (model page) it belongs to."
+    },
+    "system": {
+      "type": "string",
+      "enum": [
+        "wheels_brakes",
+        "suspension_steering",
+        "engine",
+        "cooling",
+        "fuel",
+        "gearbox_axle",
+        "body_electrical"
+      ],
+      "description": "Which part of the vehicle."
+    },
+    "item": {
+      "type": "string",
+      "description": "The bolt or nut, e.g. Wheel nuts, Caliper bracket bolts."
+    },
+    "size": {
+      "type": "string",
+      "description": "Thread size, e.g. M12\u00d71.5, if known."
+    },
+    "nm": {
+      "type": "number",
+      "description": "Torque in newton-metres (the first or only stage)."
+    },
+    "stages": {
+      "type": "string",
+      "description": "Further stages or angles, e.g. 35 N\u00b7m, then +90\u00b0, then +90\u00b0."
+    },
+    "sequence": {
+      "type": "string",
+      "description": "The order to tighten in, e.g. criss-cross, centre outwards."
+    },
+    "new_bolt": {
+      "type": "boolean",
+      "description": "Use a new bolt each time (stretch bolt)."
+    },
+    "thread_lock": {
+      "type": "string",
+      "description": "Thread locker or sealant to use, if any."
+    },
+    "applies_to": {
+      "type": "string",
+      "description": "Which engines, years or versions it is for."
+    },
+    "source_name": {
+      "type": "string"
+    },
+    "source_link": {
+      "type": "string",
+      "description": "Web address (https) of where the value came from."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "unchecked",
+        "checked",
+        "wrong"
+      ],
+      "default": "unchecked",
+      "description": "unchecked until a mechanic confirms it; wrong keeps it visible as a warning."
+    },
+    "checked_by": {
+      "type": "string",
+      "description": "Who marked it checked or wrong (set by the server)."
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it was marked checked or wrong (set by the server)."
+    },
+    "sort_order": {
+      "type": "number",
+      "description": "Order within its system."
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

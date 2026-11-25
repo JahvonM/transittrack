@@ -42,10 +42,10 @@ export function desktopCallbackUrl({ port }) {
   return "http://127.0.0.1:" + Number(port) + "/callback";
 }
 
-// The browser's current session, as handed to the desktop/phone app (null when
-// signed out). Base44: its access token. Supabase: "<access>~<refresh>".
-export function currentSessionToken(storage, fallback = null) {
-  return sessionHandoffToken(storage, fallback);
+// The browser's current session, as handed to the desktop/phone app:
+// "<access token>~<refresh token>", or null when signed out.
+export function currentSessionToken(storage) {
+  return sessionHandoffToken(storage);
 }
 
 // Post the session to the desktop app's one-time listener on this computer.

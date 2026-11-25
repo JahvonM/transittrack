@@ -4,12 +4,12 @@ import {readFile} from 'node:fs/promises';
 async function recoverySession(page, initialRole='admin') {
  const identity={role:initialRole};
  await page.addInitScript(()=>{
-  localStorage.setItem('base44_access_token','mock-authenticated-session');
+  localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
   localStorage.setItem('tt_offline_jobs',JSON.stringify([{id:'job-original',kind:'driver_inspection',label:'Inspection on Bus A',state:'needs_review',queued_at:'2026-10-03T12:00:00Z',last_error:'Photo upload rejected',payload:{client_request_id:'request-original',expected_vehicle_id:'bus-a',expected_company_id:'company-a',expected_device_id:'tablet-a',device_token:'SECRET_DEVICE',driver_grant:'SECRET_UNLOCK',results:[{photos:['data:image/jpeg;base64,ORIGINAL_PHOTO']}]} }]));
  });
  await page.route('**/api/**',async route=>{
   const req=route.request();
-  if(req.url().includes('/functions/entityAccess')) {
+  if(req.url().includes('/functions/v1/entityAccess')) {
    const body=req.postDataJSON();
    return route.fulfill({json:{result:body.entity==='User'?{id:'mock-user',email:'mock@test.local',full_name:'Mock User',role:identity.role}:[]}});
   }

@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import QRCode from 'qrcode';
 import { test as base, expect } from '@playwright/test';
+import { signInProviders } from './helpers/supabaseAuth.js';
 
 // The phone camera is a fake video of a real company join QR, so the scan
 // itself runs end to end through the same scanner library as on a phone.
@@ -31,22 +32,22 @@ const test = base.extend({
 
 async function mockApi(page, { signedIn = false } = {}) {
   const verifies = [];
-  await page.addInitScript((signedIn) => { if (signedIn) localStorage.setItem('base44_access_token', 'mock-authenticated-session'); }, signedIn);
+  await page.addInitScript((signedIn) => { if (signedIn) localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); }, signedIn);
   await page.route('**/api/**', async (route) => {
     const url = route.request().url();
-    if (url.includes('/functions/companyAccess')) {
+    if (url.includes('/functions/v1/companyAccess')) {
       const b = route.request().postDataJSON();
       if (b.action === 'verify') { verifies.push(b.code); return route.fulfill({ json: { company: { id: 'a', name: 'Company A' }, grant: 'b'.repeat(64) } }); }
       return route.fulfill({ status: 401, json: { error: 'Company code required' } });
     }
-    if (url.includes('/functions/entityAccess')) {
+    if (url.includes('/functions/v1/entityAccess')) {
       const b = route.request().postDataJSON();
       if (!signedIn) return route.fulfill({ status: 401, json: { error: 'Not signed in' } });
       return route.fulfill({ json: { result: b.entity === 'User' ? { id: 'p', email: 'p@test.local', full_name: 'Pat Passenger', role: 'staff' } : [] } });
     }
-    if (url.includes('/entities/User/me') && !signedIn) return route.fulfill({ status: 401, json: { error: 'Not signed in' } });
     return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });
+  await signInProviders(page);
   return verifies;
 }
 
@@ -79,12 +80,12 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]) {
   await page.route('**/api.open-meteo.com/**',r=>r.fulfill({json:{current:{temperature_2m:29,weather_code:0}}}));
   await page.goto('/');
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole('heading',{name:'Your journey, connected.'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Your bus, live from pickup to drop-off'})).toBeVisible();
   await expect(page.getByRole('link',{name:'Create an account',exact:true})).toHaveAttribute('href','/register');
   await expect(page.locator('.tt-welcome-art')).toHaveJSProperty('complete',true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:'/tmp/tt-welcome-'+size.width+'.png',fullPage:true});
-  await page.getByText('Workspaces and tablet access',{exact:true}).click();
+  await page.getByText('Staff & tablet access',{exact:true}).click();
   await expect(page.getByRole('link',{name:/Admin Fleet health/})).toHaveAttribute('href','/login?returnTo=%2Fadmin');
   await page.goto('/login');
   await expect(page.getByRole('heading',{name:'Your journey starts here'})).toBeVisible();
@@ -103,9 +104,10 @@ for(const size of [{width:390,height:844},{width:1440,height:1000}]) {
 test('redesigned email sign-in keeps credentials and reports rejection',async({page})=>{
  await mockApi(page);
  let submitted;
- await page.route('**/auth/login',r=>{submitted=r.request().postDataJSON();return r.fulfill({status:401,json:{message:'Invalid email or password'}})});
+ // Supabase Auth's password sign-in, turning the password down.
+ await page.route('**/auth/v1/token?grant_type=password',r=>{submitted=r.request().postDataJSON();return r.fulfill({status:400,json:{code:'invalid_credentials',error_code:'invalid_credentials',msg:'Invalid login credentials'}})});
  await page.goto('/login?returnTo=%2Fstaff');
- await page.getByLabel('Email address',{exact:true}).fill('person@test.local');
+ await page.getByLabel('Email address or username',{exact:true}).fill('person@test.local');
  await page.getByLabel('Password',{exact:true}).fill('wrong-test-password');
  await page.getByRole('button',{name:'Sign in',exact:true}).click();
  await expect(page.getByRole('alert')).toBeVisible();
@@ -118,7 +120,7 @@ test('company code screen takes a code typed with dashes and says plainly what w
   const sent = [];
   let reply = { status: 403, json: { error: 'Invalid company code' } };
   // Registered last, so it answers the code checks.
-  await page.route('**/functions/companyAccess', (route) => {
+  await page.route('**/functions/v1/companyAccess', (route) => {
     const b = route.request().postDataJSON();
     if (b.action !== 'verify') return route.fulfill({ status: 401, json: { error: 'Company code required' } });
     sent.push(b.code);

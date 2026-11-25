@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 // to the bus tablet the passenger picks (Web Bluetooth, Chrome on Android).
 async function passenger(page, { bluetooth = true } = {}) {
   await page.addInitScript((withBluetooth) => {
-    localStorage.setItem('base44_access_token', 'mock-authenticated-session');
+    localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
     window.__btWritten = [];
     const device = {
       name: 'Bus 12',
@@ -21,11 +21,11 @@ async function passenger(page, { bluetooth = true } = {}) {
   }, bluetooth);
   await page.route('**/api/**', (route) => {
     const url = route.request().url();
-    if (url.includes('/functions/entityAccess')) {
+    if (url.includes('/functions/v1/entityAccess')) {
       const body = route.request().postDataJSON();
       return route.fulfill({ json: { result: body.entity === 'User' && body.operation === 'get' ? { id: 'p', email: 'p@test.local', full_name: 'Pat Passenger', role: 'staff' } : [] } });
     }
-    if (url.includes('/functions/generateOneTimeCode')) return route.fulfill({ json: { qr_token: 'QRTOKEN1', has_code: true, permanent: true } });
+    if (url.includes('/functions/v1/generateOneTimeCode')) return route.fulfill({ json: { qr_token: 'QRTOKEN1', has_code: true, permanent: true } });
     if (url.includes('/functions/')) return route.fulfill({ json: {} });
     return route.fulfill({ json: { id: 'test-app', public_settings: { authentication_required: false } } });
   });

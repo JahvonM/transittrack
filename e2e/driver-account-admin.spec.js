@@ -8,21 +8,21 @@ const KEY='driver.ann_1@login.mcsweenstransport.com';
 
 async function drivers(page,{driver,buses=[],takenUsernames=[],admin={}}){
  const calls=[];
- await page.addInitScript(()=>{ localStorage.setItem('base44_access_token','mock-authenticated-session'); });
+ await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); });
  await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
-  if(url.includes('/integration-endpoints/Core/')){
+  if(url.includes('/functions/v1/integrations')&&(route.request().headers()['content-type']||'').startsWith('multipart/form-data')){
    calls.push({fn:'upload',url,body:route.request().postDataBuffer().toString('latin1')});
-   return route.fulfill({json:{file_url:'https://base44.app/api/apps/test/files/public/avatar.png'}});
+   return route.fulfill({json:{file_url:'https://mock.invalid/storage/v1/object/public/public/avatar.png'}});
   }
-  if(url.includes('/functions/driverAccounts')){
+  if(url.includes('/functions/v1/driverAccounts')){
    const body=route.request().postDataJSON();calls.push({fn:'driverAccounts',...body});
    if(body.action==='provision'&&takenUsernames.includes(body.username))return route.fulfill({status:409,json:{error:'Username is unavailable'}});
    if(body.action==='provision')return route.fulfill({json:{ok:true,username:body.username,temporary_password:'FirstTempPass12'}});
    return route.fulfill({json:body.action==='reset'?{ok:true,username:'ann_1',temporary_password:'NewTempPass1234'}:{ok:true}});
   }
-  if(url.includes('/functions/entityAccess')){
+  if(url.includes('/functions/v1/entityAccess')){
    const body=route.request().postDataJSON();let result=[];
    // Change-history entries the app writes after each change are not part of the flow.
    if(['update','delete','create'].includes(body.operation)&&body.entity!=='AuditLog')calls.push({fn:body.entity+'.'+body.operation,id:body.id,data:body.data});
@@ -148,10 +148,10 @@ test('an avatar chosen for a driver is uploaded, so the server takes it',async({
  await dialog.getByRole('button',{name:'Ocean avatar',exact:true}).click();
  await expect.poll(()=>calls.filter(c=>c.fn==='upload').length).toBe(1);
  const upload=calls.find(c=>c.fn==='upload');
- expect(upload.url).toContain('/Core/UploadPublicFile');
+ expect(upload.body).toMatch(/name="area"\r\n\r\npublic\r\n/);
  expect(upload.body).toContain('filename="avatar.png"');
  await dialog.getByRole('button',{name:'Save changes'}).click();
- await expect.poll(()=>calls.find(c=>c.fn==='Driver.update')?.data?.photo_url).toBe('https://base44.app/api/apps/test/files/public/avatar.png');
+ await expect.poll(()=>calls.find(c=>c.fn==='Driver.update')?.data?.photo_url).toBe('https://mock.invalid/storage/v1/object/public/public/avatar.png');
 });
 
 test("the admin's own photo shows in the side panel and the account button",async({page})=>{

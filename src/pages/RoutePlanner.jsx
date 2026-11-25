@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import useAdminFocus from "@/hooks/useAdminFocus";
 import Map, { Marker, Source, Layer, GeolocateControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN, declutterStyle, mapStyleFor, mapAccentFor } from "@/lib/mapbox";
@@ -37,6 +38,9 @@ export default function RoutePlanner() {
   const [companies, setCompanies] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [selectedRoute, setSelectedRoute] = useState(null);
+  // The route picked here or in Route explorer, Plan pickups or Travel times
+  // (kept in the address, so those tabs open on it too).
+  const [routeFocus, setRouteFocus] = useAdminFocus("route");
   const [name, setName] = useState("");
   const [companyId, setCompanyId] = useState("");
   const [type, setType] = useState("staff");
@@ -85,7 +89,11 @@ export default function RoutePlanner() {
 
   useEffect(() => {
     Promise.all([base44.entities.Company.list(), base44.entities.Route.list("-created_date", 100), base44.entities.Workplace.list()])
-      .then(([c, r, w]) => { setCompanies(c); setRoutes(r); setWorkplaces(w); })
+      .then(([c, r, w]) => {
+        setCompanies(c); setRoutes(r); setWorkplaces(w);
+        const picked = routeFocus && r.find((x) => x.id === routeFocus);
+        if (picked) loadRoute(picked);
+      })
       .catch(() => {});
   }, []);
 
@@ -97,6 +105,7 @@ export default function RoutePlanner() {
 
   const loadRoute = (route) => {
     setSelectedRoute(route);
+    setRouteFocus(route.id);
     setName(route.name);
     setCompanyId(route.company_id);
     setType(route.type || "staff");
@@ -111,6 +120,7 @@ export default function RoutePlanner() {
 
   const newRoute = () => {
     setSelectedRoute(null);
+    setRouteFocus("");
     setName("");
     setCompanyId("");
     setType("staff");

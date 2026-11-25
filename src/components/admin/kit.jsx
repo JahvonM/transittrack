@@ -103,6 +103,17 @@ export function Toolbar({ children, actions, className }) {
   );
 }
 
+// "Showing Bus 1's shifts · Show all": a list narrowed to what was picked in
+// another tab of the same hub, with a way back to everything.
+export function FocusNote({ children, onClear, clearLabel = "Show all", className }) {
+  return (
+    <div role="status" className={cn("mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-secondary px-4 py-2 text-body-sm", className)}>
+      <span className="min-w-0 flex-1">{children}</span>
+      {onClear && <button type="button" onClick={onClear} className="min-h-[36px] font-semibold underline-offset-4 hover:underline">{clearLabel}</button>}
+    </div>
+  );
+}
+
 // Pill filters / view switch. options: [{ value, label, count? }]
 export function Segmented({ value, onChange, options, label, className, size = "md" }) {
   return (
@@ -143,13 +154,14 @@ export function EmptyState({ icon: Icon, title, children, action, className }) {
   );
 }
 
-// A compact number tile for the top of a page.
+// A compact number tile for the top of a page. The number takes a colour only
+// when it flags something to act on (warning, danger); icons stay quiet.
 export function Kpi({ label, value, detail, tone, icon: Icon, className }) {
-  const fg = { success: "text-success", warning: "text-warning", danger: "text-danger", info: "text-info" }[tone];
+  const fg = { warning: "text-warning", danger: "text-danger" }[tone];
   return (
     <div className={cn("min-w-0 rounded-2xl border border-border bg-card px-4 py-3", className)}>
       <p className="flex items-center gap-1.5 truncate text-caption font-semibold text-muted-foreground">
-        {Icon && <Icon className={cn("h-4 w-4 shrink-0", fg)} aria-hidden="true" />}
+        {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />}
         {label}
       </p>
       <p className={cn("mt-1 font-display text-[1.75rem] font-semibold leading-none tabular-nums", fg)}>{value}</p>
@@ -194,7 +206,7 @@ export function LeadIcon({ icon: Icon, tone = "neutral", children }) {
 export const tableClass = {
   wrap: "overflow-x-auto rounded-2xl border border-border bg-card",
   table: "w-full min-w-[640px] border-collapse text-body-sm",
-  th: "border-b border-border px-4 py-3 text-left text-caption font-semibold uppercase tracking-wide text-muted-foreground",
+  th: "border-b border-border px-4 py-3 text-left text-caption font-semibold text-muted-foreground",
   td: "border-b border-border/60 px-4 py-3 align-middle",
   tr: "hover:bg-accent/40",
 };

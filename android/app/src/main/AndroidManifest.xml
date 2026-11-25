@@ -5,8 +5,10 @@
      Anything only a kiosk tablet needs goes in src/kiosk/, never here. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <!-- No backups: the tablet's sign-in key, saved work and card list stay on
+         this tablet. A new or reset tablet is paired again from Admin. -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:fullBackupContent="@xml/kiosk_backup_rules"
         android:dataExtractionRules="@xml/kiosk_data_extraction"
         android:icon="@mipmap/ic_launcher"

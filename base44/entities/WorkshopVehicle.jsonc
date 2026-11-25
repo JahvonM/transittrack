@@ -1,0 +1,63 @@
+{
+  "name": "WorkshopVehicle",
+  "type": "object",
+  "description": "Workshop: a vehicle the workshop looks after that is not a fleet bus (e.g. the owner's own cars). Kept apart from Vehicle so it never appears on the fleet map, kiosks, driver apps or company screens. Matched to its model page by make, model and year. Administrators and mechanics only.",
+  "required": [
+    "name",
+    "make",
+    "model"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "What the team calls it, e.g. BMW X3."
+    },
+    "make": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "year": {
+      "type": "integer"
+    },
+    "engine": {
+      "type": "string"
+    },
+    "transmission": {
+      "type": "string"
+    },
+    "vin": {
+      "type": "string",
+      "description": "Chassis number (VIN)."
+    },
+    "plate_number": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

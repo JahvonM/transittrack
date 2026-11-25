@@ -364,7 +364,7 @@ export default function DriverPhone() {
         )}
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md safe-area-bottom" aria-label="Driver app sections">
+      <nav className="tt-hide-while-typing fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md safe-area-bottom" aria-label="Driver app sections">
         <ul className="mx-auto grid max-w-xl grid-cols-4">
           {TABS.map(({ id, label, icon: Icon }) => {
             const active = tab === id;

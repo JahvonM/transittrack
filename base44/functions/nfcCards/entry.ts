@@ -1,3 +1,4 @@
+import { changePassengerCompany, removePassenger } from '../../shared/passengerCompany.ts';
 import { retry429 } from '../../shared/retry429.ts';
 import { CARD_STATUS_TEXT, STOP_REASON, STOP_STATUSES, canReactivate, cardStatus } from '../../shared/cardStatus.ts';
 import { signupDay } from '../../shared/signupDay.ts';
@@ -38,7 +39,8 @@ async function approvedStaffIds(base44, companyId) {
 // match on, so an issued card works for check-in straight away.
 //
 // Actions: people · issue · verify · revoke (suspend / lost / revoke) ·
-// reactivate · add_holder · set_bus · send_to_bus · keypad_code
+// reactivate · add_holder · set_bus · send_to_bus · keypad_code ·
+// set_company · remove_person (admins only)
 // Admins see everyone; company managers only their own company.
 // Bus staff belong to a company and are linked to one bus; their card list
 // is sent to that bus's boarding tablet.
@@ -324,6 +326,35 @@ export default async function (req) {
         });
       }
 
+      case 'set_company': {
+        if (user.role !== 'admin') return Response.json({ error: 'Only admins can assign a company' }, { status: 403 });
+        if (typeof body.company_id !== 'string' || !body.company_id) return Response.json({ error: 'Choose a company' }, { status: 400 });
+        const company = await sr.Company.get(body.company_id);
+        if (!company) return Response.json({ error: 'Company not found' }, { status: 404 });
+        const { people } = await loadPeople(base44, null);
+        const person = people.find(p => p.key === body.person_key && p.type === 'staff');
+        if (!person) return Response.json({ error: 'Passenger not found' }, { status: 404 });
+        if (person.company_id === company.id) return Response.json({ ok: true });
+        await changePassengerCompany(sr, person, company);
+        await audit(base44, user, { action: 'update', entity: person.source === 'user' ? 'User' : 'Contact', record_id: person.id, summary: `Assigned ${person.name} to ${company.name}` });
+        await refreshCompanyTablets(base44, person.company_id);
+        return Response.json({ ok: true });
+      }
+
+      // Admin → Passengers → Remove passenger: out completely (see removePassenger).
+      case 'remove_person': {
+        if (user.role !== 'admin') return Response.json({ error: 'Only admins can remove a passenger' }, { status: 403 });
+        const { people } = await loadPeople(base44, null);
+        const person = people.find(p => p.key === body.person_key && p.type === 'staff');
+        if (!person) return Response.json({ error: 'Passenger not found' }, { status: 404 });
+        const done = await removePassenger(sr, person);
+        await audit(base44, user, { action: 'delete', entity: person.source === 'user' ? 'User' : 'Contact', record_id: person.id, page: '/admin/directory',
+          summary: `Removed passenger ${person.name}: ${done.cards} card${done.cards === 1 ? '' : 's'} stopped${done.logins ? ', app login deleted' : ''}` });
+        // Their boarding tablets drop them at the next list download.
+        for (const companyId of done.companies) await refreshCompanyTablets(base44, companyId);
+        return Response.json({ ok: true, cards_stopped: done.cards, login_deleted: done.logins > 0 });
+      }
+
       case 'issue': {
         const uid = normalizeUid(body.uid);
         if (uid.length < 8 || uid.length > 20) return Response.json({ ok: false, code: 'bad_uid', error: 'That card ID looks wrong. Tap the card again.' });
@@ -573,7 +604,7 @@ export default async function (req) {
 
       // Sign-up day at a hotel (Admin → Sign-up day), for the same people:
       // admins, and a hotel's own approved manager for that hotel only.
-      case 'signup_state': case 'signup_claim': case 'signup_app': case 'signup_add': case 'signup_import': case 'signup_invite':
+      case 'signup_remove': case 'signup_state': case 'signup_claim': case 'signup_app': case 'signup_add': case 'signup_import': case 'signup_invite':
         return await signupDay(base44, user, body, { companyFilter, loadPeople, audit });
 
       default:

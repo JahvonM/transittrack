@@ -21,6 +21,7 @@ function setup(role='company') {
  return {sdk,call:async body=>{const res=await load('entityAccess',sdk).default(request(body));return {status:res.status,body:await res.json()};}};
 }
 const byId=rows=>Object.fromEntries(rows.map(r=>[r.id,r]));
+const hoursAgo=h=>new Date(Date.now()-h*3600_000).toISOString();
 
 describe('company bus locations',()=>{
  it('hides every bus position when no shift or shared job is open',async()=>{
@@ -36,7 +37,7 @@ describe('company bus locations',()=>{
 
  it('shows a bus while its shift is open, and hides it again when the shift ends',async()=>{
   const {sdk,call}=setup();
-  sdk.tables.DriverShift=[{id:'s1',company_id:'a',vehicle_id:'bus-a',started_at:'2026-10-28T06:00:00Z'},{id:'s0',company_id:'a',vehicle_id:'bus-a2',started_at:'2026-10-27T06:00:00Z',ended_at:'2026-10-27T15:00:00Z'}];
+  sdk.tables.DriverShift=[{id:'s1',company_id:'a',vehicle_id:'bus-a',started_at:hoursAgo(2)},{id:'s0',company_id:'a',vehicle_id:'bus-a2',started_at:hoursAgo(30),ended_at:hoursAgo(21)}];
   let buses=byId((await call({entity:'Vehicle',operation:'list'})).body.result);
   expect(buses['bus-a']).toMatchObject({current_lat:12.05,current_lng:-61.75,location_shared:'shift'});
   expect(buses['bus-a2'].current_lat).toBeNull();
@@ -46,6 +47,14 @@ describe('company bus locations',()=>{
   // One bus read on its own follows the same rule.
   sdk.tables.DriverShift[0].ended_at=undefined;
   expect((await call({entity:'Vehicle',operation:'get',id:'bus-a'})).body.result.location_shared).toBe('shift');
+ });
+
+ it('stops showing a bus whose shift was left open for more than 18 hours',async()=>{
+  const {sdk,call}=setup();
+  sdk.tables.DriverShift=[{id:'s1',company_id:'a',vehicle_id:'bus-a',started_at:hoursAgo(19)}];
+  expect(byId((await call({entity:'Vehicle',operation:'list'})).body.result)['bus-a']).toMatchObject({current_lat:null,trail:null,location_shared:''});
+  sdk.tables.DriverShift[0].started_at=hoursAgo(17);
+  expect(byId((await call({entity:'Vehicle',operation:'list'})).body.result)['bus-a']).toMatchObject({current_lat:12.05,location_shared:'shift'});
  });
 
  it('shows a bus while a shared job is under way on it, and not once the job ends',async()=>{
@@ -89,11 +98,89 @@ describe('company bus locations',()=>{
   expect(tablet.app_health).toEqual({build:'1.2',online:true});
  });
 
- it('leaves administrators and passengers as they were',async()=>{
-  let {call}=setup('admin');
-  expect(byId((await call({entity:'Vehicle',operation:'list'})).body.result)['bus-a'].current_lat).toBe(12.05);
-  ({call}=setup('staff'));
-  expect(byId((await call({entity:'Vehicle',operation:'list'})).body.result)['bus-a'].current_lat).toBe(12.05);
+ it('leaves administrators as they were',async()=>{
+  const {call}=setup('admin');
+  const bus=byId((await call({entity:'Vehicle',operation:'list'})).body.result)['bus-a'];
+  expect(bus.current_lat).toBe(12.05);
+  expect(bus.trail).toEqual([{lat:12.05,lng:-61.75,t:1}]);
+ });
+});
+
+// A passenger sees only their own bus (the one the office set for them), only
+// while a shift is out on it, and never a bus's path: a path, a parked bus or
+// another bus's moves show where buses stopped for other passengers.
+describe('passenger bus locations',()=>{
+ const LOCATION=['current_lat','current_lng','speed','heading','last_location_update','road_next_stop'];
+
+ it('sends no bus path, and no position while no shift is out',async()=>{
+  const {call}=setup('staff');
+  const buses=(await call({entity:'Vehicle',operation:'list'})).body.result;
+  expect(buses.map(v=>v.id).sort()).toEqual(['bus-a','bus-a2','bus-a3']);
+  for(const bus of buses) {
+   expect(bus.trail,bus.id).toBeUndefined();
+   for(const field of LOCATION) expect(bus[field],bus.id+' '+field).toBeNull();
+   expect(bus.name).toBeTruthy();
+  }
+ });
+
+ it('shows their own bus while its shift is out, and never another bus',async()=>{
+  const {sdk,call}=setup('staff');
+  sdk.tables.DriverShift=[
+   {id:'mine',company_id:'a',vehicle_id:'bus-a',started_at:hoursAgo(2)},
+   {id:'other',company_id:'a',vehicle_id:'bus-a2',started_at:hoursAgo(2)},
+  ];
+  let buses=byId((await call({entity:'Vehicle',operation:'list'})).body.result);
+  expect(buses['bus-a']).toMatchObject({current_lat:12.05,current_lng:-61.75,speed:40});
+  expect(buses['bus-a'].trail).toBeUndefined();
+  for(const field of LOCATION) expect(buses['bus-a2'][field],'bus-a2 '+field).toBeNull();
+  sdk.tables.DriverShift[0].ended_at=hoursAgo(0);
+  buses=byId((await call({entity:'Vehicle',operation:'list'})).body.result);
+  expect(buses['bus-a'].current_lat).toBeNull();
+  // One bus read on its own follows the same rule.
+  delete sdk.tables.DriverShift[0].ended_at;
+  expect((await call({entity:'Vehicle',operation:'get',id:'bus-a'})).body.result.current_lat).toBe(12.05);
+  expect((await call({entity:'Vehicle',operation:'get',id:'bus-a2'})).body.result.current_lat).toBeNull();
+ });
+
+ it('treats a shift left open for more than 18 hours as over',async()=>{
+  const {sdk,call}=setup('staff');
+  sdk.tables.DriverShift=[{id:'forgotten',company_id:'a',vehicle_id:'bus-a',started_at:hoursAgo(19)}];
+  expect(byId((await call({entity:'Vehicle',operation:'list'})).body.result)['bus-a'].current_lat).toBeNull();
+ });
+
+ it('follows the bus the office set: the directory card first, then the app membership',async()=>{
+  const {sdk,call}=setup('staff');
+  sdk.tables.DriverShift=[{id:'s',company_id:'a',vehicle_id:'bus-a2',started_at:hoursAgo(1)}];
+  const busA2=async()=>byId((await call({entity:'Vehicle',operation:'list'})).body.result)['bus-a2'].current_lat;
+  // The card says Bus A, so Bus A2's shift doesn't show.
+  expect(await busA2()).toBeNull();
+  sdk.tables.Contact[0].vehicle_id='bus-a2';
+  expect(await busA2()).toBe(12.05);
+  // No card: the membership's bus.
+  sdk.tables.Contact=[];
+  sdk.tables.CompanyMembership[0].vehicle_id='bus-a2';
+  expect(await busA2()).toBe(12.05);
+  sdk.tables.CompanyMembership[0].vehicle_id='';
+  expect(await busA2()).toBeNull();
+ });
+
+ it('gives the passenger home and the live refresh the same view',async()=>{
+  const {sdk,call}=setup('staff');
+  sdk.tables.DriverShift=[{id:'s',company_id:'a',vehicle_id:'bus-a',started_at:hoursAgo(1)},{id:'s2',company_id:'a',vehicle_id:'bus-a2',started_at:hoursAgo(1)}];
+  const home=byId((await call({entity:'Bootstrap',operation:'list',company_id:'a'})).body.result.vehicles);
+  const live=byId((await call({entity:'LiveLists',operation:'list',entities:['Vehicle']})).body.result.lists.Vehicle);
+  for(const buses of [home,live]) {
+   expect(buses['bus-a'].current_lat).toBe(12.05);
+   expect(buses['bus-a'].trail).toBeUndefined();
+   expect(buses['bus-a2'].current_lat).toBeNull();
+  }
+ });
+
+ it('looks the bus and its shift up once per request',async()=>{
+  const {sdk,call}=setup('staff');
+  await call({entity:'Vehicle',operation:'list'});
+  expect(sdk.reads.filter(r=>r.name==='DriverShift')).toHaveLength(1);
+  expect(sdk.reads.filter(r=>r.name==='Vehicle' && r.method==='get')).toHaveLength(0);
  });
 });
 

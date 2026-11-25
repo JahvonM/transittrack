@@ -95,7 +95,7 @@ function functionReply(name, body, data, role) {
     case "nfcCards": if (body?.action === "signup_state") return { company: { id: "a", name: data.company.name, join_code: data.company.access_code }, me: "Admin", people: [
       { key: "user:u-pass", ref: "email:rita@test.local", name: "Rita Rider", email: "rita@test.local", registered: true, app: "alerts", pickup: true, pickup_name: "True Blue", card: "", helper: null },
     ] };
-    return { people: [{ key: "user:u-pass", source: "user", id: "u-pass", name: "Rita Rider", company_id: "a", company_name: data.company.name, vehicle_id: "bus-a", assigned_vehicle: "Bus 1", registered: true, status: "Active" }], cards: data.cards || [], vehicles: data.vehicles.map((v) => ({ id: v.id, name: v.name, company_id: "a" })), tablets: data.kiosks.map((k) => ({ id: k.id, label: k.label, vehicle_id: k.vehicle_id, paired: true, active: true, last_seen: k.last_seen, directory_sent_at: k.directory_sent_at || null })) };
+    return { people: [{ key: "user:u-pass", source: "user", id: "u-pass", type: "staff", name: "Rita Rider", company_id: "a", company_name: data.company.name, vehicle_id: "bus-a", assigned_vehicle: "Bus 1", registered: true, status: "Active" }], cards: data.cards || [], vehicles: data.vehicles.map((v) => ({ id: v.id, name: v.name, company_id: "a" })), tablets: data.kiosks.map((k) => ({ id: k.id, label: k.label, vehicle_id: k.vehicle_id, paired: true, active: true, last_seen: k.last_seen, directory_sent_at: k.directory_sent_at || null })) };
     case "accessRoles": return { roles: [], assignments: [] };
     case "officeDisplay": return { displays: [], companies: [{ id: "a", name: data.company.name }], vehicles: data.vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number || "", company_id: "a" })), cameras: [], streaming: false, limits: { max_cameras: 4, max_displays: 20, camera_ms: 600000 } };
     case "companyWorkspace": return { vehicles: [], routes: [], drivers: [], workplaces: [], contacts: [], devices: [], people: [] };
@@ -124,7 +124,7 @@ export async function mockFleet(page, { role = "admin", data = fleetData(), sign
   // A copy, so a profile change saved in one test never reaches another.
   const me = ME[role] ? structuredClone(ME[role]) : ME[role];
   await page.addInitScript(({ signedIn, role }) => {
-    if (signedIn) localStorage.setItem("base44_access_token", "mock-authenticated-session");
+    if (signedIn) localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:"mock-authenticated-session",refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
     localStorage.setItem("tt-map-engine", "basic");
     if (role === "staff") localStorage.setItem("tt_company_access_grant", "a".repeat(64));
   }, { signedIn, role });
@@ -134,7 +134,7 @@ export async function mockFleet(page, { role = "admin", data = fleetData(), sign
   await page.route("**/api/**", withAdminBatch(async (route) => {
     const request = route.request(), url = request.url();
     if (url.includes("/entities/")) return route.fulfill({ status: 403, json: { error: "Direct entity access blocked" } });
-    const fn = url.match(/\/functions\/([A-Za-z]+)/)?.[1];
+    const fn = url.match(/\/functions\/v1\/([A-Za-z]+)/)?.[1];
     let body = null;
     try { body = request.postDataJSON(); } catch { body = null; }
     if (fn) calls.push({ fn, body });

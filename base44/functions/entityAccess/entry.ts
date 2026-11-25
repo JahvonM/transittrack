@@ -3,6 +3,8 @@ import { ADMIN_READ_SPECS } from '../../shared/adminReadSpecs.ts';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import { assignedAccessRole } from '../../shared/accessRoles.ts';
 import { retry429 } from '../../shared/retry429.ts';
+import { assignedBusId } from '../../shared/assignedBus.ts';
+import { stopSharingLeftBus } from '../../shared/busLeft.ts';
 const ENTITY_FIELDS = {"Company": ["name", "logo_url", "phone", "access_code", "service_types", "description", "boss_phone", "secretary_phone"], "AuditLog": ["actor_email", "actor_name", "actor_role", "action", "entity", "record_id", "summary", "changes", "page", "card_uid", "status"], "Vehicle": ["capacity", "company_id", "company_name", "current_lat", "current_lng", "current_odometer", "driver_email", "driver_name", "driver_pin", "entry_code", "heading", "image_url", "last_location_update", "last_ping_logged_at", "name", "near_stop_id", "plate_number", "remote_tracking_lock", "route_id", "speed", "status", "tracking_active", "trail", "type", "wired_gps_connected", "fleet_number", "make", "model", "year", "vin", "engine", "transmission", "hours", "fuel_type", "last_inspection_date", "in_service", "model_3d", "trip_direction", "return_pickup_state"], "Trip": ["vehicle_id", "vehicle_name", "plate_number", "route_id", "route_name", "company_id", "company_name", "driver_email", "driver_name", "passenger_name", "passenger_phone", "pickup_name", "pickup_lat", "pickup_lng", "dropoff_name", "dropoff_lat", "dropoff_lng", "scheduled_time", "status", "started_at", "arrived_at", "completed_at", "pickup_signature_url", "pickup_signed_by", "pickup_signed_at", "dropoff_signature_url", "dropoff_signed_by", "dropoff_signed_at"], "InspectionResult": ["vehicle_id", "vehicle_name", "company_id", "company_name", "inspection_name", "section_name", "inspection_item", "condition", "fault_found", "fault_description", "photo_url", "repair_required", "notes", "inspector_id", "inspector_name", "inspection_date"], "GroupMessage": ["vehicle_id", "vehicle_name", "company_id", "company_name", "channel", "sender_role", "sender_name", "text", "message_type", "media_url", "edited"], "MaintenanceSettings": ["auto_create_faults", "maintenance_reminder_days", "enable_photo_attachments", "inspection_reminder_days"], "Advertisement": ["title", "message", "image_url", "link", "active", "order"], "PushToken": ["token", "email", "device_id", "role", "company_id"], "LocationPing": ["company_id", "lat", "lng", "recorded_at", "speed", "vehicle_id"], "FrontDeskSignIns": ["full_name", "company_name", "reason", "signature_url", "signed_at"], "ClientError": ["message", "stack", "url", "user_email", "user_role", "user_agent", "source", "device_id", "emailed"], "Driver": ["full_name", "email", "phone", "photo_url", "company_id", "company_name", "employee_id", "nfc_card_uid"], "DriverShift": ["vehicle_id", "vehicle_name", "company_id", "company_name", "driver_name", "driver_email", "device_id", "started_at", "ended_at", "duration_minutes", "notes"], "NfcCard": ["card_uid", "card_type", "holder_type", "holder_source", "holder_id", "holder_name", "employee_id", "role", "assigned_vehicle", "company_id", "company_name", "access_level", "issue_date", "expiry_date", "issued_by", "is_active", "revoked_at", "revoked_by", "revoke_reason"], "Broadcast": ["type", "title", "message", "vehicle_name", "company_id", "company_name", "driver_name", "driver_email", "is_reply", "vehicle_id", "return_pickup"], "KioskDevice": ["company_id", "company_name", "device_info", "update_requested_at", "directory_sent_at", "app_health", "helper_health", "native_tracking_health", "kiosk_type", "label", "last_seen", "paired", "pairing_code", "status", "vehicle_id", "vehicle_name", "pairing_expires_at"], "Route": ["company_id", "company_name", "name", "type", "stops", "active", "path", "path_via", "pickup_merge_m"], "Inspection": ["driver_name", "driver_email", "vehicle_id", "vehicle_name", "company_id", "company_name", "date", "status", "checklist", "odometer_reading", "fuel_level", "needs_service", "service_notes", "template_id", "template_name", "trigger", "results"], "RouteTravelTimes": ["route_id", "route_name", "company_id", "legs", "dwells", "leg_samples", "pings_used", "vehicles_used", "days", "learned_at"], "Fault": ["vehicle_id", "vehicle_name", "company_id", "company_name", "title", "description", "source", "inspection_id", "severity", "status", "photo_url", "repair_required", "reported_by", "resolved_date"], "StaffCheckIn": ["staff_name", "staff_picture_url", "card_tag", "status", "boarded_at", "company_id", "company_name", "vehicle_id", "vehicle_name", "check_in_method"], "CardHolder": ["full_name", "employee_id", "role", "assigned_vehicle", "company_id", "company_name", "notes"], "DrivingEvent": ["company_id", "company_name", "driver_email", "driver_name", "lat", "lng", "occurred_at", "speed_after_kmh", "speed_before_kmh", "type", "vehicle_id", "vehicle_name"], "DriverDocument": ["driver_id", "driver_name", "company_id", "kind", "file_uri", "file_name", "document_number", "expiry_date", "notes"], "Part": ["company_id", "company_name", "part_name", "oem_number", "aftermarket_number", "vehicle_compatibility", "category", "quantity_in_stock", "unit_price", "supplier", "photo_url"], "User": ["role", "company_id", "display_name", "phone", "photo_url", "home_lat", "home_lng", "home_address", "pickup_lat", "pickup_lng", "pickup_name", "pickup_route_id", "pickup_moved", "work_lat", "work_lng", "nfc_tag_id", "access_code", "one_time_code", "one_time_code_expires_at", "whatsapp_linked", "skip_pickup_today", "skip_pickup_until", "late_snooze_active", "late_until", "favorite_stop", "stop_alerts", "theme_accent", "employee_id"], "Workplace": ["name", "company_id", "company_name", "lat", "lng"], "Incident": ["vehicle_id", "vehicle_name", "company_id", "company_name", "driver_name", "driver_email", "type", "details", "occurred_at", "status"], "Contact": ["name", "phone", "email", "type", "nfc_card_tag", "access_code", "company_id", "company_name", "pickup_name", "pickup_lat", "pickup_lng", "dropoff_name", "dropoff_lat", "dropoff_lng", "employee_id", "vehicle_id", "vehicle_name"], "LostItemReport": ["company_id", "company_name", "reporter_name", "reporter_email", "contact", "vehicle_name", "description", "status", "admin_notes"], "InspectionTemplate": ["name", "category", "company_id", "company_name", "frequency_days", "audience", "driver_trigger", "driver_days", "driver_times", "driver_vehicle_ids", "xray_layout", "driver_from_time", "driver_required", "driver_sent_at", "sections"], "MaintenanceSchedule": ["vehicle_id", "vehicle_name", "company_id", "company_name", "service_type", "due_type", "interval_km", "interval_days", "last_service_mileage", "last_service_date", "status", "assigned_mechanic_id", "assigned_mechanic_name", "notes"]};
 function randomAccessCode() {
  const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let code='';
@@ -17,7 +19,7 @@ async function uniqueAccessCode(db,entity,field) {
 ENTITY_FIELDS.KioskDevice.push('display_layout');
 // A driver's own phone (store app): belongs to a driver; the phone picks the bus.
 ENTITY_FIELDS.KioskDevice.push('personal', 'driver_id', 'driver_name');
-const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings"]);
+const MAINTENANCE = new Set(["Vehicle", "Fault", "Inspection", "InspectionResult", "InspectionTemplate", "Part", "MaintenanceSchedule", "MaintenanceSettings", "VehicleGuide", "GuideFact", "GuideDocument", "PartDiagram", "PartInterchange", "CatalogueGroup", "TorqueSpec", "WorkshopVehicle", "WorkshopJob", "WorkshopJobPart"]);
 
 for(const name of ['InspectionResult','Fault']) ENTITY_FIELDS[name].push('client_request_id');
 ENTITY_FIELDS.GroupMessage.push('sender_id','sender_email');
@@ -35,6 +37,8 @@ ENTITY_FIELDS.KioskDevice.push('network_status');
 ENTITY_FIELDS.KioskDevice.push('control_status');
 // Boarding tablets: what the reader records, and whether taps need an open shift.
 ENTITY_FIELDS.KioskDevice.push('reader_mode','require_active_trip','nfc_spot');
+// Driver tablets: GPS module or the tablet's own GPS, chosen in Admin → Kiosk tablets.
+ENTITY_FIELDS.KioskDevice.push('gps_source');
 // A tap's person, run and review flag (written by kioskCheckIn only).
 ENTITY_FIELDS.StaffCheckIn.push('person_key','run_key','shift_id','review_reason','saved_offline');
 // Why a card is or isn't working (active, suspended, lost, revoked, replaced).
@@ -58,6 +62,31 @@ ENTITY_FIELDS.Client=['company_id','name','kind','contact_name','email','phone',
 // they change only through the bookingRequest function, which emails the customer.
 ENTITY_FIELDS.BookingRequest=['service','requested_time','pickup','dropoff','guests','luggage','flight_number','name','phone','email','notes','status','trip_id','decline_reason','handled_by','handled_at','tracking_sent_at','company_id','company_name','requested_by_id'];
 ENTITY_FIELDS.Invoice=['company_id','company_name','client_id','client_name','client_email','client_address','number','period_start','period_end','issued_at','due_date','lines','total','currency','status','sent_at','paid_at','voided_at','notes'];
+// Bus library (Admin → Bus library): fleet-wide pages per bus model, their
+// facts and manuals. No company owns them: administrators and mechanics only
+// (they are in MAINTENANCE), and only administrators delete.
+ENTITY_FIELDS.VehicleGuide=['make','model','generation','year_from','year_to','engines','market','summary','starter_key'];
+ENTITY_FIELDS.GuideFact=['guide_id','section','label','value','detail','applies_to','interval_km','interval_months','source_name','source_link','status','checked_by','checked_at','sort_order'];
+ENTITY_FIELDS.GuideDocument=['guide_id','title','kind','file_uri','file_name','notes'];
+// Parts catalogue: pictures of a model's parts with numbered pins (shown on
+// its library page), other numbers that can replace a part, and on each part
+// the models it fits, when to warn of low stock and where it is kept.
+ENTITY_FIELDS.PartDiagram=['guide_id','title','system','image_url','drawing_key','catalogue_link','notes','pins','sort_order','catalogue_group_id'];
+ENTITY_FIELDS.PartInterchange=['part_number','alt_number','alt_brand','kind','applies_to','notes','source_name','source_link','status','checked_by','checked_at'];
+ENTITY_FIELDS.Part.push('guide_ids','min_stock','bin_location');
+// The maker's catalogue: a diagram's parts as listed by Toyota or Nissan,
+// pasted in from Partsouq (the drawing itself is not kept; link opens it).
+ENTITY_FIELDS.CatalogueGroup=['guide_id','vehicle_id','model_code','category','code','title','detail','link','parts','notes','sort_order'];
+// The Workshop app: how tight each bolt goes on a model, and the vehicles
+// the workshop looks after that aren't fleet buses (the owner's cars), kept
+// apart from Vehicle so they never reach the fleet, kiosk or company screens.
+ENTITY_FIELDS.TorqueSpec=['guide_id','system','item','size','nm','stages','sequence','new_bolt','thread_lock','applies_to','source_name','source_link','status','checked_by','checked_at','sort_order'];
+ENTITY_FIELDS.WorkshopVehicle=['name','make','model','year','engine','transmission','vin','plate_number','notes'];
+// Workshop jobs: the work done on a bus or workshop car, and the parts used.
+// The database takes a part from the shelf off its stock as it is saved, and
+// puts it back when removed (supabase/migrations/*_workshop_job_stock.sql).
+ENTITY_FIELDS.WorkshopJob=['vehicle_kind','vehicle_id','vehicle_name','guide_id','title','symptom','fault_codes','fault_id','status','steps','fix','notes','odometer','done_at','done_by'];
+ENTITY_FIELDS.WorkshopJobPart=['job_id','part_id','part_name','part_number','qty','from_stock'];
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Vehicle:new Set(['driver_id']),Trip:new Set(['client_id','client_name','price','currency','shared_with_company'])};
 const SERVER_ONLY_FIELDS={StaffCheckIn:new Set(['person_key','run_key','shift_id','review_reason','saved_offline']),Driver:new Set(['username','auth_user_id','must_change_password']),Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
@@ -105,6 +134,316 @@ function cleanClient(data,existing) {
  if(Object.hasOwn(data,'kind')&&!['hotel','company','tour_operator','person','other'].includes(data.kind)) fail(400,'Invalid kind of client');
  if(Object.hasOwn(data,'currency')&&!CURRENCIES.has(data.currency)) fail(400,'Invalid currency');
 }
+// Bus library. Text is bounded, a source is an https address or nothing, and
+// a manual is a private file uploaded in the app (as the upload's reply gave
+// it: the stored reference or its signed link). Who checked a fact, and when,
+// is the server's to say: marking it checked or wrong records the person, and
+// a fact whose answer changes goes back to unchecked unless the same save says
+// otherwise.
+const GUIDE_SECTIONS=new Set(['specs','fluids','service','tyres','electrical','filters','torque','problems','recalls','notes']);
+const FACT_STATUSES=new Set(['unchecked','checked','wrong']);
+const DOCUMENT_KINDS=new Set(['owners_manual','workshop_manual','parts_list','bulletin','other']);
+const FACT_ANSWER=['label','value','detail','applies_to','interval_km','interval_months'];
+const TORQUE_SYSTEMS=new Set(['wheels_brakes','suspension_steering','engine','cooling','fuel','gearbox_axle','body_electrical']);
+const TORQUE_ANSWER=['item','size','nm','stages','sequence','new_bolt','thread_lock','applies_to'];
+const UPLOAD_PATH='uploads/\\d{4}-\\d{2}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.[a-z0-9]{1,8}';
+const UPLOADED_REF=new RegExp('^storage://private/'+UPLOAD_PATH+'$');
+const UPLOADED_LINK=new RegExp('^https://[a-z0-9-]+\\.supabase\\.co/storage/v1/object/sign/private/'+UPLOAD_PATH+'\\?[^\\s]+$');
+function guideYear(data,field) {
+ if(!Object.hasOwn(data,field)) return;
+ if(data[field]===null||data[field]==='') { data[field]=null; return; }
+ const n=Number(data[field]);
+ if(!Number.isInteger(n)||n<1950||n>2100) fail(400,'Invalid '+field.replace(/_/g,' '));
+ data[field]=n;
+}
+function guideAmount(data,field,max) {
+ if(!Object.hasOwn(data,field)) return;
+ if(data[field]===null||data[field]==='') { data[field]=null; return; }
+ const n=Number(data[field]);
+ if(!Number.isFinite(n)||n<0||n>max) fail(400,'Invalid '+field.replace(/_/g,' '));
+ data[field]=n;
+}
+// Marking a record checked or wrong records who and when; a record whose
+// answer changes goes back to unchecked unless the same save says otherwise.
+function stampChecked(data,existing,user,answer) {
+ if(Object.hasOwn(data,'status')&&!FACT_STATUSES.has(data.status)) fail(400,'Invalid status');
+ delete data.checked_by;delete data.checked_at;
+ const before=existing?.status||'unchecked';
+ const answerChanged=!!existing&&answer.some(f=>Object.hasOwn(data,f)&&(data[f]??'')!==(existing[f]??''));
+ const status=Object.hasOwn(data,'status')?data.status:answerChanged?'unchecked':before;
+ if(existing&&status===before&&!answerChanged) return;
+ data.status=status;
+ if(status==='unchecked') { data.checked_by='';data.checked_at=null; }
+ else { data.checked_by=user.full_name||user.email||'';data.checked_at=new Date().toISOString(); }
+}
+function httpsLink(data,field) {
+ text(data,field,2000);
+ if(data[field]&&!/^https:\/\/\S+$/i.test(data[field])) fail(400,'Links must start with https://');
+}
+// A library page that exists, looked up once per request (a batch of facts).
+async function guideExists(db,ctx,id) {
+ if(typeof id!=='string'||!id) return false;
+ if(!ctx.guides) ctx.guides=new Map();
+ if(!ctx.guides.has(id)) ctx.guides.set(id,db.VehicleGuide.get(id).catch(()=>null));
+ return !!(await ctx.guides.get(id));
+}
+const partKey=(value)=>String(value??'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const INTERCHANGE_KINDS=new Set(['newer_genuine','older_genuine','aftermarket']);
+// The guide drawings built into the app (src/assets/diagrams).
+const GUIDE_DRAWINGS=new Set(['oil-filter','fuel-filter','air-filter','front-brakes','rear-brakes','front-suspension','cooling','drive-belt']);
+async function cleanGuideRecord(db,ctx,name,data,existing) {
+ const user=ctx.user;
+ if(name==='VehicleGuide') {
+  for(const field of ['make','model']) {
+   if((!existing||Object.hasOwn(data,field))&&(typeof data[field]!=='string'||!data[field].trim())) fail(400,'A library page needs a make and model');
+  }
+  for(const [field,max] of [['make',60],['model',60],['generation',120],['engines',300],['market',120],['summary',4000],['starter_key',60]]) text(data,field,max);
+  guideYear(data,'year_from');guideYear(data,'year_to');
+  const from=Object.hasOwn(data,'year_from')?data.year_from:existing?.year_from;
+  const to=Object.hasOwn(data,'year_to')?data.year_to:existing?.year_to;
+  if(from!=null&&to!=null&&from>to) fail(400,'The first year must come before the last');
+  if(data.starter_key&&!/^[a-z0-9-]{1,60}$/.test(data.starter_key)) fail(400,'Invalid starter key');
+  return;
+ }
+ if(name==='PartInterchange') {
+  for(const field of ['part_number','alt_number']) {
+   if((!existing||Object.hasOwn(data,field))&&(typeof data[field]!=='string'||!partKey(data[field]))) fail(400,'Give both part numbers');
+  }
+  for(const [field,max] of [['part_number',60],['alt_number',60],['alt_brand',60],['applies_to',200],['notes',1000],['source_name',200]]) text(data,field,max);
+  httpsLink(data,'source_link');
+  if(Object.hasOwn(data,'kind')&&!INTERCHANGE_KINDS.has(data.kind)) fail(400,'Invalid kind of replacement');
+  const a=Object.hasOwn(data,'part_number')?data.part_number:existing?.part_number, b=Object.hasOwn(data,'alt_number')?data.alt_number:existing?.alt_number;
+  if(partKey(a)===partKey(b)) fail(400,'A part cannot replace itself');
+  stampChecked(data,existing,user,['part_number','alt_number','alt_brand','kind','applies_to']);
+  return;
+ }
+ if(name==='WorkshopVehicle') {
+  for(const field of ['name','make','model']) {
+   if((!existing||Object.hasOwn(data,field))&&(typeof data[field]!=='string'||!data[field].trim())) fail(400,'A workshop vehicle needs a name, make and model');
+  }
+  for(const [field,max] of [['name',80],['make',60],['model',60],['engine',120],['transmission',60],['vin',40],['plate_number',20],['notes',2000]]) text(data,field,max);
+  guideYear(data,'year');
+  return;
+ }
+ // Facts, manuals and part pictures sit on a library page that exists.
+ if(!existing||Object.hasOwn(data,'guide_id')) {
+  // One look-up per page for a batch of facts (the starter import).
+  if(!(await guideExists(db,ctx,data.guide_id))) fail(400,'Library page not found');
+ }
+ if(name==='GuideFact') {
+  if((!existing||Object.hasOwn(data,'label'))&&(typeof data.label!=='string'||!data.label.trim())) fail(400,'A fact needs a label');
+  if((!existing||Object.hasOwn(data,'section'))&&!GUIDE_SECTIONS.has(data.section)) fail(400,'Invalid library section');
+  for(const [field,max] of [['label',200],['value',500],['detail',4000],['applies_to',200],['source_name',200],['source_link',2000]]) text(data,field,max);
+  if(data.source_link&&!/^https:\/\/\S+$/i.test(data.source_link)) fail(400,'A source link must start with https://');
+  guideAmount(data,'interval_km',1_000_000);guideAmount(data,'interval_months',240);
+  if(Object.hasOwn(data,'sort_order')&&data.sort_order!==null&&!Number.isFinite(Number(data.sort_order))) fail(400,'Invalid order');
+  if(Object.hasOwn(data,'status')&&!FACT_STATUSES.has(data.status)) fail(400,'Invalid fact status');
+  stampChecked(data,existing,user,FACT_ANSWER);
+  return;
+ }
+ if(name==='PartDiagram') {
+  if((!existing||Object.hasOwn(data,'title'))&&(typeof data.title!=='string'||!data.title.trim())) fail(400,'A picture needs a title');
+  for(const [field,max] of [['title',120],['system',60],['notes',2000]]) text(data,field,max);
+  httpsLink(data,'catalogue_link');
+  if(Object.hasOwn(data,'sort_order')&&data.sort_order!==null&&!Number.isFinite(Number(data.sort_order))) fail(400,'Invalid order');
+  if(Object.hasOwn(data,'drawing_key')) {
+   if(data.drawing_key===null||data.drawing_key==='') data.drawing_key=null;
+   else if(!GUIDE_DRAWINGS.has(data.drawing_key)) fail(400,'Unknown guide drawing');
+  }
+  const guideId=Object.hasOwn(data,'guide_id')?data.guide_id:existing?.guide_id;
+  // A photo of one of the maker's catalogue diagrams, on the same model page.
+  if(Object.hasOwn(data,'catalogue_group_id')) {
+   if(data.catalogue_group_id===null||data.catalogue_group_id==='') data.catalogue_group_id='';
+   else {
+    if(typeof data.catalogue_group_id!=='string'||data.catalogue_group_id.length>64) fail(400,'Invalid catalogue diagram');
+    const group=(await db.CatalogueGroup.filter({id:data.catalogue_group_id},'-created_date',1))[0];
+    if(!group||group.guide_id!==guideId) fail(400,'That catalogue diagram is not on this model page');
+   }
+  }
+  if(Object.hasOwn(data,'pins')) data.pins=await cleanPins(db,data.pins,guideId);
+  return;
+ }
+ if(name==='TorqueSpec') {
+  if((!existing||Object.hasOwn(data,'item'))&&(typeof data.item!=='string'||!data.item.trim())) fail(400,'Say which bolt it is');
+  if((!existing||Object.hasOwn(data,'system'))&&!TORQUE_SYSTEMS.has(data.system)) fail(400,'Invalid part of the vehicle');
+  for(const [field,max] of [['item',120],['size',40],['stages',300],['sequence',300],['thread_lock',120],['applies_to',200],['source_name',200]]) text(data,field,max);
+  httpsLink(data,'source_link');
+  guideAmount(data,'nm',2000);
+  if(Object.hasOwn(data,'new_bolt')&&data.new_bolt!==null&&typeof data.new_bolt!=='boolean') fail(400,'Invalid new bolt');
+  if(Object.hasOwn(data,'sort_order')&&data.sort_order!==null&&!Number.isFinite(Number(data.sort_order))) fail(400,'Invalid order');
+  stampChecked(data,existing,user,TORQUE_ANSWER);
+  return;
+ }
+ if(name==='CatalogueGroup') {
+  for(const field of ['code','title']) {
+   if((!existing||Object.hasOwn(data,field))&&(typeof data[field]!=='string'||!data[field].trim())) fail(400,'A catalogue diagram needs its number and title');
+  }
+  for(const [field,max] of [['vehicle_id',64],['model_code',60],['category',120],['code',40],['title',200],['detail',300],['notes',2000]]) text(data,field,max);
+  httpsLink(data,'link');
+  if(Object.hasOwn(data,'sort_order')&&data.sort_order!==null&&!Number.isFinite(Number(data.sort_order))) fail(400,'Invalid order');
+  if(Object.hasOwn(data,'parts')) data.parts=cleanCatalogueParts(data.parts);
+  return;
+ }
+ if(name==='GuideDocument') {
+  if((!existing||Object.hasOwn(data,'title'))&&(typeof data.title!=='string'||!data.title.trim())) fail(400,'A document needs a title');
+  for(const [field,max] of [['title',200],['file_name',200],['notes',4000]]) text(data,field,max);
+  if(Object.hasOwn(data,'kind')&&!DOCUMENT_KINDS.has(data.kind)) fail(400,'Invalid kind of document');
+  if(existing&&Object.hasOwn(data,'file_uri')) fail(400,'Add a new file as a new document');
+  if(!existing&&!(typeof data.file_uri==='string'&&(UPLOADED_REF.test(data.file_uri)||UPLOADED_LINK.test(data.file_uri)))) fail(400,'Upload the document in the app');
+ }
+}
+// Pins on a part picture: a number, a place on the picture (0 to 1 across
+// and down), the part it points at and/or the bolt's torque (one on the same
+// model page), and the number it has on the maker's diagram (ref). A pin
+// whose part or torque has since been deleted keeps its place and label,
+// pointing at nothing.
+async function cleanPins(db,pins,guideId) {
+ if(pins===null) return [];
+ if(!Array.isArray(pins)||pins.length>80) fail(400,'A picture can have up to 80 pins');
+ const out=pins.map(pin=>{
+  if(!pin||typeof pin!=='object'||Array.isArray(pin)) fail(400,'Invalid pin');
+  const n=Number(pin.n), x=Number(pin.x), y=Number(pin.y);
+  if(!Number.isInteger(n)||n<1||n>999||!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>1||y<0||y>1) fail(400,'Invalid pin');
+  if(pin.part_id!=null&&(typeof pin.part_id!=='string'||pin.part_id.length>64)) fail(400,'Invalid pin');
+  if(pin.label!=null&&(typeof pin.label!=='string'||pin.label.length>80)) fail(400,'Invalid pin label');
+  if(pin.torque_id!=null&&(typeof pin.torque_id!=='string'||pin.torque_id.length>64)) fail(400,'Invalid pin');
+  if(pin.ref!=null&&(typeof pin.ref!=='string'||pin.ref.length>20)) fail(400,'Invalid pin');
+  return {n,x:Math.round(x*10000)/10000,y:Math.round(y*10000)/10000,part_id:pin.part_id||'',torque_id:pin.torque_id||'',ref:(pin.ref||'').trim(),label:(pin.label||'').trim()};
+ });
+ const ids=[...new Set(out.map(p=>p.part_id).filter(Boolean))];
+ if(ids.length) {
+  const found=new Set((await db.Part.filter({id:{$in:ids}},'-created_date',ids.length)).map(p=>p.id));
+  for(const pin of out) if(pin.part_id&&!found.has(pin.part_id)) pin.part_id='';
+ }
+ const torques=[...new Set(out.map(p=>p.torque_id).filter(Boolean))];
+ if(torques.length) {
+  const found=new Set((await db.TorqueSpec.filter({id:{$in:torques}},'-created_date',torques.length)).filter(t=>t.guide_id===guideId).map(t=>t.id));
+  for(const pin of out) if(pin.torque_id&&!found.has(pin.torque_id)) pin.torque_id='';
+ }
+ return out;
+}
+// A catalogue diagram's parts: text only, each field trimmed and capped,
+// anything else on a row dropped.
+const CATALOGUE_PART_FIELDS=[['ref',20],['number',60],['name',200],['qty',20],['info',300]];
+function cleanCatalogueParts(parts) {
+ if(parts===null) return [];
+ if(!Array.isArray(parts)||parts.length>400) fail(400,'A catalogue diagram can have up to 400 parts');
+ return parts.map(row=>{
+  if(!row||typeof row!=='object'||Array.isArray(row)) fail(400,'Invalid catalogue part');
+  const out={};
+  for(const [field,max] of CATALOGUE_PART_FIELDS) {
+   const value=row[field]??'';
+   if(typeof value!=='string'&&typeof value!=='number') fail(400,'Invalid catalogue part');
+   out[field]=String(value).trim().slice(0,max);
+  }
+  if(!partKey(out.number)&&!out.name) fail(400,'A catalogue part needs a number or a name');
+  return out;
+ });
+}
+// A part's models, low-stock level and shelf. Only administrators and
+// mechanics see the library, so only they say which models a part fits.
+async function cleanPartFields(db,ctx,data) {
+ if(Object.hasOwn(data,'guide_ids')) {
+  if(!['admin','mechanic'].includes(ctx.user.role)) fail(403,'Administrators and mechanics only');
+  const ids=data.guide_ids??[];
+  if(!Array.isArray(ids)||ids.length>20||ids.some(id=>typeof id!=='string')) fail(400,'Invalid bus models');
+  data.guide_ids=[...new Set(ids)];
+  for(const id of data.guide_ids) if(!(await guideExists(db,ctx,id))) fail(400,'Library page not found');
+ }
+ guideAmount(data,'min_stock',100_000);
+ text(data,'bin_location',60);
+}
+// A job stays on the vehicle it was started on, and the server copies that
+// vehicle's name. Who marked it done, and when, is the server's to say.
+const JOB_KINDS=new Set(['bus','car']);
+const JOB_STATUSES=new Set(['open','done']);
+async function cleanWorkshopJob(db,ctx,data,existing) {
+ const user=ctx.user;
+ for(const field of ['vehicle_kind','vehicle_id']) if(existing&&Object.hasOwn(data,field)&&data[field]!==existing[field]) fail(400,'A job stays on its vehicle');
+ delete data.vehicle_name;delete data.done_at;delete data.done_by;
+ const kind=existing?.vehicle_kind??data.vehicle_kind, vehicleId=existing?.vehicle_id??data.vehicle_id;
+ if(!existing) {
+  if(!JOB_KINDS.has(kind)) fail(400,'Say whether the job is on a bus or a car');
+  if(typeof vehicleId!=='string'||!vehicleId) fail(400,'Choose the vehicle');
+  const vehicle=await db[kind==='bus'?'Vehicle':'WorkshopVehicle'].get(vehicleId).catch(()=>null);
+  if(!vehicle) fail(400,'Vehicle not found');
+  data.vehicle_name=String(vehicle.name||'').slice(0,120);
+ }
+ if((!existing||Object.hasOwn(data,'title'))&&(typeof data.title!=='string'||!data.title.trim())) fail(400,'Say what the job is');
+ for(const [field,max] of [['title',120],['symptom',2000],['fault_codes',200],['fix',4000],['notes',4000]]) text(data,field,max);
+ wholeNumber(data,'odometer',5_000_000);
+ if(Object.hasOwn(data,'guide_id')) {
+  if(data.guide_id===null||data.guide_id==='') data.guide_id='';
+  else if(!(await guideExists(db,ctx,data.guide_id))) fail(400,'Library page not found');
+ }
+ if(Object.hasOwn(data,'fault_id')) {
+  if(data.fault_id===null||data.fault_id==='') data.fault_id='';
+  else {
+   const fault=kind==='bus'&&typeof data.fault_id==='string'?await db.Fault.get(data.fault_id).catch(()=>null):null;
+   if(!fault||fault.vehicle_id!==vehicleId) fail(400,'That fault is not on this bus');
+  }
+ }
+ if(Object.hasOwn(data,'steps')) {
+  const steps=data.steps??[];
+  if(!Array.isArray(steps)||steps.length>60) fail(400,'A job can have up to 60 steps');
+  data.steps=steps.map(s=>{
+   if(!s||typeof s!=='object'||typeof s.text!=='string'||!s.text.trim()||s.text.length>300) fail(400,'Each step needs words, up to 300 characters');
+   if(s.done!==undefined&&typeof s.done!=='boolean') fail(400,'Invalid step');
+   if(s.torque_id!==undefined&&s.torque_id!==null&&s.torque_id!==''&&(typeof s.torque_id!=='string'||s.torque_id.length>64)) fail(400,'Invalid step');
+   return s.torque_id?{text:s.text.trim(),done:s.done===true,torque_id:s.torque_id}:{text:s.text.trim(),done:s.done===true};
+  });
+  // A step's torque value is one of the job's model's. One from another model,
+  // or one since deleted, is dropped (as bolt pins do), so ticking still saves.
+  const torques=[...new Set(data.steps.map(s=>s.torque_id).filter(Boolean))];
+  if(torques.length) {
+   const guideId=Object.hasOwn(data,'guide_id')?data.guide_id:existing?.guide_id;
+   const found=guideId?new Set((await db.TorqueSpec.filter({id:{$in:torques}},'-created_date',torques.length)).filter(t=>t.guide_id===guideId).map(t=>t.id)):new Set();
+   data.steps=data.steps.map(s=>s.torque_id&&!found.has(s.torque_id)?{text:s.text,done:s.done}:s);
+  }
+ }
+ if(Object.hasOwn(data,'status')&&!JOB_STATUSES.has(data.status)) fail(400,'Invalid job status');
+ const before=existing?.status||'open';
+ const status=Object.hasOwn(data,'status')?data.status:before;
+ if(!existing||status!==before) {
+  data.status=status;
+  if(status==='done') { data.done_at=new Date().toISOString(); data.done_by=user.full_name||user.email||''; }
+  else if(existing) { data.done_at=null; data.done_by=''; }
+ }
+}
+// A part used on a job. While its job is open it can be added, changed or
+// removed (a mechanic may remove one too); a done job's parts stay as they
+// were until the job is reopened. A part from the shelf must be on the parts
+// list and the server copies its name and number; one bought for the job can
+// be written in. The stock itself moves in the database.
+async function cleanJobPart(db,ctx,data,existing) {
+ for(const field of ['job_id','part_id']) if(existing&&Object.hasOwn(data,field)&&(data[field]||'')!==(existing[field]||'')) fail(400,'To use a different part, remove this one and add the right one');
+ const jobId=existing?.job_id??data.job_id;
+ if(typeof jobId!=='string'||!jobId) fail(400,'Choose the job');
+ const job=await db.WorkshopJob.get(jobId).catch(()=>null);
+ if(!job) fail(400,'Job not found');
+ if(job.status==='done') fail(409,'This job is done. Reopen it to change its parts');
+ if(Object.hasOwn(data,'from_stock')&&typeof data.from_stock!=='boolean') fail(400,'Say whether it came from the shelf');
+ if(!existing||Object.hasOwn(data,'qty')) {
+  const n=Number(data.qty);
+  if(data.qty===null||data.qty===''||!Number.isFinite(n)||n<=0||n>10000) fail(400,'How many? More than 0, up to 10,000');
+  data.qty=Math.round(n*100)/100;
+ }
+ const fromStock=Object.hasOwn(data,'from_stock')?data.from_stock:existing?existing.from_stock!==false:true;
+ const listed=existing?!!existing.part_id:!!data.part_id;
+ if(!existing&&listed) {
+  const part=typeof data.part_id==='string'?await db.Part.get(data.part_id).catch(()=>null):null;
+  if(!part) fail(400,'That part is no longer in your parts list');
+  data.part_name=String(part.part_name||'Part').slice(0,200);
+  data.part_number=String(part.oem_number||part.aftermarket_number||'').slice(0,60);
+  return;
+ }
+ if(listed) { delete data.part_name;delete data.part_number;return; }
+ delete data.part_id;
+ if(fromStock) fail(400,'Choose the part from your parts list, or mark it bought for this job');
+ if((!existing||Object.hasOwn(data,'part_name'))&&(typeof data.part_name!=='string'||!data.part_name.trim())) fail(400,'Name the part');
+ for(const [field,max] of [['part_name',200],['part_number',60]]) text(data,field,max);
+}
+const GUIDE_ENTITIES=new Set(['VehicleGuide','GuideFact','GuideDocument','PartDiagram','PartInterchange','CatalogueGroup','TorqueSpec','WorkshopVehicle']);
 const SECURITY_FIELDS={Company:new Set(['access_code','access_code_expires_at']),KioskDevice:new Set(['pairing_code','pairing_expires_at','paired','status'])};
 const META = ['id','created_date','updated_date','created_by','created_by_id'];
 const CREDENTIALS = new Set(['driver_pin','entry_code','access_code','one_time_code','one_time_code_expires_at','nfc_tag_id','nfc_card_tag','nfc_card_uid','card_uid','card_tag','pairing_code','token','token_hash','salt','pin_hash','password','device_token','driver_grant','verification_grant']);
@@ -122,8 +461,7 @@ function appStorageUrl(value) {
   const url = new URL(value);
   if (url.protocol !== 'https:') return false;
   const host = url.hostname;
-  return host === 'base44.app' || host.endsWith('.base44.app') || host === 'base44.com' || host.endsWith('.base44.com')
-   || (host.endsWith('.supabase.co') && url.pathname.startsWith('/storage/v1/object/public/'));
+  return host.endsWith('.supabase.co') && url.pathname.startsWith('/storage/v1/object/public/');
  } catch { return false; }
 }
 function checkLinks(user, data) {
@@ -222,7 +560,7 @@ function project(ctx,name,row) {
  if (name === 'User') fields=[...META,'email','full_name','role','company_id',...PROFILE_FIELDS];
  if (name === 'Driver' && role !== 'admin') fields=fields.filter(f=>!['username','auth_user_id','must_change_password'].includes(f));
  if (name === 'Company' && !['admin','company'].includes(role)) fields=[...META,'name','phone','logo_url','service_types','description'];
- if (!['admin','company','mechanic'].includes(role) && name === 'Vehicle') fields=[...META,'name','type','company_id','company_name','capacity','route_id','current_lat','current_lng','speed','heading','status','driver_name','image_url','model_3d','tracking_active','last_location_update','trail','trip_direction','return_pickup_state','road_next_stop'];
+ if (!['admin','company','mechanic'].includes(role) && name === 'Vehicle') fields=[...META,'name','type','company_id','company_name','capacity','route_id','current_lat','current_lng','speed','heading','status','driver_name','image_url','model_3d','tracking_active','last_location_update','trip_direction','return_pickup_state','road_next_stop'];
  if (!['admin','company'].includes(role) && name === 'Trip') fields=[...META,'company_id','vehicle_id','vehicle_name','route_id','route_name','pickup_name','dropoff_name','scheduled_time','status','started_at','arrived_at','completed_at'];
  const allowCodes=['admin','company'].includes(role) && ['Company','KioskDevice'].includes(name);
  const out=scrub(pick(row,fields),allowCodes);
@@ -236,6 +574,15 @@ function project(ctx,name,row) {
 const COMPANY_NO_HISTORY=new Set(['LocationPing','DrivingEvent']);
 const BUS_LOCATION_FIELDS=['current_lat','current_lng','trail','speed','heading','last_location_update','last_ping_logged_at','near_stop_id','road_next_stop'];
 const JOB_UNDER_WAY=['on_the_way','arrived'];
+// A shift shares its bus's position only while it is plausibly still being
+// driven: a shift nobody ended (one has been left open for two weeks) would
+// otherwise show where the bus is parked, day and night. 18 hours covers a
+// working day from first pickup to last drop-off.
+const SHIFT_SHARES_MS=18*3600_000;
+function shiftShares(shift,now=Date.now()) {
+ const started=Date.parse(shift?.started_at);
+ return !shift?.ended_at && Number.isFinite(started) && now-started<SHIFT_SHARES_MS && started-now<10*60_000;
+}
 async function busSharing(db,ctx,ids) {
  if(!ctx.busSharing) ctx.busSharing=new Map();
  const missing=[...new Set(ids)].filter(id=>typeof id==='string' && id && !ctx.busSharing.has(id));
@@ -248,12 +595,40 @@ async function busSharing(db,ctx,ids) {
    ]);
    const out=new Map(missing.map(id=>[id,'']));
    for(const job of jobs) if(job.shared_with_company===true && job.job_type && JOB_UNDER_WAY.includes(job.status) && ctx.companies.includes(job.company_id) && out.has(job.vehicle_id)) out.set(job.vehicle_id,'job');
-   for(const shift of shifts) if(!shift.ended_at && out.has(shift.vehicle_id)) out.set(shift.vehicle_id,'shift');
+   const now=Date.now();
+   for(const shift of shifts) if(shiftShares(shift,now) && out.has(shift.vehicle_id)) out.set(shift.vehicle_id,'shift');
    return out;
   })();
   for(const id of missing) ctx.busSharing.set(id,lookup.then(found=>found.get(id)||''));
  }
  return Promise.all(ids.map(id=>ctx.busSharing.get(id) || ''));
+}
+// A passenger sees where a bus is only for their own bus (the one the office
+// set for them, the app's "my bus"), and only while a shift is out on it.
+// Never a bus's path, never where it is parked, never another bus: a bus's
+// moves show where it stopped for other passengers.
+async function ownBuses(db,ctx) {
+ ctx.ownBuses ||= (async()=>{
+  const ids=new Set();
+  for(const companyId of new Set(ctx.companies)) {
+   const id=await assignedBusId(db,ctx.user,companyId);
+   if(id) ids.add(id);
+  }
+  return ids;
+ })();
+ return ctx.ownBuses;
+}
+async function busOnShift(db,ctx,id) {
+ if(!ctx.busOnShift) ctx.busOnShift=new Map();
+ if(!ctx.busOnShift.has(id)) ctx.busOnShift.set(id,retry429(()=>db.DriverShift.filter({vehicle_id:id},'-started_at',20))
+  .then(shifts=>{const now=Date.now();return shifts.some(s=>s.vehicle_id===id && shiftShares(s,now));}));
+ return ctx.busOnShift.get(id);
+}
+async function passengerView(db,ctx,name,row,out) {
+ if(name!=='Vehicle') return out;
+ const shown=(await ownBuses(db,ctx)).has(row.id) && await busOnShift(db,ctx,row.id);
+ if(!shown) for(const field of BUS_LOCATION_FIELDS) if(Object.hasOwn(out,field)) out[field]=null;
+ return out;
 }
 async function companyView(db,ctx,name,row,out) {
  if(name==='Vehicle') {
@@ -269,9 +644,42 @@ async function companyView(db,ctx,name,row,out) {
  }
  return out;
 }
+// A paired tablet's pass (its device credential), for Admin: only how it
+// stands and when it ends, never the pass itself. Passes last 90 days and
+// are renewed only by giving the tablet a new pairing code (by design, see
+// security-tests/tablet-repairing-plan.md), so Admin is warned 30 days ahead.
+// "moved": the tablet's company, bus or type changed after it was paired,
+// so its pass no longer matches and it needs a new pairing code.
+const PASS_WARN_MS=30*86400_000;
+async function prefetchPasses(db,ctx,rows) {
+ const ids=rows.filter(r=>r?.paired && r.status==='active').map(r=>r.id);
+ if(!ids.length) return;
+ try {
+  const creds=await db.DeviceCredential.filter({device_id:{$in:ids}},'-issued_at',5000);
+  ctx.passes=new Map(ids.map(id=>[id,null]));
+  for(const c of creds) if(ctx.passes.has(c.device_id) && !ctx.passes.get(c.device_id)) ctx.passes.set(c.device_id,c);
+ } catch { ctx.passes=null; }
+}
+async function devicePass(db,ctx,row,now=Date.now()) {
+ if(!row?.paired || row.status!=='active') return null;
+ let cred;
+ if(ctx.passes?.has(row.id)) cred=ctx.passes.get(row.id);
+ else {
+  try { cred=(await db.DeviceCredential.filter({device_id:row.id},'-issued_at',1))[0] || null; }
+  catch { return null; } // can't tell: say nothing rather than raise a false alarm
+ }
+ if(!cred) return {state:'none'};
+ const ends=Date.parse(cred.expires_at);
+ const expires_at=Number.isFinite(ends) ? new Date(ends).toISOString() : null;
+ if(cred.company_id!==row.company_id || (cred.vehicle_id||'')!==(row.vehicle_id||'') || cred.kiosk_type!==row.kiosk_type) return {state:'moved',expires_at};
+ if(!(ends>now)) return {state:'expired',expires_at};
+ return {state:ends-now<PASS_WARN_MS?'expiring':'ok',expires_at};
+}
 async function projectRecord(db,ctx,name,row) {
  const out=project(ctx,name,row);
+ if(name==='KioskDevice' && row && ctx.user?.role==='admin') out.pass=await devicePass(db,ctx,row);
  if(ctx.user?.role==='company' && row) await companyView(db,ctx,name,row,out);
+ else if(ctx.user && !['admin','mechanic'].includes(ctx.user.role) && row) await passengerView(db,ctx,name,row,out);
  if(name==='User' && row?.id===ctx.user?.id) out.access_role=await assignedAccessRole(db,ctx.user);
  if(name==='User' && ctx.user?.role==='admin') out.access_role_id=row?.access_role_id || '';
  if(name==='User' && row && ctx.user?.role==='admin') {
@@ -314,6 +722,7 @@ async function prepare(db,ctx,name,input,existing=null) {
  if(name==='KioskDevice' && data.nfc_spot!==undefined && !['auto','above_screen','back_top','back_middle','external'].includes(data.nfc_spot)) fail(400,'Invalid card reader position');
  if(name==='KioskDevice' && data.reader_mode!==undefined && !['both','boarding','exit'].includes(data.reader_mode)) fail(400,'Invalid reader mode');
  if(name==='KioskDevice' && data.require_active_trip!==undefined && typeof data.require_active_trip!=='boolean') fail(400,'Invalid trip setting');
+ if(name==='KioskDevice' && data.gps_source!==undefined && data.gps_source!==null && !['usb','tablet'].includes(data.gps_source)) fail(400,'Invalid GPS choice');
  if(name==='Invoice') fail(403,'Invoices are made and changed in Completed & billing');
  if(name==='BookingRequest') fail(403,'Booking requests are answered from Jobs → Requests');
  if(name==='Trip') {
@@ -385,6 +794,10 @@ async function prepare(db,ctx,name,input,existing=null) {
    if(name==='Trip' && (existing?.job_type || data.job_type)) fail(403,'Ask for a job from Jobs → Request a job');
   } else if (name!=='GroupMessage' && name!=='LostItemReport') fail(403,'Forbidden');
  }
+ if(GUIDE_ENTITIES.has(name)) await cleanGuideRecord(db,ctx,name,data,existing);
+ if(name==='Part') await cleanPartFields(db,ctx,data);
+ if(name==='WorkshopJob') await cleanWorkshopJob(db,ctx,data,existing);
+ if(name==='WorkshopJobPart') await cleanJobPart(db,ctx,data,existing);
  if(name==='LostItemReport' && user.role!=='admin' && user.role!=='company') {
   if(existing && existing.reporter_id!==user.id) fail(403,'Own reports only');
   data.reporter_id=user.id;data.reporter_email=user.email;data.reporter_name=user.full_name||user.email;
@@ -445,16 +858,28 @@ async function prepare(db,ctx,name,input,existing=null) {
  if(name==='KioskDevice'&&!existing) return {...data,status:'active',paired:false,pairing_code:await uniqueAccessCode(db,'KioskDevice','pairing_code'),pairing_expires_at:new Date(Date.now()+(data.personal===true?7*86400_000:15*60_000)).toISOString()};
  return data;
 }
-// A signing tablet moved to another bus in Admin keeps working: its
-// credential moves with it, as a driver's own phone's does when it picks a
-// bus. Other tablets still need a new pairing code after a move.
-async function moveSigningTablet(db,before,after) {
- if(before.personal===true || before.kiosk_type!=='job_signing' || after.kiosk_type!=='job_signing' || !before.paired) return;
+// A signing tablet or a bus's driver tablet moved to another bus in Admin
+// keeps working: its credential moves with it, as a driver's own phone's does
+// when it picks a bus. A driver tablet's old pass belongs to the old bus, so
+// it then asks for the new bus's PIN. Other tablets still need a new pairing
+// code after a move.
+const KEEP_PAIRED_ON_MOVE=['job_signing','driver'];
+async function moveBusTablet(db,before,after) {
+ if(before.personal===true || after.personal===true || !KEEP_PAIRED_ON_MOVE.includes(before.kiosk_type) || after.kiosk_type!==before.kiosk_type || !before.paired) return;
  if((after.vehicle_id||'')===(before.vehicle_id||'')) return;
  const [credential]=await db.DeviceCredential.filter({device_id:before.id},'-issued_at',1);
- if(!credential || credential.kiosk_type!=='job_signing' || credential.company_id!==after.company_id || credential.vehicle_id!==(before.vehicle_id||'')) return;
+ if(!credential || credential.kiosk_type!==before.kiosk_type || credential.company_id!==after.company_id || credential.vehicle_id!==(before.vehicle_id||'')) return;
  try { await db.DeviceCredential.update(credential.id,{vehicle_id:after.vehicle_id||''}); }
  catch(error) { await db.KioskDevice.update(before.id,{vehicle_id:before.vehicle_id||'',vehicle_name:before.vehicle_name||''}); throw error; }
+}
+// A bus's driver tablet moved off it in Admin (to another bus, or made into
+// another kind of tablet): the old bus stops showing as live, unless
+// something else still shares its position (see shared/busLeft.ts).
+async function leftBusInAdmin(db,before,after) {
+ if(before.personal===true || before.kiosk_type!=='driver' || !before.vehicle_id) return;
+ if((after.vehicle_id||'')===before.vehicle_id && after.kiosk_type==='driver') return;
+ const bus=await db.Vehicle.get(before.vehicle_id).catch(()=>null);
+ if(bus && bus.company_id===before.company_id) await stopSharingLeftBus(db,bus,before.id).catch(()=>{});
 }
 async function approveMembership(db,target,companyId) {
  if (companyId && !(await db.Company.get(companyId).catch(()=>null))) fail(400,'Company not found');
@@ -515,6 +940,7 @@ async function listRows(db, ctx, name, operation, body) {
  if (ctx.user && !['admin','mechanic'].includes(ctx.user.role)) await prefetchParents(db, rows, ctx.parents);
  // One look-up for the whole page of buses instead of one per bus.
  if (name==='Vehicle' && ctx.user?.role==='company' && rows.length) await busSharing(db,ctx,rows.map(row=>row.id));
+ if (name==='KioskDevice' && ctx.user?.role==='admin') await prefetchPasses(db,ctx,rows);
  const result=[];
  for(const row of rows) if(await visible(db,ctx,name,row)) result.push(await projectRecord(db,ctx,name,row));
  return result;
@@ -552,6 +978,7 @@ export default async function(req) {
       const memberRows=await retry429(()=>db.CompanyMembership.filter({user_id:{$in:rows.map(r=>r.id)},active:true},'-updated_date',5000));
       if(memberRows.length<5000)ctx.membershipRows=new Map(rows.map(r=>[r.id,memberRows.filter(m=>m.user_id===r.id).slice(0,100)]));
      }
+     if(spec.entity==='KioskDevice') await prefetchPasses(db,ctx,rows);
      const out=[];
      for(const row of rows)if(await visible(db,ctx,spec.entity,row))out.push(await projectRecord(db,ctx,spec.entity,row));
      datasets[key]=out;
@@ -625,7 +1052,8 @@ export default async function(req) {
      errors[entity]={status,error:status<500 && error?.message ? error.message : 'Could not load '+entity};
     }
    }
-   return Response.json({result:{lists,errors}});
+   // The server's time: devices with a wrong clock correct bus ages with it.
+   return Response.json({result:{lists,errors,now:Date.now()}});
   }
   if(!Object.hasOwn(ENTITY_FIELDS,name)) fail(403,'Entity access denied');
   if(!ctx.user && !(name==='Advertisement' && ['list','filter','get'].includes(operation))) fail(401,'Sign in required');
@@ -653,7 +1081,8 @@ export default async function(req) {
   }
   if(operation==='delete') {
    if(name==='Company') fail(409,'Use the protected company deletion workflow');
-   if(ctx.user.role!=='admin'&&MAINTENANCE.has(name))fail(403,'Maintenance deletion is admin-only');
+   // A mechanic may take a part back off an open job (cleanJobPart checks it is open).
+   if(ctx.user.role!=='admin'&&MAINTENANCE.has(name)&&!(ctx.user.role==='mechanic'&&name==='WorkshopJobPart'))fail(403,'Maintenance deletion is admin-only');
    if(ctx.user.role!=='admin' && !(ctx.user.role==='company' && COMPANY_READ.has(name) && name!=='Company') && !(ctx.user.role==='mechanic' && MAINTENANCE.has(name) && name!=='Vehicle') && !(name==='GroupMessage' && existing.sender_id===ctx.user.id)) fail(403,'Delete forbidden');
    // Deleting an old schedule does not need its now-removed vehicle/company
    // to pass create/update validation. Visibility and admin checks ran above.
@@ -668,7 +1097,10 @@ export default async function(req) {
    await approveMembership(db,{...existing,...data},data.company_id);
   }
   const row=operation==='create' ? await replayCreate(db,ctx,name,data) : await db[name].update(body.id,data);
-  if(name==='KioskDevice' && operation==='update') await moveSigningTablet(db,existing,{...existing,...row});
+  if(name==='KioskDevice' && operation==='update') {
+   await moveBusTablet(db,existing,{...existing,...row});
+   await leftBusInAdmin(db,existing,{...existing,...row});
+  }
   return Response.json({result:await projectRecord(db,ctx,name,row)});
  } catch(error) {
   // SDK transport errors may carry their status on response rather than directly.

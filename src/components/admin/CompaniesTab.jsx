@@ -110,7 +110,7 @@ export default function CompaniesTab({ companies, onChange }) {
         {companies.map((c) => (
           <Card key={c.id}>
             <CardContent className="flex flex-wrap items-center gap-3 py-4">
-              {c.logo_url && <img src={c.logo_url} alt={`${c.name} logo`} className="w-14 h-14 p-1 rounded-xl object-contain bg-white shrink-0" />}
+              {c.logo_url && <img src={c.logo_url} alt={`${c.name} logo`} loading="lazy" decoding="async" className="w-14 h-14 p-1 rounded-xl object-contain bg-white shrink-0" />}
               <div className="flex-1 min-w-[200px]">
                 <button type="button" onClick={()=>selectCompany(c.id)} className="text-left font-semibold text-primary hover:underline">{c.name}</button>
                 <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-1">
@@ -125,7 +125,7 @@ export default function CompaniesTab({ companies, onChange }) {
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-muted/40">
                 <KeyRound className="w-4 h-4 text-primary" />
                 <div>
-                  <div className="text-caption uppercase tracking-wide text-muted-foreground">Access code</div>
+                  <div className="text-caption text-muted-foreground">Access code</div>
                   <div className="font-mono font-bold tracking-[0.2em]">{c.access_code || "—"}</div>
                 </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copy(c.access_code)} aria-label={`Copy access code for ${c.name}`} title="Copy code">

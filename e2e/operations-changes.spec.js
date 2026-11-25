@@ -2,18 +2,18 @@ import {test,expect} from '@playwright/test';
 const vehicle={id:'bus-a',name:'Bus A',company_id:'a',company_name:'Island Transit',status:'idle',type:'bus',capacity:25};
 const profile={id:'admin',role:'admin',email:'admin@test.invalid',full_name:'Admin'};
 const users=[profile,{id:'viewer',role:'staff',email:'viewer@test.invalid',full_name:'Fleet Viewer'}];
-async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,context=null}={}){
+async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,context=null,company='Island Transit'}={}){
  const roles=[{id:'fleet-role',name:'Fleet supervisor',sections:['fleet'],active:true}],calls=[],messages=[];
  const driver={vehicle,company_id:'a',company_name:'Island Transit',driver_name:'Test Driver',has_driver_pin:true,driver_unlocked:true,
   staff:[],check_ins:[],broadcasts:[],group_messages:[],trips:[],inspection_templates:[],recent_inspections:[],open_shift:null,emergency_contacts:{}};
- const kiosk={device_id:'board',paired:true,status:'active',kiosk_type:'bus_boarding',company_id:'a',company_name:'Island Transit',
+ const kiosk={device_id:'board',paired:true,status:'active',kiosk_type:'bus_boarding',company_id:'a',company_name:company,
   vehicle_id:'bus-a',vehicle_name:'Bus A',display_layout:layout,pickup_sign:sign,...(spot?{nfc_spot:spot}:{}),
   context:context||{vehicle,route:null,occupancy:4,today_count:10,ads:[]}};
  const who=custom?{id:'viewer',role:'staff',email:'viewer@test.invalid',full_name:'Fleet Viewer',access_role:{id:'fleet-role',name:'Fleet supervisor',sections:['fleet']}}:profile;
  const tables={Vehicle:[vehicle],User:users,Company:[{id:'a',name:'Island Transit'}],Route:[],Workplace:[],GroupMessage:messages};
  if(model)await page.addInitScript(m=>{window.__ttNativeHealth={model:m};},model);
  await page.addInitScript(()=>{
-  localStorage.setItem('base44_access_token','mock-authenticated-session');
+  localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}}));
   localStorage.setItem('tt_driver_device_id','driver');
   localStorage.setItem('tt_kiosk_device_id','board');
   localStorage.setItem('tt_device_token_board','a'.repeat(64));
@@ -27,8 +27,8 @@ async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,co
  await page.route('**/api.open-meteo.com/**',route=>route.fulfill({json:{current:{temperature_2m:29,weather_code:1}}}));
  await page.route('**/api/**',async route=>{
   const req=route.request(),url=req.url();let b={};try{b=req.postDataJSON()||{};}catch{}
-  if(url.includes('/entities/User/me'))return route.fulfill({json:who});
-  if(url.includes('/functions/entityAccess')){
+  if(url.includes('/functions/v1/entityAccess')&&route.request().postDataJSON()?.entity==='User'&&route.request().postDataJSON()?.id==='me') return route.fulfill({json:{result:who}});
+  if(url.includes('/functions/v1/entityAccess')){
    let result=[];
    if(b.entity==='User' && b.operation==='get')result=who;
    else if(b.entity==='AdminBootstrap'){
@@ -40,7 +40,7 @@ async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,co
    }else result=tables[b.entity] || [];
    return route.fulfill({json:{result}});
   }
-  if(url.includes('/functions/accessRoles')){
+  if(url.includes('/functions/v1/accessRoles')){
    calls.push(b);
    if(b.action==='workspace')return route.fulfill(b.section==='fleet'?{json:{fields:['name','plate_number','status'],rows:[vehicle],more:false,role:who.access_role}}:{status:403,json:{error:'Screen not permitted'}});
    if(b.action==='save'){
@@ -51,19 +51,19 @@ async function setup(page,{custom=false,layout='auto',sign=null,model='',spot,co
    if(b.action==='assign')return route.fulfill({json:{ok:true}});
    return route.fulfill({json:{roles,assignments:[]}});
   }
-  if(url.includes('/functions/driverSession')){
+  if(url.includes('/functions/v1/driverSession')){
    if(b.action==='verify_pin')return route.fulfill({json:{ok:true,driver_grant:'a'.repeat(64)}});
    if(b.action==='messages')return route.fulfill({json:{group_messages:messages}});
    if(b.action==='show_pickup_sign'){calls.push(b);return route.fulfill({json:{ok:true,devices:1}});}
    return route.fulfill({json:{...driver,group_messages:messages}});
   }
-  if(url.includes('/functions/kioskHeartbeat'))return route.fulfill({json:kiosk});
-  if(url.includes('/functions/kioskCheckIn')){
+  if(url.includes('/functions/v1/kioskHeartbeat'))return route.fulfill({json:kiosk});
+  if(url.includes('/functions/v1/kioskCheckIn')){
    if(b.action==='lookup_tag')return route.fulfill({json:{staff:{id:'p',full_name:'Test Passenger'},next_status:'boarded',verification_grant:'b'.repeat(64)}});
    if(b.action==='offline_directory')return route.fulfill({json:{staff:[]}});
    return route.fulfill({json:{ok:true}});
   }
-  if(url.includes('/functions/notifyAdminMessage')){calls.push({notify:b});return route.fulfill({json:{ok:true}});}
+  if(url.includes('/functions/v1/notifyAdminMessage')){calls.push({notify:b});return route.fulfill({json:{ok:true}});}
   if(url.includes('/entities/'))return route.fulfill({status:403,json:{error:'Direct access blocked'}});
   return route.fulfill({json:{id:'test-app',public_settings:{authentication_required:false}}});
  });
@@ -79,6 +79,23 @@ test('route planner switches map styles and offers current location',async({page
  await expect(page.getByRole('button',{name:/Find my location/})).toBeVisible();
  await page.screenshot({path:'/tmp/tt-route-map-controls.png'});
 });
+test('phone kiosk top bar keeps a long company name clear of the bus sign and the clock',async({page})=>{
+ // "Six Senses/Intercontinental" used to spill under the sign and the clock.
+ for(const width of [360,390]){
+  await page.setViewportSize({width,height:800});
+  await setup(page,{layout:'phone',company:'Six Senses/Intercontinental'});await page.goto('/kiosk');
+  const bar=page.locator('.tt-board-header');
+  await expect(bar.getByText('Six Senses/Intercontinental',{exact:true})).toBeVisible();
+  const box=async l=>l.boundingBox();
+  const [name,sign,clock,light,header]=await Promise.all([box(bar.locator('.tt-board-company strong')),box(bar.locator('.tt-board-sign')),box(bar.locator('.tt-board-trip>span').filter({hasText:/\d:\d\d/})),box(bar.getByRole('status')),box(bar)]);
+  for(const other of [sign,clock,light])expect(name.y+name.height<=other.y || name.x+name.width<=other.x).toBe(true);
+  expect(name.x+name.width).toBeLessThanOrEqual(header.x+header.width);
+  expect(clock.x).toBeGreaterThanOrEqual(sign.x+sign.width);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.unrouteAll({behavior:'ignoreErrors'});
+ }
+});
+
 test('phone kiosk has dedicated mode controls and no horizontal overflow',async({page})=>{
  await page.setViewportSize({width:390,height:844});
  await setup(page,{layout:'phone'});await page.goto('/kiosk');
@@ -197,7 +214,7 @@ test('a tablet keeps its wording unless Admin says where the reader is',async({p
 test('the in-bus information screen shows the nearest stop and keeps no passenger list',async({page})=>{
  await page.setViewportSize({width:1280,height:800});
  const {calls}=await setup(page,{layout:'info'});
- const seen=[];page.on('request',r=>{if(r.url().includes('/functions/kioskCheckIn'))seen.push(r.postDataJSON()?.action);});
+ const seen=[];page.on('request',r=>{if(r.url().includes('/functions/v1/kioskCheckIn'))seen.push(r.postDataJSON()?.action);});
  await page.goto('/kiosk');
  await expect(page.locator('[data-layout=info]')).toBeVisible();
  await expect(page.getByRole('region',{name:'Where the bus is'})).toContainText('Bus position not available right now');

@@ -41,7 +41,7 @@ function adminServer() {
 async function openPage(page, server, { bridge = false, viewport = { width: 1440, height: 1000 } } = {}) {
   await page.setViewportSize(viewport);
   await mockFleet(page, { role: "admin", data: fleetData() });
-  await page.route("**/functions/officeDisplay", async (route) => {
+  await page.route("**/functions/v1/officeDisplay", async (route) => {
     const r = server.handle(route.request().postDataJSON());
     await route.fulfill(r?.status ? { status: r.status, json: r.json } : { json: r });
   });

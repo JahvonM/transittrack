@@ -6,7 +6,7 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ChevronLeft, Bus, Wrench, BellRing, ClipboardCheck, Settings, LayoutDashboard, MessageCircle } from "lucide-react";
+import { ChevronLeft, Bus, Wrench, BellRing, ClipboardCheck, Settings, LayoutDashboard, MessageCircle, Warehouse } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import ChatThread from "@/components/chat/ChatThread";
 import { previewText } from "@/components/chat/previewText";
@@ -202,6 +202,9 @@ export default function MechanicPortal() {
           )}
           <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
             <Settings className="h-4 w-4" /> Maintenance settings
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/workshop"><Warehouse className="h-4 w-4" /> Workshop</Link>
           </Button>
           <Button asChild size="sm">
             <Link to="/run-inspection"><ClipboardCheck className="h-4 w-4" /> Run inspection</Link>

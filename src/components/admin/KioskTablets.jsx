@@ -3,6 +3,7 @@ import TabletManagementControls from "@/components/admin/TabletManagementControl
 import { tabletSetupBundle } from "@/lib/tabletSetupBundle";
 import { helperLinkLost } from "@/lib/helperHealth";
 import { PROTECTION_LABEL, protectionFromHealth } from "@/lib/kioskProtection";
+import { passNote, passSummary } from "@/lib/tabletPass";
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { StatusChip } from "@/components/admin/kit";
 import KioskDeviceDialog from "@/components/admin/KioskDeviceDialog";
 import UsbDeviceSetup from "@/components/admin/UsbDeviceSetup";
 import TabletNetworkControls from "@/components/admin/TabletNetworkControls";
+import TabletGpsControls from "@/components/admin/TabletGpsControls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +44,7 @@ import {
   PenLine,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { confirmAction } from "@/components/ConfirmHost";
 
 
 const TYPE_META = {
@@ -258,6 +261,28 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
     }
   };
 
+  // An admin extends a pass in its last 30 days, for a tablet they know is
+  // still in use. The server checks the rest (same bus and company, online
+  // this week) and records who renewed it.
+  const renewPass = async (device) => {
+    if (!(await confirmAction({
+      title: `Renew ${device.label}'s pass?`,
+      description: `It keeps working for 90 more days from today without a new pairing code. Only renew a tablet you know is in use${device.vehicle_name ? ` on ${device.vehicle_name}` : ""}.`,
+      confirmLabel: "Renew pass",
+    }))) return;
+    setBusyId(device.id);
+    try {
+      const res = await base44.functions.invoke("manageAccessCodes", { action: "renew_pass", device_id: device.id });
+      const until = new Date(res.data.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+      toast({ title: "Pass renewed", description: `${device.label} works until ${until}.` });
+      loadDevices();
+    } catch (e) {
+      toast({ title: "Couldn't renew the pass", description: e?.response?.data?.error || "Try again.", variant: "destructive" });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const reactivate = async (device) => {
     setBusyId(device.id);
     try {
@@ -285,6 +310,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
 
   const pairedCount = devices.filter((d) => d.paired).length;
   const activeCount = devices.filter((d) => d.status === "active").length;
+  const passes = passSummary(devices);
 
   return (
     <div className="space-y-4">
@@ -318,6 +344,16 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
           </Button>
         </div>
       </div>
+
+      {(passes.needCode > 0 || passes.soon > 0) && (
+        <div role="status" className={`rounded-xl border px-4 py-3 text-sm ${passes.needCode ? "border-danger/40 bg-danger/10" : "border-warning/40 bg-warning/10"}`}>
+          <span className="font-semibold">
+            {[passes.needCode && `${passes.needCode} ${passes.needCode === 1 ? "tablet needs" : "tablets need"} a new pairing code now`,
+              passes.soon && `${passes.soon} ${passes.soon === 1 ? "tablet's pass ends" : "tablets' passes end"} within 30 days`].filter(Boolean).join(" · ")}
+          </span>
+          <span className="block text-muted-foreground">Tablet passes last 90 days. Each card below says which one and what to do.</span>
+        </div>
+      )}
 
       <UsbDeviceSetup />
 
@@ -383,6 +419,17 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                         <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Clock className="w-3 h-3" /> Last seen: {timeAgo(d.last_seen)}
                         </div>
+                        {(() => { const note = passNote(d.pass); if (!note) return null; return note.label ? (
+                          <div className="mt-1 text-xs" role={note.tone === "danger" ? "alert" : "status"}>
+                            <StatusChip tone={note.tone}>{note.label}</StatusChip>
+                            <span className="ml-2 text-muted-foreground">{note.text}</span>
+                            {note.renewable && (
+                              <Button size="sm" variant="outline" className="ml-2 h-7" disabled={busyId === d.id} onClick={() => renewPass(d)} aria-label={`Renew pass for ${d.label}`}>
+                                Renew pass
+                              </Button>
+                            )}
+                          </div>
+                        ) : <div className="text-xs text-muted-foreground mt-0.5">{note.text}</div>; })()}
                         {!own && <HelperHealthLine h={d.helper_health} />}
                         {!own && d.paired && ["bus_boarding", "driver", "job_signing"].includes(d.kiosk_type) && (() => { const p = protectionFromHealth(d.helper_health); return (
                           <div className="mt-1 text-xs" role="status">
@@ -392,6 +439,7 @@ export default function KioskTablets({ vehicles, companies, onChange }) {
                         ); })()}
                         {d.native_tracking_health?.active && <p className="text-sm text-muted-foreground mt-1">Background GPS · {Date.now()-Date.parse(d.native_tracking_health.reported_at)<180000 ? "reporting" : "report is stale"} · {d.native_tracking_health.pending || 0} saved · {d.native_tracking_health.review || 0} need review</p>}
                         {!own && <TabletNetworkControls device={d} onRefresh={loadDevices} />}
+                        {!own && <TabletGpsControls device={d} onRefresh={loadDevices} />}
                         {!own && <TabletManagementControls device={d} onRefresh={loadDevices} />}
                         <GpsCoordsLine device={d} />
                         {!own && helperLinkLost(d) && (

@@ -1,6 +1,16 @@
 // Privileged commands never travel as executable instructions through the WebView.
 export const CONTROL_TTL = 120_000;
 export const LOCK_LEASE = 600_000;
+// An app update gets 15 minutes from Admin's request to installation, so a
+// 20-30 MB file can download over mobile data. Only tablets whose app knows
+// the longer window (build 13 and later) get it: older apps refuse a command
+// that lasts more than two minutes.
+export const UPDATE_TTL = 900_000;
+export const LONG_UPDATE_FROM_CODE = 13;
+export function controlTtl(action: unknown, device: Record<string, any>) {
+  const code = device?.helper_health?.native_app_code;
+  return action === 'app_update' && Number.isSafeInteger(code) && code >= LONG_UPDATE_FROM_CODE ? UPDATE_TTL : CONTROL_TTL;
+}
 export const controlId = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{32}$/.test(v);
 export const CONTROL_RESULTS: Record<string, { state: string; message: string; actions?: string[] }> = {
   KIOSK_SETUP_OPENED: { state: 'applied', message: 'Recovery PIN setup opened on the tablet. Complete it there within two minutes.', actions: ['kiosk_prepare'] },
@@ -33,7 +43,8 @@ export function currentControl(device: Record<string, any>, now = Date.now()) {
   const c = device?.control_command;
   if (!c || !controlId(c.id) || !['lock_test', 'release', 'reboot', 'app_update', 'kiosk_prepare', 'kiosk_enable', 'kiosk_disable', 'kiosk_maintenance'].includes(c.action)) return null;
   const issued = Date.parse(c.requested_at), expires = Date.parse(c.expires_at);
-  if (!Number.isFinite(issued) || issued > now + 5_000 || expires <= now || expires - issued !== CONTROL_TTL) return null;
+  const span = expires - issued;
+  if (!Number.isFinite(issued) || issued > now + 5_000 || expires <= now || !(span === CONTROL_TTL || (c.action === 'app_update' && span === UPDATE_TTL))) return null;
   if (c.company_id !== device.company_id || c.vehicle_id !== (device.vehicle_id || '') || c.kiosk_type !== device.kiosk_type) return null;
   if (c.action === 'lock_test' && Date.parse(c.lock_until) !== issued + LOCK_LEASE) return null;
   return c;
@@ -46,7 +57,7 @@ export function newControl(device: Record<string, any>, action: unknown, adminId
   if (!['lock_test', 'release', 'reboot', 'app_update', 'kiosk_prepare', 'kiosk_enable', 'kiosk_disable', 'kiosk_maintenance'].includes(action as string)) throw new Error('Choose a supported tablet action.');
   const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), n => n.toString(16).padStart(2, '0')).join('');
   const command = { id, action, requested_by: adminId, requested_at: new Date(now).toISOString(),
-    expires_at: new Date(now + CONTROL_TTL).toISOString(), company_id: device.company_id,
+    expires_at: new Date(now + controlTtl(action, device)).toISOString(), company_id: device.company_id,
     vehicle_id: device.vehicle_id || '', kiosk_type: device.kiosk_type,
     ...(action === 'lock_test' ? { lock_until: new Date(now + LOCK_LEASE).toISOString() } : {}) };
   return { command, status: { id, action, state: 'waiting', requested_at: command.requested_at,

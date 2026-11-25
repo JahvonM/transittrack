@@ -8,7 +8,7 @@ const iso = (msAgo) => new Date(Date.now() - msAgo).toISOString();
 
 async function passenger(page, events = []) {
   const session = await mockFleet(page, { role: "staff" });
-  await page.route("**/functions/passengerAccount", (r) => {
+  await page.route("**/functions/v1/passengerAccount", (r) => {
     const body = r.request().postDataJSON();
     if (body?.action === "rides") return r.fulfill({ json: { events } });
     return r.fulfill({ json: { card: { issued: true, active: true, status: "Active" }, history: [] } });
@@ -50,7 +50,7 @@ test("My rides explains an empty history and a failed load with a retry", async 
   await page.goto("/rides");
   await expect(page.getByText(/No rides in the last 60 days/)).toBeVisible();
   let fail = true;
-  await page.route("**/functions/passengerAccount", (r) => (fail ? r.fulfill({ status: 503, json: { error: "Could not load your card details." } }) : r.fulfill({ json: { events: [] } })));
+  await page.route("**/functions/v1/passengerAccount", (r) => (fail ? r.fulfill({ status: 503, json: { error: "Could not load your card details." } }) : r.fulfill({ json: { events: [] } })));
   await page.goto("/rides");
   await expect(page.getByRole("alert")).toBeVisible();
   fail = false;

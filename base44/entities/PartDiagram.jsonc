@@ -1,0 +1,113 @@
+{
+  "name": "PartDiagram",
+  "type": "object",
+  "description": "Parts catalogue: a picture of one area of a bus model (front brakes, filters) with numbered pins on the parts, each pin linked to a Part in stock. Shown on the model's Bus library page. Fleet-wide: administrators and mechanics only.",
+  "required": [
+    "guide_id",
+    "title"
+  ],
+  "properties": {
+    "guide_id": {
+      "type": "string",
+      "description": "The VehicleGuide (bus model) this picture is of."
+    },
+    "title": {
+      "type": "string",
+      "description": "e.g. Front brakes"
+    },
+    "system": {
+      "type": "string",
+      "description": "Which part of the bus, e.g. Brakes, Engine, Suspension."
+    },
+    "image_url": {
+      "type": "string",
+      "description": "The team's own photo or drawing of the area (a public file uploaded in the app)."
+    },
+    "drawing_key": {
+      "type": "string",
+      "enum": [
+        "oil-filter",
+        "fuel-filter",
+        "air-filter",
+        "front-brakes",
+        "rear-brakes",
+        "front-suspension",
+        "cooling",
+        "drive-belt"
+      ],
+      "description": "A guide drawing built into the app (src/assets/diagrams), shown while there is no photo. Generic, not drawn from Toyota or Nissan diagrams."
+    },
+    "catalogue_link": {
+      "type": "string",
+      "description": "Web address (https) of the maker's own diagram for this area, e.g. on Partsouq, for reference."
+    },
+    "catalogue_group_id": {
+      "type": "string",
+      "description": "The maker's catalogue diagram (CatalogueGroup, on the same model page) this is a photo of, so the photo shows beside its parts list in the Workshop; empty for none."
+    },
+    "notes": {
+      "type": "string"
+    },
+    "pins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "integer",
+            "description": "The number shown on the pin."
+          },
+          "x": {
+            "type": "number",
+            "description": "Across the picture, 0 (left) to 1 (right)."
+          },
+          "y": {
+            "type": "number",
+            "description": "Down the picture, 0 (top) to 1 (bottom)."
+          },
+          "part_id": {
+            "type": "string",
+            "description": "The Part it points at; empty for a label only."
+          },
+          "label": {
+            "type": "string"
+          },
+          "torque_id": {
+            "type": "string",
+            "description": "The TorqueSpec (on the same model page) for the bolt it points at; empty for none."
+          },
+          "ref": {
+            "type": "string",
+            "description": "The number on the maker's diagram (a row of its parts list), e.g. 90430A; empty for none."
+          }
+        }
+      },
+      "description": "Numbered pins on the picture, each on a part and/or a bolt with its torque."
+    },
+    "sort_order": {
+      "type": "number"
+    }
+  },
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, MessageCircle, Plus, Pencil, Trash2, Nfc, Search, MapPin } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { EmptyState, PageActions, Segmented, StatusChip } from "@/components/admin/kit";
+import { EmptyState, FocusNote, PageActions, Segmented, StatusChip } from "@/components/admin/kit";
+import PassengerPanel from "@/components/admin/PassengerPanel";
+import useAdminFocus from "@/hooks/useAdminFocus";
+import { cn } from "@/lib/utils";
 import PassengerPickupDialog from "@/components/directory/PassengerPickupDialog";
 import ContactFormDialog from "@/components/directory/ContactFormDialog";
 import { useAuth } from "@/lib/AuthContext";
@@ -28,6 +31,7 @@ export default function StaffDirectory() {
   const { toast } = useToast();
   const [contacts, setContacts] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [assignableCompanies, setAssignableCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [filter, setFilter] = useState("all");
@@ -36,10 +40,17 @@ export default function StaffDirectory() {
   const [editing, setEditing] = useState(null);
   const [busyKey, setBusyKey] = useState("");
   const [pickupPerson, setPickupPerson] = useState(null);
+  // The passenger picked here, in Card issuing, Card designer or the Sign-in
+  // log: outlined in the list, and their panel opens when you arrive here.
+  const [personFocus, setPersonFocus] = useAdminFocus("person");
+  const [panelOpen, setPanelOpen] = useState(() => !!personFocus);
 
   const load = async () => {
     try {
-      const data = await loadCardDirectory(base44, "directory");
+      // The company list is only for "Assign company": if it can't load, the
+      // directory still shows, with no companies to assign until a refresh.
+      const [data, companyRows] = await Promise.all([loadCardDirectory(base44, "directory"), user?.role === "admin" ? base44.entities.Company.list("name", 1000).catch(() => []) : Promise.resolve([])]);
+      setAssignableCompanies(companyRows || []);
       setLoadError(null);
       setContacts((data?.people || []).map(p => ({ ...p, type: p.directory_type || (p.company_id ? "staff" : "passenger") })));
       setVehicles(data?.vehicles || []);
@@ -61,6 +72,21 @@ export default function StaffDirectory() {
     } catch (e) {
       toast({ title: "Couldn't change the bus", description: e?.response?.data?.error || e.message, variant: "destructive" });
     } finally { setBusyKey(""); }
+  };
+
+  const assignCompany = async (c, companyId) => {
+    if (companyId === c.company_id) return;
+    const company = assignableCompanies.find(row => row.id === companyId);
+    if (!company || !(await confirmAction({ title: `Assign ${c.name} to ${company.name}?`, description: "Their previous company access, bus assignment, card and keypad codes will be removed. Issue a new card after assigning their company.", confirmLabel: "Assign company" }))) return;
+    setBusyKey(c.key);
+    try {
+      const { data } = await base44.functions.invoke("nfcCards", { action: "set_company", person_key: c.key, company_id: companyId });
+      if (!data?.ok) throw new Error(data?.error || "Company assignment failed");
+      setSelectedKeys(new Set());
+      toast({ title: `${c.name} assigned to ${company.name}` });
+      await load();
+    } catch (e) { toast({ title: "Couldn't assign company", description: e?.response?.data?.error || e.message, variant: "destructive" }); }
+    finally { setBusyKey(""); }
   };
 
   const openAdd = () => {
@@ -121,6 +147,11 @@ export default function StaffDirectory() {
     navigate("/admin/cards", { state: { bulkPersonKeys: selectedPassengers.map(c => c.key) } });
   };
   const place = (name, lat, lng) => name || (lat != null ? `${lat?.toFixed(4)}, ${lng?.toFixed(4)}` : "");
+  const focused = personFocus ? contacts.find((c) => c.key === personFocus) || null : null;
+  useEffect(() => {
+    if (focused) document.getElementById("person-" + focused.key)?.scrollIntoView?.({ block: "nearest" });
+  }, [focused?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openPerson = (c) => { setPersonFocus(c.key); setPanelOpen(true); };
 
   return (
     <AppLayout title="Passenger directory">
@@ -151,6 +182,11 @@ export default function StaffDirectory() {
         }))} />
       </div>
 
+      {focused && (
+        <FocusNote onClear={() => { setPersonFocus(""); setPanelOpen(false); }} clearLabel="Clear">
+          Picked: <button type="button" onClick={() => setPanelOpen(true)} className="font-semibold underline-offset-4 hover:underline">{focused.name}</button>. Card issuing, Card designer and the Sign-in log open on them too.
+        </FocusNote>
+      )}
       {canIssueCards && !loading && contacts.length > 0 && <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3">
         <label className="flex items-center gap-2 text-sm"><Checkbox aria-label="Select visible passengers"
           checked={filtered.some(c => c.company_id) && filtered.filter(c => c.company_id).every(c => selectedKeys.has(c.key))}
@@ -170,7 +206,7 @@ export default function StaffDirectory() {
         <EmptyState icon={Search} title="No passengers match">Try another search or type.</EmptyState>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_252px] gap-4 border-b border-border px-4 py-3 text-caption font-semibold uppercase tracking-wide text-muted-foreground lg:grid" aria-hidden="true">
+          <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_252px] gap-4 border-b border-border px-4 py-3 text-caption font-semibold text-muted-foreground lg:grid" aria-hidden="true">
             <span>Passenger</span><span>Contact</span><span>Pickup, drop-off and bus</span><span className="text-right">Actions</span>
           </div>
           <ul className="divide-y divide-border">
@@ -180,13 +216,13 @@ export default function StaffDirectory() {
               const dropoff = place(c.dropoff_name, c.dropoff_lat, c.dropoff_lng);
               const initials = (c.name || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
               return (
-                <li key={c.key} className="grid grid-cols-1 gap-x-4 gap-y-2 px-4 py-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_252px] lg:items-center">
+                <li key={c.key} id={"person-" + c.key} aria-current={focused?.key === c.key ? "true" : undefined} className={cn("grid grid-cols-1 gap-x-4 gap-y-2 px-4 py-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_252px] lg:items-center", focused?.key === c.key && "bg-secondary/60")}>
                   <div className="flex min-w-0 items-center gap-3">
                     {canIssueCards && <Checkbox aria-label={`Select ${c.name}`} checked={selectedKeys.has(c.key)} disabled={!c.company_id}
                       onCheckedChange={checked => toggleSelected(c.key, checked)} />}
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-body-sm font-bold" aria-hidden="true">{initials}</span>
                     <div className="min-w-0">
-                      <p className="truncate font-semibold">{c.name}</p>
+                      <p className="truncate font-semibold"><button type="button" onClick={() => openPerson(c)} className="max-w-full truncate text-left underline-offset-4 hover:underline" aria-label={`Open ${c.name}`}>{c.name}</button></p>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                         <StatusChip tone={c.type === "staff" ? "info" : "neutral"} dot={false}>{TYPE_LABEL[c.type] || c.type}</StatusChip>
                         {c.status && c.status !== "Unassigned" && <StatusChip tone={c.status === "Card Issued" ? "success" : "warning"} dot={false}><Nfc className="h-3.5 w-3.5" aria-hidden="true" /> {c.status === "Card Issued" ? "Card issued" : c.status + " card"}</StatusChip>}
@@ -202,7 +238,14 @@ export default function StaffDirectory() {
                   </div>
                   <div className="min-w-0 text-body-sm">
                     <p className="truncate"><span className="text-muted-foreground">Pickup </span>{pickup || "Not set"}</p>
-                    <p className="truncate"><span className="text-muted-foreground">Company </span>{dropoff || "Company address not set"}</p>
+                    <p className="truncate"><span className="text-muted-foreground">Destination </span>{dropoff || "Company address not set"}</p>
+                    {user?.role === "admin" ? <Select value={c.company_id || "__unassigned__"} onValueChange={val => assignCompany(c, val)} disabled={busyKey === c.key}>
+                      <SelectTrigger className="mt-1.5 h-8 w-full max-w-[220px]" aria-label={`Company for ${c.name}`}><SelectValue placeholder="Assign company" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__unassigned__" disabled>Assign company</SelectItem>
+                        {assignableCompanies.map(company => <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select> : <p className="text-muted-foreground">{c.company_name || "No company assigned"}</p>}
                     <Select value={c.vehicle_id || NO_BUS} onValueChange={(val) => assignBus(c, val)} disabled={busyKey === c.key}>
                       <SelectTrigger className="mt-1.5 h-8 w-full max-w-[220px]" aria-label={`Bus for ${c.name}`}>
                         <SelectValue placeholder="Assign a bus" />
@@ -234,6 +277,7 @@ export default function StaffDirectory() {
         </div>
       )}
 
+      <PassengerPanel person={focused} open={panelOpen && !!focused} onOpenChange={setPanelOpen} place={place} canIssueCards={canIssueCards} onEditPickup={(c) => setPickupPerson(c)} />
       {pickupPerson && <PassengerPickupDialog key={pickupPerson.key} person={pickupPerson} onClose={() => setPickupPerson(null)} onSaved={load} />}
       <ContactFormDialog
         open={dialogOpen}

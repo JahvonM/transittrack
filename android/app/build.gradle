@@ -11,8 +11,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // McSween Kiosk's version. Keep it the first versionCode/versionName in
         // this file: the tablet setup scripts in tools/kiosk read the first one.
-        versionCode 11
-        versionName "2.0"
+        versionCode 13
+        versionName "2.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -42,6 +42,16 @@ android {
         kiosk {
             dimension "edition"
             buildConfigField "boolean", "KIOSK", "true"
+            // The bus tablets only accept an update signed with the key already
+            // on them: the office PC's Android debug key (docs/kiosk-apk-from-github.md).
+            // The release build is signed with that same key, so it installs as a
+            // normal update, but it isn't debuggable: a laptop on a USB cable can't
+            // read the app's data (the tablet's sign-in key) or its web pages.
+            signingConfig signingConfigs.debug
+            // The bus tablets and phones are all ARM. Leaving out the emulator (x86)
+            // copies of the screen-sharing library makes the file much smaller,
+            // so a remote update downloads faster over mobile data.
+            ndk { abiFilters "arm64-v8a", "armeabi-v7a" }
         }
         store {
             dimension "edition"

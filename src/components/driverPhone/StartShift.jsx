@@ -57,7 +57,7 @@ export default function StartShift({ today, initialCode, onClaim, onWalkaround, 
       <h1 className="text-headline">Start shift</h1>
 
       <section className="rounded-2xl border border-border bg-card p-4" aria-label="Step 1, your bus">
-        <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Step 1</p>
+        <p className="text-caption font-semibold text-muted-foreground">Step 1</p>
         <div className="mt-1 flex items-center gap-3">
           <Bus className={cn("h-6 w-6 shrink-0", bus ? "text-success" : "text-muted-foreground")} aria-hidden="true" />
           <div className="min-w-0 flex-1">
@@ -71,7 +71,7 @@ export default function StartShift({ today, initialCode, onClaim, onWalkaround, 
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-4" aria-label="Step 2, walk-around check">
-        <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Step 2</p>
+        <p className="text-caption font-semibold text-muted-foreground">Step 2</p>
         <div className="mt-1 flex items-center gap-3">
           <ClipboardCheck className={cn("h-6 w-6 shrink-0", walk ? (walk.status === "passed" ? "text-success" : "text-warning") : "text-muted-foreground")} aria-hidden="true" />
           <div className="min-w-0 flex-1">
@@ -85,7 +85,7 @@ export default function StartShift({ today, initialCode, onClaim, onWalkaround, 
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-4" aria-label="Step 3, passengers today">
-        <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Step 3</p>
+        <p className="text-caption font-semibold text-muted-foreground">Step 3</p>
         <div className="mt-1 flex items-center gap-3">
           <Users className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden="true" />
           <div className="min-w-0 flex-1">
@@ -99,7 +99,7 @@ export default function StartShift({ today, initialCode, onClaim, onWalkaround, 
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-4" aria-label="Step 4, scan the bus tablet">
-        <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Step 4</p>
+        <p className="text-caption font-semibold text-muted-foreground">Step 4</p>
         <p className="mt-1 font-semibold">Scan the bus tablet</p>
         <p className="text-body-sm text-muted-foreground">On the tablet, tap <span className="font-semibold text-foreground">Start with the driver app</span>, then point your camera at the code.</p>
 

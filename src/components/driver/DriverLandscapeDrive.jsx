@@ -20,7 +20,7 @@ export default function DriverLandscapeDrive({session,vehicle,focus,count,stops,
    <div className="dl-panel-scroll">
     {directionControl}
     <section className="dl-next" aria-label="Next stop">
-     <div className="dl-next-label"><small>{atWork&&!target?"COMPANY PICKUP":home?"NEXT DROP-OFF":"NEXT PICKUP"}</small><MapPin aria-hidden="true"/></div>
+     <div className="dl-next-label"><small>{atWork&&!target?"Company pickup":home?"Next drop-off":"Next pickup"}</small><MapPin aria-hidden="true"/></div>
      <h2>{focus?.name || (stops.length?"Route complete":"No route assigned")}</h2>
      <p className="dl-next-description">{focus ? target ? "Selected next stop" : "Your next scheduled stop" : "Ask dispatch to assign a route"}</p>
      <p className="dl-stop-riders"><Users aria-hidden="true"/>{count!=null ? count+" passenger"+(count===1?"":"s")+" at this stop" : "Pickup count unavailable"}</p>
@@ -35,7 +35,7 @@ export default function DriverLandscapeDrive({session,vehicle,focus,count,stops,
     {(attention.length>0 || panelTop) && <section className="dk-attention" aria-label="Needs attention">{attention}{panelTop}</section>}
 
    </div>
-   <div className="dl-control-dock"><div className="dl-trip-actions" aria-label="Driving controls">{!shiftActive&&shiftControl}{trackingButton}{shiftActive&&shiftControl}</div><SosButton vehicle={vehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} compact/></div>
+   <div className="dl-control-dock"><div className="dl-trip-actions" aria-label="Driving controls">{!shiftActive&&shiftControl}{trackingButton}{shiftActive&&shiftControl}</div><SosButton vehicle={vehicle} invoke={invoke} emergencyContacts={session?.emergency_contacts} driverName={session?.driver_name} compact/></div>
   </aside>
   {stopChooser}
  </div>;

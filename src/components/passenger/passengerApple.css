@@ -12,7 +12,7 @@
   .px-experience > * { margin-bottom: 14px; }
   .px-experience p, .px-experience small { color: var(--px-text2); }
   .px-experience .px-greeting, .px-experience .px-page-title h1 {
-    font-size: 34px; line-height: 41px; font-weight: 700; letter-spacing: -.026em; margin-bottom: 6px;
+    font-size: 34px; line-height: 41px; font-weight: 600; letter-spacing: -.026em; margin-bottom: 6px;
   }
   .px-experience .px-greeting { margin-top: 14px; }
   .px-page-title { padding: 2px 0 4px; }
@@ -25,7 +25,7 @@
   .px-top a { min-width: 40px; min-height: 40px; width: 40px; height: 40px; border-radius: 50%; background: var(--px-press-strong); }
   .px-top a svg { width: 20px; height: 20px; }
   .px-top .px-avatar { width: 40px; height: 40px; border: 0; font-size: 14px; }
-  .px-direction { border: 0 !important; background: var(--px-tint-fill); padding: 5px 11px !important; font-size: 11px !important; letter-spacing: .05em; color: var(--px-tint) !important; }
+  .px-direction { border: 0 !important; background: var(--px-tint-fill); padding: 5px 11px !important; font-size: 12px !important; color: var(--px-tint) !important; }
 
   /* Grouped cells: solid, borderless, rounded; no gradients. */
   .px-experience .px-panel, .px-experience .px-message, .px-experience .px-flags > button, .px-experience .px-notice, .px-experience .px-sign-out {
@@ -36,7 +36,7 @@
 
   /* The bus card keeps its picture; rounder, with depth instead of an outline. */
   .px-hero { border: 0; border-radius: 26px; box-shadow: 0 12px 32px var(--px-shadow); padding: 18px 12px 16px 18px; }
-  .px-hero-copy > h2 { font-size: clamp(34px, 11vw, 46px); line-height: 1.05; letter-spacing: -.035em; font-weight: 700; }
+  .px-hero-copy > h2 { font-size: clamp(34px, 11vw, 46px); line-height: 1.05; letter-spacing: -.035em; font-weight: 600; }
   .px-hero-copy > p:not(.px-service) { font-size: 15px; line-height: 20px; }
   .px-hero-copy > strong { font-size: 15px; }
   .px-service { font-size: 12px !important; letter-spacing: .02em !important; }
@@ -59,7 +59,7 @@
   .px-experience .px-quick { gap: 10px; }
   .px-experience .px-quick > a { font-size: 16px; }
   .px-experience .px-quick > a:first-child, .px-experience .px-find-btn, .tt-apple-sheet [data-ui=button][data-variant=default] {
-    background: var(--px-tint); color: var(--px-on-tint);
+    background: var(--px-fill); color: var(--px-on-tint);
   }
   .px-experience .px-quick > a:not(:first-child), .px-experience .px-panel [data-ui=button]:is([data-variant=outline], [data-variant=secondary]), .tt-apple-sheet [data-ui=button]:is([data-variant=outline], [data-variant=secondary]) {
     background: var(--px-tint-fill); color: var(--px-tint); border: 0;
@@ -76,11 +76,11 @@
   .px-experience .px-flags > button { min-height: 58px; padding: 10px 14px; border-radius: 20px; }
   .px-experience .px-flags strong { font-size: 15px; font-weight: 600; }
   .px-experience .px-flags small { font-size: 12px; }
-  .px-experience .px-flags > button[aria-pressed=true] { background: var(--px-tint); color: var(--px-on-tint); }
+  .px-experience .px-flags > button[aria-pressed=true] { background: var(--px-fill); color: var(--px-on-tint); }
 
   /* "Need anything? Message us" and other single-row cells. */
   .px-experience .px-message { justify-content: flex-start; min-height: 54px; padding: 12px 16px; font-size: 17px; font-weight: 500; text-align: left; }
-  .px-experience .px-message > svg:first-child { width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--px-tint-fill); color: var(--px-tint); }
+  .px-experience .px-message > svg:first-child { width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--px-press-strong); color: var(--px-text2); }
   .px-experience .px-message > svg:last-child { color: var(--px-text3); width: 18px; }
   .px-experience .px-notice { padding: 12px 14px; }
   .px-experience .px-notice strong { font-size: 15px; }
@@ -113,7 +113,7 @@
   .px-experience .px-row { position: relative; min-height: 56px; padding: 10px 16px; gap: 14px; border-radius: 0; font-size: 17px; }
   .px-experience .px-row + .px-row { border-top: 0; }
   .px-experience .px-row + .px-row::before { content: ""; position: absolute; top: 0; left: 60px; right: 0; height: .5px; background: var(--px-hair); }
-  .px-experience .px-row > svg:first-child { width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--px-tint-fill); color: var(--px-tint); }
+  .px-experience .px-row > svg:first-child { width: 30px; height: 30px; padding: 6px; border-radius: 8px; background: var(--px-press-strong); color: var(--px-text2); }
   .px-experience .px-row strong { font-size: 17px; line-height: 22px; font-weight: 500; letter-spacing: -.01em; }
   .px-experience .px-row small { font-size: 15px; line-height: 20px; margin-top: 1px; }
   .px-experience .px-row > svg:last-child { color: var(--px-text3); width: 18px; }
@@ -151,7 +151,7 @@
   .px-experience .px-bus-identity h2 { font-size: 22px; }
   .px-experience .px-bus-identity p { font-size: 15px; }
   .px-experience .px-status { font-size: 12px; padding: 4px 10px; }
-  .px-experience .px-wait > svg, .px-experience .px-panel h2 > svg { color: var(--px-tint); }
+  .px-experience .px-wait > svg, .px-experience .px-panel h2 > svg { color: var(--px-text2); }
   .px-experience .px-quiet-link { font-size: 15px; color: var(--px-tint); }
   .px-experience button.px-floating-chat {
     width: 52px; height: 52px; border-radius: 50%; border: .5px solid var(--px-glass-edge); color: var(--px-tint);
@@ -176,7 +176,7 @@
     border-radius: 50% !important; background: var(--px-field); color: var(--px-text2); opacity: 1;
   }
   .tt-apple-sheet .tt-sheet-close svg { width: 14px; height: 14px; stroke-width: 2.6; }
-  .tt-apple-sheet .tt-sheet-title { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -.02em; }
+  .tt-apple-sheet .tt-sheet-title { font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -.02em; }
   .tt-apple-sheet .tt-sheet-desc { font-size: 15px; line-height: 20px; }
   /* Text fields: filled, borderless; 17px so iPhones don't zoom in on tap. */
   .tt-apple-sheet :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select, [role=combobox], button.border-input) {

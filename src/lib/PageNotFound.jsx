@@ -1,76 +1,85 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useLayoutEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Home, RotateCw, SearchX, WifiOff } from "lucide-react";
+import { reloadForUpdate, reloadIntoNewest } from "@/lib/updateReload";
 
+// An address the app doesn't have. Usually it's a page from a newer version
+// than the saved copy this device opened: the service worker (public/sw.js)
+// opens the saved copy first and updates it in the background. So the newest
+// version is fetched and the page reloads into it, at most once a minute (see
+// lib/updateReload.js). After that, or while offline, it says plainly that
+// the page isn't there.
+const isOnline = () => typeof navigator === "undefined" || navigator.onLine !== false;
 
-export default function PageNotFound({}) {
-    const location = useLocation();
-    const navigate = useNavigate();
-    const pageName = location.pathname.substring(1);
+export default function PageNotFound() {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [updating, setUpdating] = useState(true);
+  const [online, setOnline] = useState(isOnline);
 
-    const { data: authData, isFetched } = useQuery({
-        queryKey: ['user'],
-        queryFn: async () => {
-            try {
-                const user = await base44.auth.me();
-                return { user, isAuthenticated: true };
-            } catch (error) {
-                return { user: null, isAuthenticated: false };
-            }
-        }
-    });
-    
-    return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-muted">
-            <div className="max-w-md w-full">
-                <div className="text-center space-y-6">
-                    {/* 404 Error Code */}
-                    <div className="space-y-2">
-                        <h1 className="text-7xl font-light text-foreground/80">404</h1>
-                        <div className="h-0.5 w-16 bg-border mx-auto"></div>
-                    </div>
-                    
-                    {/* Main Message */}
-                    <div className="space-y-3">
-                        <h2 className="text-2xl font-medium text-foreground">
-                            Page Not Found
-                        </h2>
-                        <p className="text-muted-foreground leading-relaxed">
-                            The page <span className="font-medium text-foreground">"{pageName}"</span> could not be found in this application.
-                        </p>
-                    </div>
-                    
-                    {/* Admin Note */}
-                    {isFetched && authData.isAuthenticated && authData.user?.role === 'admin' && (
-                        <div className="mt-8 p-4 bg-muted rounded-lg border border-border">
-                            <div className="flex items-start space-x-3">
-                                <div className="flex-shrink-0 w-5 h-5 rounded-full bg-warning flex items-center justify-center mt-0.5">
-                                    <div className="w-2 h-2 rounded-full bg-warning"></div>
-                                </div>
-                                <div className="text-left space-y-1">
-                                    <p className="text-sm font-medium text-foreground">Admin Note</p>
-                                    <p className="text-sm text-muted-foreground leading-relaxed">
-                                        This could mean that the AI hasn't implemented this page yet. Ask it to implement it in the chat.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {/* Action Button */}
-                    <div className="pt-6">
-                        <button
-                            onClick={() => navigate('/')}
-                            className="inline-flex items-center px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted hover:border-border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring"
-                        >
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                            </svg>
-                            Go Home
-                        </button>
-                    </div>
-                </div>
+  // Before the first paint, so "Page not found" doesn't flash up first.
+  useLayoutEffect(() => { setUpdating(reloadForUpdate()); }, [pathname]);
+
+  // Back online: try the newest version then.
+  useEffect(() => {
+    const up = () => { setOnline(true); if (reloadForUpdate()) setUpdating(true); };
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
+  }, []);
+
+  const tryAgain = () => { setUpdating(true); reloadIntoNewest(); };
+
+  return (
+    <div className="min-h-[100dvh] grid place-items-center bg-background p-6">
+      <div className="max-w-sm w-full text-center rounded-3xl border border-border bg-card p-8 space-y-4 shadow-xl">
+        {updating ? (
+          <div role="status" className="space-y-4">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 text-primary grid place-items-center">
+              <RotateCw className="w-7 h-7 animate-spin" aria-hidden="true" />
             </div>
-        </div>
-    )
+            <div className="space-y-1">
+              <h1 className="text-lg font-heading font-bold">Getting the newest version…</h1>
+              <p className="text-sm text-muted-foreground">This page may be new. One moment while the app updates.</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-secondary text-muted-foreground grid place-items-center">
+              <SearchX className="w-7 h-7" aria-hidden="true" />
+            </div>
+            <div className="space-y-1">
+              <h1 className="text-lg font-heading font-bold">Page not found</h1>
+              <p className="text-sm text-muted-foreground">
+                There's no page at <span className="font-medium text-foreground break-all">{pathname}</span>.
+              </p>
+            </div>
+            {!online && (
+              <p className="flex items-start gap-2 rounded-xl bg-secondary p-3 text-left text-sm">
+                <WifiOff className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>If this page is new, it opens once you're back online.</span>
+              </p>
+            )}
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={tryAgain}
+                className="h-11 rounded-xl bg-primary text-primary-foreground font-semibold inline-flex items-center justify-center gap-2"
+              >
+                <RotateCw className="w-4 h-4" aria-hidden="true" /> Try again
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="h-11 rounded-xl border border-border font-medium inline-flex items-center justify-center gap-2 hover:bg-accent"
+              >
+                <Home className="w-4 h-4" aria-hidden="true" /> Go home
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }

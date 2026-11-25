@@ -9,6 +9,11 @@ export const KIOSK_ADMIN = `${KIOSK_PACKAGE}/.TransitDeviceAdminReceiver`;
 export const KIOSK_ACTIVITY = `${KIOSK_PACKAGE}/.MainActivity`;
 // Full kiosk locking (lock task with a device owner) needs Android 8.
 export const MIN_OWNER_API = 26;
+// The app's USB auto-OK (UsbAutoAcceptService) presses OK on Android's "Allow
+// access to this USB device?" popup for the GPS and card reader. It can switch
+// itself on only with this permission, which only USB debugging can grant
+// (the same grant as tools/kiosk/Install-Tablet-Test.ps1).
+export const USB_AUTO_OK_PERMISSION = "android.permission.WRITE_SECURE_SETTINGS";
 
 const lines = (text) => String(text || "").split(/\r?\n/);
 
@@ -63,6 +68,19 @@ export function installedVersion(text) {
   return name ? name[1] : "";
 }
 
+// Whether `dumpsys package <name>` shows the USB auto-OK permission granted.
+export function usbAutoOkGranted(text) {
+  return /android\.permission\.WRITE_SECURE_SETTINGS: granted=true/.test(String(text || ""));
+}
+
+// What `pm grant` said, in plain words. It prints nothing when it worked.
+export function usbAutoOkResult(text) {
+  const out = String(text || "").trim();
+  if (!out) return { ok: true, message: "USB auto-OK is on: the app answers Android's USB access popup for the GPS and card reader by itself." };
+  if (/Unknown package|not installed/i.test(out)) return { ok: false, code: "not_installed", message: "Install the McSween Kiosk app first." };
+  return { ok: false, code: "unknown", message: `USB auto-OK couldn't be switched on (${out.split(/\r?\n/).filter(Boolean).slice(-1)[0]}). On the device, tap OK when Android asks for USB access.` };
+}
+
 // What `dpm set-device-owner` said, in plain words.
 export function ownerResult(text) {
   const out = String(text || "");
@@ -80,7 +98,7 @@ export function installResult(text) {
   const out = String(text || "");
   if (/^\s*Success\s*$/m.test(out)) return { ok: true, message: "The app is installed." };
   if (/INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match/i.test(out)) {
-    return { ok: false, code: "signature", message: "This file was made on a different PC from the app already on the device. Use the file from your usual PC. Don't uninstall the app on the device: that would lose its pairing." };
+    return { ok: false, code: "signature", message: "This file is signed with a different key from the app already on the device. Use a file from your usual PC or from the Kiosk APK build on GitHub. Don't uninstall the app on the device: that would lose its pairing." };
   }
   if (/INSTALL_FAILED_VERSION_DOWNGRADE/i.test(out)) return { ok: false, code: "older", message: "This file is older than the app already on the device. Choose the newest file." };
   if (/INSTALL_FAILED_INSUFFICIENT_STORAGE/i.test(out)) return { ok: false, code: "storage", message: "The device is out of storage. Free some space, then try again." };
@@ -97,6 +115,11 @@ export function readiness(info) {
     { key: "android", ok: info.api >= MIN_OWNER_API, title: `Android ${info.release || "?"}`, detail: info.api >= MIN_OWNER_API ? "New enough for full kiosk mode." : "Full kiosk mode needs Android 8 or newer." },
     { key: "app", ok: !!info.version, title: info.version ? `McSween Kiosk ${info.version} installed` : "McSween Kiosk isn't installed", detail: info.version ? "Install a newer file to update it." : "Choose the app file below to install it." },
   ];
+  if (info.version) {
+    items.push(info.usbAutoOk
+      ? { key: "usb", ok: true, title: "USB auto-OK is on", detail: "The GPS and card reader get USB access by themselves." }
+      : { key: "usb", ok: false, title: "USB auto-OK is off", detail: "The GPS and card reader wait for someone to tap OK. The button below switches it on." });
+  }
   if (owner) items.push({ key: "owner", ok: true, title: "McSween Kiosk is the owner", detail: "Kiosk lock, restart and Wi-Fi controls all work." });
   else if (foreign) items.push({ key: "owner", ok: false, title: `Another app is the owner (${info.owner})`, detail: "Remove it in that app first. This page won't take over from it." });
   else {

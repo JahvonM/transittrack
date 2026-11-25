@@ -2,10 +2,12 @@ import { locateOnRoute, stopKey } from "@/lib/travelTimes";
 import { drawnRoad } from "@/lib/routeRoad";
 import { roadVia, ON_ROAD_M, PASSED_M } from "@/lib/roadStops";
 import { placeOnRoad } from "../../base44/shared/pickupStops.ts";
+import { serverNow } from "@/lib/serverClock";
 
 export function locationIsStale(vehicle, now = Date.now()) {
   const t = Date.parse(vehicle?.last_location_update);
-  return !Number.isFinite(t) || now - t > 120000 || t > now + 30000;
+  const at = serverNow(now);
+  return !Number.isFinite(t) || at - t > 120000 || t > at + 30000;
 }
 
 // On a route with a drawn road (Route Planner), the bus follows that road to

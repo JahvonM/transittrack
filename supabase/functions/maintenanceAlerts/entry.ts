@@ -1,5 +1,4 @@
 import { createClientFromRequest } from '../_shared/base44-compat.ts';
-import { forwarding } from '../_shared/forwardToSupabase.ts';
 import { emailWithPolicy } from '../_shared/notificationPolicy.ts';
 import { remindExpiringCards } from '../_shared/cardExpiry.ts';
 
@@ -54,9 +53,6 @@ function buildEmail(name, isAdmin, items) {
 // MaintenanceSettings singleton, controlled only by the mechanic team —
 // maintenance is a shared/central team here, not per-company.
 export default async function (req) {
-  // After the switch this job runs on Supabase, on Supabase's own schedule.
-  // The Base44 copy stands down so nobody gets the same email twice.
-  if (forwarding()) return Response.json({ skipped: 'Runs on Supabase now' });
   try {
     const base44 = createClientFromRequest(req);
 
@@ -92,39 +88,48 @@ export default async function (req) {
     for (const s of schedules) {
       if (s.status === 'completed') continue;
       const vehicle = vehicleById.get(s.vehicle_id);
-      let isDue = false;
-      let isOverdue = false;
-      let dueLabel = '';
-
-      if (s.due_type === 'days') {
-        const baseDate = s.last_service_date ? new Date(s.last_service_date) : null;
-        const interval = s.interval_days || 0;
-        if (baseDate && interval > 0) {
-          const next = new Date(baseDate.getTime() + interval * DAY_MS);
-          const diffDays = Math.ceil((next.getTime() - today.getTime()) / DAY_MS);
-          dueLabel = `Due ${fmtDate(next)}`;
-          if (diffDays < 0) isOverdue = true;
-          else if (diffDays <= reminderDays) isDue = true;
-        }
-      } else {
-        const lastMileage = s.last_service_mileage || 0;
-        const interval = s.interval_km || 0;
-        const currentMileage = vehicle?.current_odometer || 0;
-        if (interval > 0) {
-          const nextDueKm = lastMileage + interval;
-          const remaining = nextDueKm - currentMileage;
-          dueLabel = `Due at ${nextDueKm.toLocaleString()} km (current ${currentMileage.toLocaleString()} km)`;
-          if (remaining <= 0) isOverdue = true;
-          else if (remaining <= DEFAULT_MILEAGE_THRESHOLD_KM) isDue = true;
-        }
+      // Every interval a service has counts, whichever comes first (the
+      // makers give oil changes as "10,000 km or 6 months"). The Workshop
+      // shows the same rules (src/lib/serviceDue.js). A service kept by date
+      // counts its km too once a last km is recorded.
+      const checks = [];
+      const days = s.interval_days || 0;
+      if (days > 0 && s.last_service_date) {
+        const next = new Date(new Date(s.last_service_date).getTime() + days * DAY_MS);
+        const diffDays = Math.ceil((next.getTime() - today.getTime()) / DAY_MS);
+        checks.push({ isOverdue: diffDays < 0, isDue: diffDays >= 0 && diffDays <= reminderDays, label: `Due ${fmtDate(next)}` });
       }
+      const interval = s.interval_km || 0;
+      const lastMileage = s.last_service_mileage || 0;
+      if (interval > 0 && (s.due_type !== 'days' || lastMileage > 0)) {
+        const currentMileage = vehicle?.current_odometer || 0;
+        const nextDueKm = lastMileage + interval;
+        const remaining = nextDueKm - currentMileage;
+        checks.push({ isOverdue: remaining <= 0, isDue: remaining > 0 && remaining <= DEFAULT_MILEAGE_THRESHOLD_KM, label: `Due at ${nextDueKm.toLocaleString()} km (current ${currentMileage.toLocaleString()} km)` });
+      }
+      const isOverdue = checks.some((c) => c.isOverdue);
+      const isDue = !isOverdue && checks.some((c) => c.isDue);
 
       if (isDue || isOverdue) {
+        const dueLabel = checks.filter((c) => c.isOverdue || c.isDue).map((c) => c.label).join('; ');
         const list = dueByCompany.get(s.company_id) || [];
         list.push({ schedule: s, isOverdue, dueLabel });
         dueByCompany.set(s.company_id, list);
         const newStatus = isOverdue ? 'overdue' : 'due';
         if (s.status !== newStatus) statusUpdates.push({ id: s.id, status: newStatus });
+      } else if (s.status === 'due' || s.status === 'overdue') {
+        // No longer due (its interval or odometer changed): the screens that
+        // read the saved status show it as upcoming again.
+        statusUpdates.push({ id: s.id, status: 'upcoming' });
+      }
+    }
+
+    // Saved first, so a schedule no longer due is shown as upcoming even on a
+    // day with nothing to email.
+    if (statusUpdates.length) {
+      for (const u of statusUpdates) {
+        try { await base44.asServiceRole.entities.MaintenanceSchedule.update(u.id, { status: u.status }); }
+        catch { /* best-effort */ }
       }
     }
 
@@ -165,13 +170,6 @@ export default async function (req) {
         });
       }, { title: `Maintenance Alert — ${items.length} service(s) due`, companyId });
       sendResults.push(...results);
-    }
-
-    if (statusUpdates.length) {
-      for (const u of statusUpdates) {
-        try { await base44.asServiceRole.entities.MaintenanceSchedule.update(u.id, { status: u.status }); }
-        catch { /* best-effort */ }
-      }
     }
 
     return Response.json({

@@ -8,7 +8,9 @@ import { mockFleet } from "./helpers/fleetFixture.js";
 // Console errors are written to a report for the audit, not failed on: some
 // are expected (a map without a key, a request the test answers with 404).
 
-const ADMIN_SECTIONS = ["overview", "trips", "fleet-workspace", "office-displays", "fleet", "vehicles", "drivers", "health", "kiosks", "shifts", "cards", "card-designs", "vehicle-logs", "driving-reports", "route-analytics", "fleet-analytics", "route-planner", "route-explorer", "plan-pickups", "travel-times", "service", "faults", "parts", "schedule", "calendar", "templates", "inspection-history", "service-history", "incident-reports", "safety-standards", "directory", "signup-day", "checkins", "billing", "messaging", "lost-items", "ads", "ride-history", "passenger-bookings", "support", "users", "companies", "notifications", "app-errors", "audit", "data", "profile"];
+const ADMIN_SECTIONS = ["overview", "trips", "fleet-workspace", "office-displays", "fleet", "vehicles", "drivers", "health", "kiosks", "shifts", "cards", "card-designs", "vehicle-logs", "driving-reports", "route-analytics", "fleet-analytics", "route-planner", "route-explorer", "plan-pickups", "travel-times", "service", "faults", "schedule", "calendar", "templates", "inspection-history", "service-history", "incident-reports", "safety-standards", "directory", "signup-day", "checkins", "billing", "messaging", "lost-items", "ads", "ride-history", "passenger-bookings", "support", "users", "companies", "notifications", "app-errors", "audit", "data", "profile"];
+// Parts and the Bus library live in the Workshop now; their old addresses lead there.
+const MOVED_TO_WORKSHOP = [["/admin/parts", /\/workshop\/parts$/], ["/admin/library", /\/workshop$/]];
 const MOVED_TO_ADMIN = ["route-analytics", "fleet-analytics", "vehicle-logs", "driving-reports", "route-planner", "ride-history", "incident-reports", "support", "location-timeline"];
 
 // [path, where it should end up (RegExp) or null to stay]
@@ -17,12 +19,13 @@ const ROUTES = {
   admin: [
     ...ADMIN_SECTIONS.map((s) => [`/admin/${s}`, null]),
     ...MOVED_TO_ADMIN.map((s) => [`/${s}`, new RegExp(`/admin/${s}$`)]),
+    ...MOVED_TO_WORKSHOP,
     ["/company", null], ["/manager", null], ["/manager/analytics", null], ["/manager/replay", null], ["/vehicle-registry", null], ["/vehicle/bus-a", null],
     ["/notifications", null], ["/incident-report", null], ["/service-history", null], ["/safety-standards", null], ["/staff-directory", null],
     ["/route-explorer", null], ["/buses", null], ["/passenger-bookings", null], ["/account", null], ["/run-inspection", null], ["/passenger", /\/staff$/],
   ],
   company: [["/vehicle-registry", /\/company$/], ["/passenger-bookings", /\/company$/], ["/service-history", /\/company$/], ["/company", null], ["/company/jobs", null], ["/company/vehicles", null], ["/company/routes", null], ["/company/profile", null], ["/company/ads", /\/company$/], ["/manager", null], ["/manager/analytics", null], ["/manager/replay", null], ["/staff-directory", null], ["/account", null], ["/notifications", null], ["/admin", /\/$|\/company$/], ["/mechanic", /\/$|\/company$/]],
-  mechanic: [["/mechanic", null], ["/run-inspection", null], ["/account", null], ["/vehicle/bus-a", null], ["/service-history", null], ["/admin", /\/$|\/mechanic$/], ["/company", /\/$|\/mechanic$/]],
+  mechanic: [["/mechanic", null], ["/mechanic?tab=parts", /\/workshop\/parts$/], ["/mechanic?tab=library", /\/workshop$/], ["/run-inspection", null], ["/account", null], ["/vehicle/bus-a", null], ["/service-history", null], ["/admin", /\/$|\/mechanic$/], ["/company", /\/$|\/mechanic$/]],
   staff: [["/staff", null], ["/journey", null], ["/rides", null], ["/help", null], ["/my-card", null], ["/more", null],
     ["/passenger-bookings", /\/staff$/], ["/service-history", /\/staff$/], ["/incident-report", /\/staff$/], ["/driver-schedule", /\/staff$/], ["/driver-profile", /\/staff$/], ["/notifications", null], ["/account", null], ["/route-explorer", null], ["/buses", null], ["/safety-standards", null], ["/admin", /\/$|\/staff$/], ["/company", /\/$|\/staff$/], ["/manager", /\/$|\/staff$/], ["/mechanic", /\/$|\/staff$/], ["/vehicle-registry", /\/staff$/]],
   driver: [["/driver-phone", null], ["/driver-phone/messages", null], ["/driver-phone/report", null], ["/driver-phone/me", null], ["/driver-schedule", null], ["/driver-profile", null], ["/driver-password", /\/driver-phone$/]],

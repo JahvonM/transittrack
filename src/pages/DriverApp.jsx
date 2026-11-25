@@ -15,6 +15,8 @@ import { saveDeviceToken, forgetDeviceToken } from "@/lib/deviceAuth";
 import { forgetPin } from '@/lib/offlinePin';
 import ErrorState from '@/components/system/ErrorState';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { isDriverStoreInstall, rememberTabletMode } from "@/lib/kioskApp";
+import { pairingPath, screenForCode } from "@/lib/tabletPairing";
 import useNoPageZoom from "@/hooks/useNoPageZoom";
 import JourneyLoading from "@/components/JourneyLoading";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
@@ -26,7 +28,8 @@ import { useKeepAwake } from "@/hooks/useKeepAwake";
 import { useBlockOtherSites, DRIVER_ALLOWED } from "@/lib/kioskLinkLock";
 import DriverPairing from "@/components/driver/DriverPairing";
 import ChooseBus from "@/components/driver/ChooseBus";
-import { isOwnDevice, needsBusChoice, busChoiceMessage, forgetBusAccess } from "@/lib/driverOwnDevice";
+import SwitchBus from "@/components/driver/SwitchBus";
+import { isOwnDevice, needsBusChoice, busChoiceMessage, forgetBusAccess, canSwitchBus, knownBus, rememberBus } from "@/lib/driverOwnDevice";
 import DriverGreeting from "@/components/driver/DriverGreeting";
 import PinGate from "@/components/driver/PinGate";
 import PhoneUnlock from "@/components/driver/PhoneUnlock";
@@ -53,6 +56,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { idleFor, useTabletUpdates } from "@/lib/tabletUpdate";
+import { applyAdminGpsChoice } from "@/lib/driverGps";
 import { rememberUnlockDay, forgetUnlockDay, unlockDayMarked, localDayKey } from "@/lib/localDay";
 
 // "navigate" is kept as an alias: Track and Navigate are one Drive screen.
@@ -82,6 +86,8 @@ export default function DriverApp() {
   const [unlocked, setUnlocked] = useState(() => unlockDayMarked());
   // The phone-unlock QR takes the PIN pad's place while it's showing.
   const [phoneUnlockOpen, setPhoneUnlockOpen] = useState(false);
+  // "Switch bus" on a bus's own tablet: the bus list and that bus's PIN.
+  const [switchingBus, setSwitchingBus] = useState(false);
   // The day this tablet was unlocked, held in memory as well as in storage. A
   // marker that can't be written back (storage filling up, which is exactly
   // what a long offline stretch does to a tablet) used to make the 60-second
@@ -112,6 +118,10 @@ export default function DriverApp() {
     requestedAt: session?.update_requested_at,
     isIdle: () => idleFor(3 * 60 * 1000) && (window.__ttHelperHealth?.parked === true || (session?.vehicle?.speed || 0) < 0.5),
   });
+  // Admin → Kiosk tablets chose this tablet's GPS (module or the tablet's own):
+  // switch to it when the choice arrives, which is within one check-in.
+  const adminGps = session && !session.personal ? session.gps_source || null : null;
+  useEffect(() => { if (adminGps) void applyAdminGpsChoice(adminGps).catch(() => {}); }, [adminGps]);
   const [localDone, setLocalDone] = useState(readLocalDone);
 
   // Driver tablets are mounted and always powered — keep the screen on so
@@ -301,7 +311,16 @@ export default function DriverApp() {
             setAutoPairing(false);
           }
         })
-        .catch(() => setAutoPairing(false));
+        .catch((e) => {
+          // A bus kiosk's code (say, a driver tablet becoming a kiosk): open
+          // the kiosk screen, which pairs with the same code.
+          if (screenForCode(e) === "kiosk" && !isDriverStoreInstall()) {
+            rememberTabletMode("kiosk");
+            window.location.replace(pairingPath("kiosk", pairCode));
+            return;
+          }
+          setAutoPairing(false);
+        });
     }
   }, [deviceId, pairCode, autoPairing, navigate]);
 
@@ -389,6 +408,31 @@ export default function DriverApp() {
     await refresh?.();
     navigate("/driver", { replace: true });
   };
+  // A bus's own tablet. The office moved it to another bus (Admin, Reassign):
+  // the pass and saved PIN it holds are the old bus's, so it locks and asks
+  // for the new bus's PIN, and the old bus's background GPS stops.
+  const busId = session?.vehicle?.id || "";
+  useEffect(() => {
+    if (!deviceId || !busId) return;
+    const before = knownBus(deviceId);
+    rememberBus(deviceId, busId);
+    if (before && before !== busId) { stopBackgroundGps().catch(() => {}); lockForNewBus(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceId, busId]);
+  // Switched on the tablet with the new bus's PIN: it opens on that bus,
+  // unlocked, and everything else for it comes with the next check-in.
+  const handleSwitched = (result, { pinSaved } = {}) => {
+    stopBackgroundGps().catch(() => {});
+    if (result?.vehicle) patchDriverSession({ vehicle: result.vehicle, driver_name: result.driver_name || "", route: null, road_stops: null, staff: [], trips: [], check_ins: [], group_messages: [], open_shift: null, recent_inspections: [] });
+    setSwitchingBus(false);
+    unlockedDayRef.current = localDayKey(); rememberUnlockDay(); setUnlocked(true);
+    toast({
+      title: `This tablet is now on ${result?.vehicle?.name || "the new bus"}`,
+      description: pinSaved === false ? "PIN checked, but not saved on this tablet, so unlocking with no signal won't work until its storage has space." : "Have a safe drive.",
+    });
+    navigate("/driver/home", { replace: true });
+    refresh?.();
+  };
   const handleUnpair = async () => { try { await stopBackgroundGps(); } catch { toast({ title: "Could not stop background GPS", description: "Stop it from Android notifications, then try unpairing again.", variant: "destructive" }); return; } forgetPin(deviceId); forgetDeviceToken(deviceId); clearDriverSessionCache(); localStorage.removeItem("tt_driver_device_id"); forgetUnlockDay(); unlockedDayRef.current = null; setDeviceId(null); setUnlocked(false); navigate("/driver"); };
 
   // Handler to submit the incident report via the driver-session backend function.
@@ -418,18 +462,24 @@ export default function DriverApp() {
 
   if (!deviceId) {
     if (autoPairing)
-      return <JourneyLoading context="Driver tablet" label="Connecting this tablet…" onRetry={() => window.location.reload()} />;
+      return <JourneyLoading battery context="Driver tablet" label="Connecting this tablet…" onRetry={() => window.location.reload()} />;
     return <DriverPairing onPaired={handlePaired} />;
   }
 
   if (loading && !session)
-    return <JourneyLoading context="Driver tablet" label="Loading your bus and route…" company={session?.company_name ? {name:session.company_name,logo_url:session.company_logo_url} : null} vehicle={session?.vehicle} onRetry={() => window.location.reload()} />;
+    return <JourneyLoading battery context="Driver tablet" label="Loading your bus and route…" company={session?.company_name ? {name:session.company_name,logo_url:session.company_logo_url} : null} vehicle={session?.vehicle} onRetry={() => window.location.reload()} />;
 
   if (!session && sessionError)
     return <div className="min-h-[100dvh] grid place-items-center p-6"><ErrorState title="Couldn't reconnect to this tablet" description={sessionError} onRetry={refresh} retrying={loading} /></div>;
 
   if (needsBusChoice(session))
     return <ChooseBus session={session} invoke={invoke} onChosen={handleBusChosen} onUnpair={handleUnpair} />;
+
+  // A bus's own tablet whose bus was removed, or "Switch bus": pick the bus
+  // it's in now and enter that bus's PIN. The old bus's PIN isn't needed.
+  if (canSwitchBus(session) && (!session.vehicle || switchingBus))
+    return <SwitchBus session={session} deviceId={deviceId} invoke={invoke} gone={!session.vehicle}
+      onCancel={session.vehicle ? () => setSwitchingBus(false) : undefined} onSwitched={handleSwitched} onUnpair={handleUnpair} />;
 
   if (!session?.vehicle)
     return (
@@ -461,7 +511,7 @@ export default function DriverApp() {
             {/* Step 2 of the driver phone app: scan instead of the shared PIN. */}
             {!isOwnDevice(session) && <PhoneUnlock deviceId={deviceId} vehicle={vehicle} invoke={invoke} onOpenChange={setPhoneUnlockOpen}
               onUnlock={({ driverName }) => { toast({ title: `Unlocked for ${driverName || "the driver"}`, description: "Shift started from the driver app." }); refresh?.(); afterUnlock(); }} />}
-            {!phoneUnlockOpen && <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onUnlock={({ pinSaved } = {}) => { if (pinSaved === false) toast({ title: 'PIN verified, but not saved on this tablet', description: 'Tablet storage is unavailable. You can continue now, but offline PIN entry will not work until storage is available.', variant: 'destructive' }); refresh?.(); afterUnlock(); }} />}
+            {!phoneUnlockOpen && <PinGate deviceId={deviceId} vehicle={vehicle} invoke={invoke} onSwitchBus={canSwitchBus(session) ? () => setSwitchingBus(true) : undefined} onUnlock={({ pinSaved } = {}) => { if (pinSaved === false) toast({ title: 'PIN verified, but not saved on this tablet', description: 'Tablet storage is unavailable. You can continue now, but offline PIN entry will not work until storage is available.', variant: 'destructive' }); refresh?.(); afterUnlock(); }} />}
           </div>
         </div>
       </div>
@@ -574,7 +624,7 @@ export default function DriverApp() {
             {activeTab === "passengers" && <DriverKioskPassengers session={session} invoke={invoke} refresh={refresh}/>}
             {activeTab === "inspection" && <div className="dk-content"><h1 className="text-title font-bold">Inspection</h1><DriverInspectionList templates={inspTemplates} recent={recentInspections} localDone={localDone} onStart={(t) => openInspection(t, { from: "manual" })} /><SafetyStandardsContent /></div>}
             {activeTab === "documents" && <div className="dk-content"><h1 className="text-title font-bold">Licence & insurance</h1><DriverDocumentsViewer invoke={invoke} busName={vehicle?.name} /></div>}
-            {activeTab === "settings" && <div className="dk-content"><DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} onChangeBus={isOwnDevice(session) ? changeBus : undefined} /><ReportAppProblemButton where="driver tablet" className="w-full justify-start" /></div>}
+            {activeTab === "settings" && <div className="dk-content"><DriverDevicePanel session={session} deviceId={deviceId} onUnpair={handleUnpair} onChangeBus={isOwnDevice(session) ? changeBus : () => setSwitchingBus(true)} /><ReportAppProblemButton where="driver tablet" className="w-full justify-start" /></div>}
             {activeTab === "trips" && <div className="dk-content"><h1>Jobs & history</h1>{session.trips?.length?<DriverTrips trips={session.trips} vehicle={session.vehicle} signingTablet={!!session.has_signing_tablet} onNameSign={showNameSign} invoke={invoke} refresh={refresh} startSharing={()=>invoke("start_tracking").catch(()=>{})}/>:<p>No jobs for this bus.</p>}<h2>Shift</h2><ShiftCard session={session} invoke={invoke} refresh={refresh} beforeStart={()=>beforeShift("start_shift")} beforeEnd={()=>beforeShift("end_shift")}/><DriverKioskHistory session={session}/></div>}
             {activeTab === "safety" && <div className="dk-content"><h1>Safety standards</h1><SafetyStandardsContent/></div>}
             {activeTab === "help" && <div className="dk-content"><h1>Help & support</h1><p className="dk-muted">Contact your transport team through Messages, or report an app problem below.</p><Button onClick={()=>selectTab("chat")}>Message your bus team</Button><ReportAppProblemButton where="driver tablet" className="w-full justify-start"/></div>}

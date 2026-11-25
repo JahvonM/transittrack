@@ -88,23 +88,34 @@ Done:
   undo, remove that script and publish the Base44 copy again.
 - The old FreeKiosk setup file opens app.mcsweenstransport.com.
 
-Left:
-1. Two profile photos (and six old boarding pictures copied from them) still
-   point at Base44's file storage. Upload the photos again from the profile
-   page; old boarding pictures from those days will show initials.
-2. Code changes: today they are made in the Base44 editor, which saves them to
-   GitHub. Before cancelling Base44, make changes through GitHub instead (a
-   Claude Code session with JahvonM/transittrack connected, or a computer).
-3. Then remove the Base44-only code in one change: src/api/backend.base44.js,
-   the `--mode` switch in vite.config.js, @base44/sdk and @base44/vite-plugin,
-   base44/shared/forwardToSupabase.ts and LIVE_BACKEND, the Base44 address in
-   the allowed-site lists (supabase/functions/_shared/base44-compat.ts,
-   integrations, tools/supabase/auth-emails.mjs, the card reader, desktop
-   sign-in) and the media.base44.com image mapping. The folders named
-   base44/ stay: they are the source the Supabase copies are built from.
-4. In Base44: disconnect GitHub (so nothing more is pushed from there),
-   unpublish the app, then cancel the plan.
+Done on 17 November 2026:
+- Nothing had called Base44's functions since 15 October (Base44's own logs).
+- The two profile photos and eight boarding check-ins that still linked to
+  Base44's file storage now link to the copies made in October (Supabase
+  storage); no saved record links to Base44 any more.
+- In Base44: the four scheduled jobs are paused, GitHub is disconnected (the
+  repository is untouched) and the app is unpublished, so the old address now
+  shows Base44's offline notice instead of forwarding.
+- Changes are made through GitHub only.
+- The Base44-only code is gone: src/api/backend.base44.js, the backend switch in
+  vite.config.js (and its /api proxy to base44.app), @base44/sdk and
+  @base44/vite-plugin, base44/shared/forwardToSupabase.ts and liveBackend.ts
+  (with the forwarding and stand-down lines in 15 functions), the Base44
+  address in the allowed-site lists of the Supabase functions and
+  tools/supabase/auth-emails.mjs, the index.html redirect and the
+  media.base44.com image mapping. The browser and unit tests run on the
+  Supabase client. The folders named base44/ stay: they are the source the
+  Supabase copies are built from.
+- With the owner's agreement, the last Base44-only pieces went too: the
+  multi-factor and SSO sign-in screens (no page opened them), the
+  /oauth/consent page (Base44's app connections) and the copyToSupabase
+  function (the October copy; it is in the Git history).
 
+Left:
+1. Cancel the Base44 plan (in Base44's billing settings).
+2. The installed apps still list the Base44 address as allowed: the card reader
+   (desktop/reader.ps1, tools/card-reader) and desktop sign-in
+   (desktop/browser-signin.cjs). Harmless; take it out when they are next rebuilt.
 
 ## Cutover completed — 22 October 2026
 

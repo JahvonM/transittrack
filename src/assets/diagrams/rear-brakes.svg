@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 640" role="img" aria-labelledby="t d">
+<title id="t">Rear drum brake: guide drawing</title>
+<desc id="d">Backing plate with the drum taken off: two brake shoes with linings, the wheel cylinder at the top, return springs, the adjuster at the bottom and the handbrake cable.</desc>
+<style>
+.b{fill:#e2e8f0;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.m{fill:#cbd5e1;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.d{fill:#94a3b8;stroke:#1e293b;stroke-width:3;stroke-linejoin:round}
+.k{fill:#475569;stroke:#1e293b;stroke-width:2}
+.a{fill:#67e8f9;stroke:#0e7490;stroke-width:3;stroke-linejoin:round}
+.ln{fill:none;stroke:#1e293b;stroke-linecap:round;stroke-linejoin:round}
+.ld{fill:none;stroke:#64748b;stroke-width:2}
+.t{font:700 30px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+.s{font:500 17px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#475569}
+.l{font:600 22px system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;fill:#0f172a}
+</style>
+<rect width="800" height="640" fill="#f8fafc"/>
+<text class="t" x="24" y="44">Rear drum brake</text>
+<text class="s" x="24" y="72">Guide drawing: not to scale, not from Toyota or Nissan diagrams</text>
+<text class="s" x="24" y="96">Drum taken off to show the shoes</text>
+<circle class="b" cx="330" cy="370" r="200"/>
+<path class="a" d="M245 222.8 A170 170 0 0 0 245 517.2 L257 496.4 A146 146 0 0 1 257 243.6 Z"/>
+<path class="a" d="M415 222.8 A170 170 0 0 1 415 517.2 L403 496.4 A146 146 0 0 0 403 243.6 Z"/>
+<rect class="d" x="290" y="188" width="80" height="28" rx="8"/>
+<polyline points="262,250 279,238 296,262 313,238 330,262 347,238 364,262 381,238 398,250" fill="none" stroke="#475569" stroke-width="4" stroke-linejoin="round"/>
+<polyline points="262,480 279,468 296,492 313,468 330,492 347,468 364,492 381,468 398,480" fill="none" stroke="#475569" stroke-width="4" stroke-linejoin="round"/>
+<rect class="d" x="280" y="505" width="100" height="20" rx="6"/><circle class="k" cx="330" cy="515" r="14"/>
+<circle class="m" cx="330" cy="370" r="60"/><circle class="k" cx="330.0" cy="332.0" r="7"/><circle class="k" cx="366.1" cy="358.3" r="7"/><circle class="k" cx="352.3" cy="400.7" r="7"/><circle class="k" cx="307.7" cy="400.7" r="7"/><circle class="k" cx="293.9" cy="358.3" r="7"/>
+<path class="ln" stroke="#475569" stroke-width="7" d="M396 262 L382 458"/>
+<path class="ln" stroke-width="6" d="M382 458 C 430 520, 520 556, 640 566"/>
+<path class="ld" d="M370 202 L600 172"/><circle cx="370" cy="202" r="5" fill="#0f172a"/><text class="l" x="608" y="179" text-anchor="start">Wheel cylinder</text>
+<path class="ld" d="M495 370 L600 330"/><circle cx="495" cy="370" r="5" fill="#0f172a"/><text class="l" x="608" y="337" text-anchor="start">Brake shoes</text>
+<text class="s" x="608" y="360">(linings in blue)</text>
+<path class="ld" d="M380 515 L600 500"/><circle cx="380" cy="515" r="5" fill="#0f172a"/><text class="l" x="608" y="507" text-anchor="start">Adjuster</text>
+<text class="l" x="560" y="604">Handbrake cable</text>
+<path class="ld" d="M279 238 L140 175"/><circle cx="279" cy="238" r="5" fill="#0f172a"/><text class="l" x="24" y="168" text-anchor="start">Return springs</text>
+<path class="ld" d="M150 455 L90 560"/><circle cx="150" cy="455" r="5" fill="#0f172a"/><text class="l" x="24" y="584" text-anchor="start">Backing plate</text>
+</svg>
