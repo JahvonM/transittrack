@@ -60,8 +60,12 @@ export default function GoogleSignInButton({ then = "/", onFallback, label = "Co
 
   return (
     <div className="w-full">
-      {/* Google draws its button in here; it stays hidden until it has. */}
-      <div ref={slot} className={ready && !busy ? "flex h-12 w-full items-center justify-center" : "hidden"} aria-busy={busy || undefined} />
+      {/* Google draws its button in here; it stays hidden until it has.
+          color-scheme light: Google's button lives in a frame from Google's
+          site, and in the app's dark look the browser fills a frame whose
+          colour scheme differs from the page's with white, which showed as a
+          white edge round the button. Matching it keeps the frame clear. */}
+      <div ref={slot} style={{ colorScheme: "light" }} className={ready && !busy ? "flex h-12 w-full items-center justify-center" : "hidden"} aria-busy={busy || undefined} />
       {(!ready || busy) && (
         <Button variant="outline" className="w-full h-12 text-sm font-medium" onClick={() => onFallback?.()} disabled={busy}>
           <GoogleIcon className="w-5 h-5 mr-2" />
