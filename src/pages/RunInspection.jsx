@@ -101,6 +101,11 @@ export default function RunInspection() {
     try {
       const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
       setResult(key, { photo_url: file_url });
+    } catch (e) {
+      // The inspection itself still saves and sends later; only the photo needs a connection.
+      toast(isOfflineError(e)
+        ? { title: "Photo not added", description: "No connection, so the photo wasn't added. The inspection will still send. Add the photo when you're back online.", variant: "destructive" }
+        : { title: "Photo not added", description: e?.message || "Try again.", variant: "destructive" });
     } finally {
       setUploadingKey(null);
     }

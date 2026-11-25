@@ -18,6 +18,7 @@ const toMjs = (file) => ts.transpileModule(fs.readFileSync(new URL(file, root), 
 }).outputText.replace(/from '\.\/([A-Za-z0-9]+)\.ts'/g, "from './$1.mjs'");
 fs.writeFileSync(path.join(dir, "supabaseTables.mjs"), toMjs("supabase/functions/_shared/supabaseTables.ts"));
 fs.writeFileSync(path.join(dir, "supabaseFiles.mjs"), toMjs("supabase/functions/_shared/supabaseFiles.ts"));
+fs.writeFileSync(path.join(dir, "photoMetadata.mjs"), toMjs("supabase/functions/_shared/photoMetadata.ts"));
 fs.writeFileSync(path.join(dir, "compat.mjs"), toMjs("supabase/functions/_shared/base44-compat.ts"));
 const compat = await import(pathToFileURL(path.join(dir, "compat.mjs")).href);
 
@@ -172,6 +173,20 @@ describe("files", () => {
     expect(put.url.pathname).toMatch(/^\/storage\/v1\/object\/private\/uploads\/\d{4}-\d\d\/[0-9a-f-]{36}\.jpg$/);
     expect(file_url).toMatch(new RegExp(`^${URL_}/storage/v1/object/sign/private/uploads/.+\\.jpg\\?token=`));
     expect(file_url).not.toMatch(/Jane/);
+  });
+
+  it("a photo is stored without the GPS position the phone wrote into it", async () => {
+    const { calls, client } = fake();
+    const jpeg = Buffer.from("/9j/4AAQSkZJRgABAQAAAAAAAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAIABADAREAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAABAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFgEBAQEAAAAAAAAAAAAAAAAACQcI/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AhTZqCDjlK8//2Q==", "base64");
+    const exif = Buffer.from("Exif\0\0MM\0*\0\0\0\x08\0\0\0\0\0\0GPS-SECRET 12.05N", "latin1");
+    const phone = Buffer.concat([jpeg.subarray(0, 20), Buffer.from([0xff, 0xe1, 0, exif.length + 2]), exif, jpeg.subarray(20)]);
+    const file = new Blob([phone], { type: "image/jpeg" });
+    file.name = "photo.jpg";
+    await client().asServiceRole.integrations.Core.UploadPrivateFile({ file });
+    const put = calls.find((c) => c.url.pathname.startsWith("/storage/v1/object/private/"));
+    expect(Buffer.from(put.body).includes("GPS-SECRET")).toBe(false);
+    expect(Buffer.from(put.body).equals(jpeg)).toBe(true);
+    expect(put.headers["Content-Type"]).toBe("image/jpeg");
   });
 
   it("saving a signed link stores the file itself: private fields keep it private, public fields copy it", async () => {

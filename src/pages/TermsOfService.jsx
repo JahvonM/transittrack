@@ -37,7 +37,7 @@ export default function TermsOfService() {
     </LegalSection>
 
     <LegalSection title="Tracking your ride">
-      <p>Your confirmation email can include a link that shows where your bus is. It shows only your ride. Share it only with the people travelling with you or meeting you.</p>
+      <p>Your confirmation email can include a link that shows where your ride is. It shows only your ride. Share it only with the people travelling with you or meeting you.</p>
       <p>Bus positions and arrival times come from live location data. They can be late or unavailable, so go by the agreed pickup time and any message from us, rather than by the estimate alone.</p>
     </LegalSection>
 

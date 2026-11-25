@@ -64,11 +64,8 @@ describe('passenger company changes', () => {
   it('deletes their sign-in as well, so they cannot sign straight back in', async () => {
     const sdk = fixture();
     sdk.tables.User.find(u => u.id === 'rider-user').auth_user_id = 'auth-rider';
-    const sent = [];
-    sdk.testSecrets = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_synthetic-test-key-never-real' };
-    sdk.atomicFetch = async (url, init) => { sent.push([String(url), init?.method]); return new Response(null, { status: 200 }); };
     expect((await call(sdk, { action: 'signup_remove', company_id: 'a', person_ref: 'email:rider@test.invalid' })).status).toBe(200);
-    expect(sent).toContainEqual(['https://example.supabase.co/auth/v1/admin/users/auth-rider', 'DELETE']);
+    expect(sdk.signInsDeleted).toEqual(['auth-rider']);
   });
   it('never deletes an admin, driver or manager login', async () => {
     const sdk = fixture();

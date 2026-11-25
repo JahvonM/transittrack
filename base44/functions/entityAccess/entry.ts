@@ -455,6 +455,10 @@ const COMPANY_ENTITIES = new Set(['Vehicle','Trip','InspectionResult','GroupMess
 const PASSENGER_READ = new Set(['Company','Vehicle','Route','RouteTravelTimes','Broadcast','Trip','GroupMessage','Workplace','Advertisement']);
 const COMPANY_READ = new Set([...COMPANY_ENTITIES, 'Company','Advertisement']);
 const PROFILE_FIELDS = new Set(['boarding_note','full_name','display_name','phone','photo_url','home_lat','home_lng','home_address','pickup_lat','pickup_lng','pickup_name','pickup_route_id','work_lat','work_lng','whatsapp_linked','skip_pickup_today','skip_pickup_until','late_snooze_active','late_until','favorite_stop','stop_alerts','theme_accent']);
+// The longest a person's own text may be: a name or note thousands of words
+// long would flood every screen that shows it (the boarding note is on the
+// driver's route list). Well above anything saved so far.
+const PROFILE_TEXT_LIMITS = {full_name:[120,'Name'],display_name:[120,'Name'],phone:[40,'Phone'],home_address:[300,'Home address'],pickup_name:[300,'Pickup place'],boarding_note:[500,'Note for the driver']};
 function fail(status, message) { throw Object.assign(new Error(message), { status }); }
 // Photos, voice notes, logos and the like are files uploaded through the app,
 // so anyone but an administrator may only point these fields at the app's own
@@ -772,6 +776,9 @@ async function prepare(db,ctx,name,input,existing=null) {
    if(Object.hasOwn(data,field) && (!Number.isFinite(data[field]) || data[field]<min || data[field]>max))fail(400,'Invalid pickup coordinate');
   }
   if(Object.hasOwn(data,'pickup_lat')!==Object.hasOwn(data,'pickup_lng'))fail(400,'Pickup coordinates must be supplied together');
+  for(const [field,[max,label]] of Object.entries(PROFILE_TEXT_LIMITS)) {
+   if(typeof data[field]==='string' && data[field].length>max) fail(400,`${label} is too long: up to ${max} characters`);
+  }
   if(data.pickup_route_id) {
    const route=await db.Route.get(data.pickup_route_id).catch(()=>null);
    if(!route || (user.role!=='admin'&&!ctx.companies.includes(route.company_id)))fail(403,'Approved company route required');

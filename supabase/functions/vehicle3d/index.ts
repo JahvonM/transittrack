@@ -114,7 +114,24 @@ Deno.serve(async (req) => {
       const { data: stored, error: storageError } = await admin.storage.from(PHOTOS_BUCKET).info(path);
       if (storageError || !stored) return respond({ error: "Photo upload not found" }, 409);
       if (stored.size !== bytes) return respond({ error: "Uploaded size mismatch" }, 409);
-      const { count } = await admin.from("vehicle_3d_photo").select("id", { count: "exact", head: true }).eq("scan_id", scan.id);
+      // An interrupted confirmation may be retried after the gallery reaches
+      // 36 frames. Return success for the exact same confirmed photo BEFORE
+      // checking the capacity limit, without ever permitting replacement.
+      const { data: prior, error: priorError } = await admin.from("vehicle_3d_photo")
+        .select("id,scan_id,object_path,capture_pass,bytes,content_type")
+        .eq("id", fileId).maybeSingle();
+      if (priorError) throw priorError;
+      if (prior) {
+        if (prior.scan_id !== scan.id || prior.object_path !== path ||
+            prior.capture_pass !== capturePass || prior.bytes !== bytes ||
+            prior.content_type !== mime) {
+          return respond({ error: "Photo ID conflict" }, 409);
+        }
+        return respond({ confirmed: true, alreadyConfirmed: true });
+      }
+      const { count, error: countError } = await admin.from("vehicle_3d_photo")
+        .select("id", { count: "exact", head: true }).eq("scan_id", scan.id);
+      if (countError) throw countError;
       if ((count || 0) >= MAX_PHOTOS) return respond({ error: "Photo limit reached" }, 409);
       const { error } = await admin.from("vehicle_3d_photo").insert({ id: fileId, scan_id: scan.id, object_path: path, capture_pass: capturePass, bytes, content_type: mime });
       // Never allow a scan owner to overwrite another scan's photo metadata.

@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, CircleDot, Hammer, OctagonAlert, RotateCcw, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { grenadaToday } from "@/lib/grenadaDay";
 import { EmptyState, Kpi, KpiRow, PageIntro, Segmented, StatusChip } from "@/components/admin/kit";
 import { RemoveMenu, useHiddenRows } from "@/components/admin/RemoveMenu";
 
@@ -34,7 +35,7 @@ export default function FaultsTab({ faults: allFaults = [], onChange }) {
     setBusy(fault.id);
     try {
       const payload = { status };
-      if (status === "resolved") payload.resolved_date = new Date().toISOString().slice(0, 10);
+      if (status === "resolved") payload.resolved_date = grenadaToday();
       await base44.entities.Fault.update(fault.id, payload);
       onChange();
     } catch (e) {

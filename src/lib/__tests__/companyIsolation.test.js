@@ -142,6 +142,16 @@ describe('company and role access boundaries',()=>{
   expect((await call(client,{entity:'User',operation:'update',id:'caller',data:{phone:'555'}})).status).toBe(200);
   for(const data of [{company_id:'b'},{role:'company'},{nfc_tag_id:'OTHER'},{access_code:'12345'}]) expect((await call(client,{entity:'User',operation:'update',id:'caller',data})).status).toBe(403);
  });
+ it('refuses profile text thousands of characters long, but keeps normal edits',async()=>{
+  const client=sdk('staff');
+  const essay='word '.repeat(5000);
+  for(const field of ['display_name','full_name','phone','home_address','pickup_name','boarding_note']) {
+   const res=await call(client,{entity:'User',operation:'update',id:'caller',data:{[field]:essay}});
+   expect([field,res.status]).toEqual([field,400]);
+   expect(res.data.error).toMatch(/too long: up to \d+ characters/);
+  }
+  expect((await call(client,{entity:'User',operation:'update',id:'caller',data:{display_name:'😀 Pat Smith',boarding_note:'A lower step, please. '.repeat(20).trim(),home_address:'Lot 12, Grand Anse, St. George'}})).status).toBe(200);
+ });
  it('requires an explicit admin assignment to approve company membership',async()=>{
   const client=sdk('admin');
   expect((await call(client,{entity:'User',operation:'update',id:'other',data:{role:'company',company_id:'b'}})).status).toBe(200);

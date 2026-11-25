@@ -9,6 +9,15 @@ export const MAX_PASSWORD_LENGTH = 72;
 
 export const PASSWORD_HINT = `At least ${MIN_PASSWORD_LENGTH} characters.`;
 
+// A short reason the email can't be used to sign up, or null when it looks
+// like an address (Supabase checks it properly and sends the code).
+export function emailProblem(email) {
+  const value = String(email ?? "").trim();
+  if (!value) return "Enter your email address.";
+  if (value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) return "That email address doesn't look right. Check it and try again.";
+  return null;
+}
+
 // A short reason the password can't be used, or null when it's fine.
 export function passwordProblem(password) {
   const value = String(password ?? "");

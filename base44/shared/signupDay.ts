@@ -96,7 +96,7 @@ export async function signupDay(base44, user, body, { companyFilter, loadPeople,
         (!!email && (await sr.Contact.list('-updated_date', 5000)).some((c) => emailOf(c.email) === email && c.company_id && c.company_id !== companyId));
       let companies = [companyId], loginDeleted = false;
       if (user.role === 'admin' || !elsewhere) {
-        const done = await removePassenger(sr, person);
+        const done = await removePassenger(sr, person, base44.asServiceRole.deleteSignIn?.bind(base44.asServiceRole));
         companies = [...new Set([companyId, ...done.companies])];
         loginDeleted = done.logins > 0;
       } else await changePassengerCompany(sr, person, null, true);

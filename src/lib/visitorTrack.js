@@ -22,16 +22,24 @@ export function nextCheckMs(view) {
 }
 
 // The headline and a short line underneath, for each state of the ride.
+// `stage` (from visitorTracking) says where the ride is in the job.
 export function describeRide(view) {
+  const position = view?.location_status === "stale" ? "Waiting for your ride's latest position…" : "Your ride's position isn't available right now.";
   switch (view?.status) {
     case "scheduled":
-      return { title: "Your ride is booked", note: "The bus's location appears here once your ride starts.", tone: "info" };
+      return { title: "Your ride is booked", note: "Your ride's location appears here once your ride starts.", tone: "info" };
     case "on_the_way":
+      if (view.stage === "at_pickup") return { title: "Your ride is at your pickup", note: "Look out for it at your pickup point.", tone: "live" };
+      if (view.stage === "to_dropoff") {
+        return view.location_status === "live"
+          ? { title: "On the way to your drop-off", note: "The map moves as your ride does.", tone: "live" }
+          : { title: "On the way to your drop-off", note: position, tone: "info" };
+      }
       return view.location_status === "live"
-        ? { title: "Your bus is on the way", note: "The map moves as the bus does.", tone: "live" }
-        : { title: "Your bus is on the way", note: view.location_status === "stale" ? "Waiting for the bus's latest position…" : "The bus's position isn't available right now.", tone: "info" };
+        ? { title: "Your ride is on the way", note: "The map moves as your ride does.", tone: "live" }
+        : { title: "Your ride is on the way", note: position, tone: "info" };
     case "arrived":
-      return { title: "Your bus has arrived", note: "Look out for it at your pickup point.", tone: "live" };
+      return { title: "You've arrived", note: "Your ride is at your drop-off.", tone: "live" };
     case "completed":
       return { title: "This ride is complete", note: "Thank you for riding with McSween Transport.", tone: "done" };
     case "cancelled":
