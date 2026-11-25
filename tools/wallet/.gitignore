@@ -1,0 +1,12 @@
+# Do not commit Apple signing material, real passenger credentials or generated passes.
+*.key
+*.pem
+*.p12
+*.p8
+*.cer
+*.certSigningRequest
+*.pkpass
+test-card.json
+passenger-*.json
+icon.png
+icon@2x.png
