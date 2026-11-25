@@ -19,8 +19,17 @@ function nextDueDate(s) {
   return new Date(baseDate.getTime() + interval * DAY_MS);
 }
 
+// A due date counts from a date-only value (midnight UTC), so its day is the
+// UTC one.
 function fmtKey(d) {
   return d.toISOString().split("T")[0];
+}
+
+// A day on the grid (and today) is a day on this phone's calendar, whatever
+// its time zone: toISOString would move it a day east of London, and make
+// "today" tomorrow after 8 pm in Grenada.
+function dayKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // Port of FleetPilot's MaintenanceCalendar — same month-grid + mileage
@@ -66,7 +75,7 @@ export default function MaintenanceCalendarTab({ schedules = [], vehicles = [] }
   }, [cursor]);
 
   const monthLabel = cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-  const todayKey = fmtKey(new Date());
+  const todayKey = dayKey(new Date());
 
   const eventColor = (due, status) => {
     if (status === "overdue") return "bg-danger text-white";
@@ -104,7 +113,7 @@ export default function MaintenanceCalendarTab({ schedules = [], vehicles = [] }
             <div className="grid grid-cols-7 gap-1">
               {grid.map((date, i) => {
                 if (!date) return <div key={i} className="min-h-[84px] rounded-lg bg-muted/40" />;
-                const key = fmtKey(date);
+                const key = dayKey(date);
                 const dayEvents = events.get(key) || [];
                 const isToday = key === todayKey;
                 return (

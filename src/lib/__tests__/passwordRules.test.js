@@ -1,8 +1,18 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
-import { passwordProblem, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, PASSWORD_HINT } from "../passwordRules.js";
+import { emailProblem, passwordProblem, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, PASSWORD_HINT } from "../passwordRules.js";
 
 // One rule for every new password, on every screen that sets one.
+
+describe("sign-up email", () => {
+  it("is asked for in plain words when blank or not an address", () => {
+    expect(emailProblem("")).toBe("Enter your email address.");
+    expect(emailProblem("   ")).toBe("Enter your email address.");
+    for (const bad of ["pat", "pat@", "pat@example", "pat @example.com", "@example.com"]) expect(emailProblem(bad), bad).toMatch(/doesn't look right/);
+    expect(emailProblem(" pat@example.com ")).toBeNull();
+    expect(emailProblem("x7k2@privaterelay.appleid.com")).toBeNull();
+  });
+});
 
 describe("new passwords", () => {
   it("must be 8 to 72 characters and not only spaces", () => {

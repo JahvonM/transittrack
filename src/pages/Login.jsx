@@ -20,6 +20,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { hasPendingInvite, hasPendingJoinCode, rememberJoinCode } from "@/lib/companyJoin";
 import { ScanCompanyQrButton, ScanCompanyQrDialog } from "@/components/ScanCompanyQr";
 import { phoneSignInAvailable, openPhoneSignIn } from "@/lib/phoneSignIn";
+import ConfirmEmailCode from "@/components/ConfirmEmailCode";
 
 const PHONE_SIGNIN_PROBLEMS = {
   failed: "Sign-in didn't finish, so the app isn't signed in. Tap Continue with Google or Apple again, or use your email and password.",
@@ -32,6 +33,11 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Signed up but never typed the emailed code: offer a new one, then the
+  // code screen (codeSentTo) to finish.
+  const [unconfirmed, setUnconfirmed] = useState("");
+  const [codeSentTo, setCodeSentTo] = useState("");
+  const [sendingCode, setSendingCode] = useState(false);
   // Only the "Continue with ..." buttons that are turned on.
   const signInWith = useSignInOptions();
   // Post-login destination (e.g. the MCP OAuth consent page sends users here
@@ -72,9 +78,11 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setUnconfirmed("");
     setLoading(true);
+    let target = null;
     try {
-      const target = usernames ? signInTarget(email, { driverMode: driverLogin }) : { email: email.trim(), driver: false };
+      target = usernames ? signInTarget(email, { driverMode: driverLogin }) : { email: email.trim(), driver: false };
       if (!target) throw new Error(driverLogin ? "Enter your driver username" : "Enter your email address or username");
       const driverUsername = target.driver;
       await base44.auth.loginViaEmailPassword(target.email, password)
@@ -94,9 +102,24 @@ export default function Login() {
         window.location.href = returnTo;
       }
     } catch (err) {
-      setError(err.message || "Invalid email or password");
+      const notConfirmed = err?.data?.code === "email_not_confirmed" && target?.email && !target.driver;
+      if (notConfirmed) setUnconfirmed(target.email);
+      setError(notConfirmed ? "This email hasn't been confirmed yet. We can send you a new 6-digit code." : err.message || "Invalid email or password");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const sendNewCode = async () => {
+    setSendingCode(true);
+    try {
+      await base44.auth.resendOtp(unconfirmed);
+      setError("");
+      setCodeSentTo(unconfirmed);
+    } catch (err) {
+      setError(err?.message || "Couldn't send a code. Try again in a minute.");
+    } finally {
+      setSendingCode(false);
     }
   };
 
@@ -130,6 +153,15 @@ export default function Login() {
   }
   if (resumeSignIn && authError && authError.type !== "auth_required") {
     return <AccessRecovery onRetry={checkAppState} />;
+  }
+  if (codeSentTo) {
+    return (
+      <ConfirmEmailCode
+        email={codeSentTo}
+        onConfirmed={() => { window.location.href = returnTo; }}
+        onBack={() => { setCodeSentTo(""); setUnconfirmed(""); }}
+      />
+    );
   }
 
   return (
@@ -183,6 +215,11 @@ export default function Login() {
       {error && (
         <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           {error}
+          {unconfirmed && (
+            <Button type="button" variant="outline" className="mt-3 h-11 w-full bg-card font-medium text-foreground" onClick={sendNewCode} disabled={sendingCode}>
+              {sendingCode ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />Sending…</> : "Send a new code"}
+            </Button>
+          )}
         </div>
       )}
       {phoneProblem && !error && !inBrowser && (

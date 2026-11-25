@@ -138,6 +138,7 @@ export default function ProfileInfo({ companyName }) {
             <Input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
+              maxLength={120}
               placeholder="Your name"
               className="max-w-xs"
             />
@@ -182,6 +183,7 @@ export default function ProfileInfo({ companyName }) {
             <Input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              maxLength={40}
               placeholder="Your phone number"
               className="max-w-xs h-8"
             />

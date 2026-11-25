@@ -5,6 +5,7 @@ import { ClipboardCheck, ChevronDown, Download, ListChecks, OctagonAlert, Triang
 import { cn } from "@/lib/utils";
 import { EmptyState, Kpi, KpiRow, StatusChip } from "@/components/admin/kit";
 import { exportToPDF } from "@/lib/exporters";
+import { grenadaDay } from "@/lib/grenadaDay";
 
 const CONDITION = { GOOD: ["success", "Good"], WARNING: ["warning", "Warning"], FAILED: ["danger", "Failed"] };
 const Condition = ({ c }) => {
@@ -45,7 +46,7 @@ export default function InspectionHistoryTab({ results = [], vehicles = [] }) {
   };
 
   const exportSessionPDF = (first, items) => {
-    const dateStr = first.inspection_date ? new Date(first.inspection_date).toISOString().slice(0, 10) : "unknown-date";
+    const dateStr = grenadaDay(first.inspection_date) || "unknown-date";
     const rows = items.map((r) => ({
       section_name: r.section_name,
       inspection_item: r.inspection_item,

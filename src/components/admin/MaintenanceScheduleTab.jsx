@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarClock, CalendarCheck, CheckCircle2, Clock, OctagonAlert, Plus, Trash2, Wrench } from "lucide-react";
 import { EmptyState, Kpi, KpiRow, Panel, Segmented, StatusChip } from "@/components/admin/kit";
+import { grenadaToday } from "@/lib/grenadaDay";
 
 const STATUS_TONE = { upcoming: "neutral", due: "warning", overdue: "danger", completed: "success" };
 const STATUS_ORDER = { overdue: 0, due: 1, upcoming: 2, completed: 3 };
@@ -50,7 +51,7 @@ export default function MaintenanceScheduleTab({ schedules = [], vehicles = [], 
     try {
       await base44.entities.MaintenanceSchedule.update(s.id, {
         status: "upcoming",
-        last_service_date: new Date().toISOString().slice(0, 10),
+        last_service_date: grenadaToday(),
         last_service_mileage: vehicle?.current_odometer || s.last_service_mileage || 0,
       });
       onChange();

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { telLink, whatsappLink } from "@/lib/driverPhone";
+import { initialsOf } from "@/lib/userName";
 import { driverKey, driverOwnsBus, normalizeDriverUsername, validDriverUsername } from "@/lib/driverAccount";
 import DriverDocumentsDialog, { DocChips } from "@/components/admin/DriverDocuments";
 import DriverAccountActions, { IssuedCredentials, USERNAME_RULE } from "@/components/admin/DriverAccountActions";
@@ -352,7 +353,7 @@ function DriverCard({ driver, vehicles, companies, routes, docs = [], onDocsChan
   const companyName = companies.find((c) => c.id === driver.company_id)?.name;
   const pool = vehicles.filter((v) => !!driver.company_id && v.company_id === driver.company_id && !driverOwnsBus(v, driver));
 
-  const initials = (driver.full_name || driver.username || "?").split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
+  const initials = initialsOf(driver.full_name || driver.username || "?");
   return (
     <li id={"driver-" + driver.id} aria-current={focused ? "true" : undefined} className={cn("flex flex-col rounded-2xl border border-border bg-card", focused && "ring-2 ring-ring")}>
       <div className="flex items-start gap-4 p-4">

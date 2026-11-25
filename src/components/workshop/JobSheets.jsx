@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { grenadaToday } from "@/lib/grenadaDay";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ import { Minus, Package, Pencil, Plus, ScanLine, Search } from "lucide-react";
 // database as it is saved, so after each save the part is read again and the
 // count shown is the database's.
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => grenadaToday();
 
 // Reads a part again after its stock moved; if that fails, the list's copy
 // is moved by the same amount (taken > 0, put back < 0).

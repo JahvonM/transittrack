@@ -95,7 +95,9 @@ export function mock(role='staff') {
   delete:async id=>{tables[name]=(tables[name]||[]).filter(r=>r.id!==id);writes.push({name,method:'delete'});},
   bulkCreate:async data=>{const rows=data.map(d=>({id:'new-'+(++sequence),created_date:new Date().toISOString(),...structuredClone(d)}));(tables[name]||=[]).push(...rows);writes.push({name,method:'bulkCreate'});return structuredClone(rows);},
  })});
- return {tables,reads,writes,emails,auth:{me:async()=>role?structuredClone(tables.User[0]):null},asServiceRole:{entities,integrations:{Core:{SendEmail:async data=>{emails.push(data);return {};}}}}};
+ // deleteSignIn stands in for removing the Supabase sign-in (deleteAccount).
+ const signInsDeleted=[];
+ return {tables,reads,writes,emails,signInsDeleted,auth:{me:async()=>role?structuredClone(tables.User[0]):null},asServiceRole:{entities,integrations:{Core:{SendEmail:async data=>{emails.push(data);return {};}}},deleteSignIn:async id=>{signInsDeleted.push(id);return true;}}};
 }
 
 export function interleaveReads(client,entity,participants) {

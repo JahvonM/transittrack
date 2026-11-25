@@ -260,7 +260,7 @@ function workItems({ vehicle, guide, base, jobs, jobParts, faults, facts, schedu
 
 function SectionLinks({ items }) {
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => (
         <li key={item.key}>
           <Link to={item.to} className="flex h-full min-h-[5.5rem] items-start gap-3 rounded-lg border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary">

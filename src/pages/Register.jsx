@@ -14,7 +14,7 @@ import AppleIcon from "@/components/AppleIcon";
 import { toast } from "@/components/ui/use-toast";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { phoneSignInAvailable, openPhoneSignIn } from "@/lib/phoneSignIn";
-import { passwordProblem, PASSWORD_HINT } from "@/lib/passwordRules";
+import { emailProblem, passwordProblem, PASSWORD_HINT } from "@/lib/passwordRules";
 import { useSignInOptions } from "@/lib/signInOptions";
 
 export default function Register() {
@@ -33,7 +33,7 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    const problem = passwordProblem(password);
+    const problem = emailProblem(email) || passwordProblem(password);
     if (problem) {
       setError(problem);
       return;

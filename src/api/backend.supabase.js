@@ -13,6 +13,7 @@
 // never uses the database, realtime or storage clients, so the full
 // supabase-js package would add ~110 KB to the first download for nothing.
 import { AuthClient } from '@supabase/auth-js';
+import { HEIC_PROBLEM, photoForUpload } from '../lib/cleanPhoto.js';
 
 export const BACKEND = 'supabase';
 
@@ -269,8 +270,11 @@ async function invoke(name, payload = {}) {
 }
 
 async function upload(area, params) {
-  const file = params?.file;
-  if (typeof Blob === 'undefined' || !(file instanceof Blob)) throw apiError(400, { error: 'No file' }, 'No file');
+  if (typeof Blob === 'undefined' || !(params?.file instanceof Blob)) throw apiError(400, { error: 'No file' }, 'No file');
+  // HEIC photos become JPEG first: the server can't strip their GPS position.
+  let file;
+  try { file = await photoForUpload(params.file); }
+  catch (e) { throw apiError(e?.status || 415, { error: e?.message || HEIC_PROBLEM }, e?.message || HEIC_PROBLEM); }
   const form = new FormData();
   form.append('area', area);
   form.append('file', file, file.name || 'file');
