@@ -27,3 +27,19 @@ describe('visitor tracking authorization',()=>{
  it('rejects other company vehicles and rate-limited readers',async()=>{const db=setup();db.Vehicle.get.mockResolvedValue({...vehicle,company_id:'other'});expect((await call({action:'track',token:rawToken})).status).toBe(404);vi.mocked(reserveAttempt).mockResolvedValue(false);expect((await call({action:'track',token:rawToken})).status).toBe(429);});
  it('allows only admins to issue tracking links',async()=>{setup();expect((await call({action:'issue',trip_id:'trip1'})).status).toBe(403);});
 });
+describe('arrival time: only the next stop of this ride, only while it is live',()=>{
+ const placed={...trip,pickup_lat:12.0042,pickup_lng:-61.7861,dropoff_lat:12.0526,dropoff_lng:-61.7516};
+ it('sends the pickup until the guest is on board, then the drop-off',()=>{
+  expect(visitorView(placed,vehicle,now)).toMatchObject({stage:'to_pickup',eta:{to:'pickup',lat:12.0042,lng:-61.7861}});
+  expect(visitorView({...placed,pickup_arrived_at:'x'},vehicle,now)).toMatchObject({stage:'at_pickup',eta:null});
+  expect(visitorView({...placed,pickup_arrived_at:'x',pickup_signed_at:'y'},vehicle,now)).toMatchObject({stage:'to_dropoff',eta:{to:'dropoff',lat:12.0526,lng:-61.7516}});
+  expect(visitorView({...placed,status:'arrived',pickup_signed_at:'y'},vehicle,now)).toMatchObject({stage:'at_dropoff',eta:null});
+ });
+ it('sends no stop without a live position, a placed stop, or an open ride',()=>{
+  expect(visitorView(placed,{...vehicle,last_location_update:new Date(now-180000).toISOString()},now).eta).toBeNull();
+  expect(visitorView(placed,{...vehicle,current_lat:NaN},now).eta).toBeNull();
+  expect(visitorView(trip,vehicle,now).eta).toBeNull();
+  expect(visitorView({...placed,pickup_lat:0,pickup_lng:0},vehicle,now).eta).toBeNull();
+  for(const status of ['scheduled','completed','cancelled'])expect(visitorView({...placed,status},vehicle,now)).toMatchObject({eta:null});
+ });
+});
