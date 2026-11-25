@@ -224,7 +224,7 @@ export default function SignupDayTab() {
         </>
       )}
 
-      {open && <SignupPersonSheet key={open.ref} person={open} company={state?.company} call={call} onChanged={load} onClose={() => setOpenRef("")} />}
+      {open && <SignupPersonSheet key={open.ref} person={open} company={state?.company} buses={state?.buses || []} call={call} onChanged={load} onClose={() => setOpenRef("")} />}
       {dialog === "add" && <AddPersonDialog hotel={hotel?.name} onAdd={add} onClose={() => setDialog("")} />}
       {dialog === "import" && <ImportListDialog hotel={hotel?.name} onImport={importRows} onClose={() => setDialog("")} />}
       {dialog === "qr" && state?.company?.join_code && <TableQr code={state.company.join_code} hotel={state.company.name} onClose={() => setDialog("")} />}

@@ -106,9 +106,11 @@ test("sign-up day: an imported list gets its setup emails in turns", async ({ pa
 test("a setup link: signed out it asks to sign in with that address; signed in it joins with the link, not a code", async ({ page }) => {
   await mockFleet(page, { role: "staff", signedIn: false });
   await page.goto(`/join#invite=${INVITE}`);
-  await expect(page.getByText("Setup link received. You won't need a company code.")).toBeVisible();
+  // Signed out: straight to making their account, with the link kept.
+  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
+  await expect(page.getByText("Setup link received. You won't need a company code.", { exact: false })).toBeVisible();
   expect(new URL(page.url()).hash).toBe("");
-  await page.getByRole("link", { name: "I already have an account" }).click();
+  await page.getByRole("link", { name: "Log in" }).click();
   await expect(page.getByText("Setup link received.", { exact: false })).toBeVisible();
   await expect(page.getByText("with the email address it was sent to", { exact: false })).toBeVisible();
 });

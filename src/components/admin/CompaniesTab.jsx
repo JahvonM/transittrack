@@ -26,9 +26,50 @@ const KINDS = {
   GroupMessage: ["chat message", "chat messages"], Workplace: ["workplace", "workplaces"],
   LostItemReport: ["lost item report", "lost item reports"], Fault: ["fault", "faults"], DriverShift: ["shift", "shifts"],
 };
-const listOf = (counts = {}) => Object.entries(counts)
-  .map(([type, n]) => { const [one, many] = KINDS[type] || [type, type]; return `${n} ${n === 1 ? one : many}`; })
-  .join(", ");
+const countOf = (type, n) => { const [one, many] = KINDS[type] || [type, type]; return `${n} ${n === 1 ? one : many}`; };
+const listOf = (counts = {}) => Object.entries(counts).map(([type, n]) => countOf(type, n)).join(", ");
+
+// A removed company's history: tick the kinds to delete, then Delete selected
+// (functions companyHistoryCleanup). Still-linked records use Recover instead.
+function HistoryCleanup({ row, onDeleted }) {
+  const [picked, setPicked] = useState(() => new Set());
+  const [busy, setBusy] = useState(false);
+  const kinds = Object.entries(row.history || {});
+  const toggle = (type) => setPicked((prev) => { const next = new Set(prev); next.has(type) ? next.delete(type) : next.add(type); return next; });
+  const all = picked.size === kinds.length;
+  const del = async () => {
+    const types = [...picked];
+    const what = types.map((t) => countOf(t, row.history[t])).join(", ");
+    if (!(await confirmAction({ title: `Delete ${what}?`, description: `They are left over from ${row.company_name || "a removed company"} and give no access to anything. This deletes them for good${types.includes("Trip") ? ", including from billing and reports" : ""}.`, confirmLabel: "Delete for good" }))) return;
+    setBusy(true);
+    try {
+      const { data } = await base44.functions.invoke("companyHistoryCleanup", { company_id: row.company_id, types });
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Deleted", description: listOf(data.deleted) || "Nothing was left to delete." });
+      setPicked(new Set());
+      onDeleted(types);
+    } catch (error) { toast({ title: "Couldn't delete all of it", description: error?.response?.data?.error || error.message, variant: "destructive" }); }
+    finally { setBusy(false); }
+  };
+  if (!kinds.length) return null;
+  return (
+    <fieldset className="space-y-2" disabled={busy}>
+      <legend className="text-muted-foreground">History left behind. It gives no access to anything. Tick what to delete:</legend>
+      <div className="flex flex-wrap gap-x-4 gap-y-2">
+        {kinds.map(([type, n]) => (
+          <label key={type} className="inline-flex items-center gap-2">
+            <input type="checkbox" className="h-4 w-4 accent-primary" checked={picked.has(type)} onChange={() => toggle(type)} />
+            {countOf(type, n)}
+          </label>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={() => setPicked(all ? new Set() : new Set(kinds.map(([t]) => t)))}>{all ? "Clear all" : "Select all"}</Button>
+        <Button size="sm" variant="outline" className="text-danger" disabled={!picked.size || busy} onClick={del}><Trash2 className="h-4 w-4" aria-hidden="true" /> {busy ? "Deleting…" : "Delete selected"}</Button>
+      </div>
+    </fieldset>
+  );
+}
 
 export default function CompaniesTab({ companies, onChange }) {
   const [params, setParams] = useSearchParams();
@@ -97,9 +138,9 @@ export default function CompaniesTab({ companies, onChange }) {
                 <Button size="sm" disabled={recovering} onClick={()=>recover(row.company_id)}>Recover records</Button>
               </div>
             )}
-            {Object.keys(row.history||{}).length > 0 && (
-              <p className="text-muted-foreground">History kept: {listOf(row.history)}. It gives no access to anything. You can delete these one by one from their own screens.</p>
-            )}
+            <HistoryCleanup row={row} onDeleted={types=>setOrphans(rows=>rows
+              .map(r=>r.company_id===row.company_id?{...r,history:Object.fromEntries(Object.entries(r.history||{}).filter(([t])=>!types.includes(t)))}:r)
+              .filter(r=>Object.keys(r.counts||{}).length||Object.keys(r.history||{}).length))} />
           </div>
         ))}
       </div>

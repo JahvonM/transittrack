@@ -9,6 +9,7 @@ import BusArtwork from "@/components/BusArtwork";
 
 import { adminTabletHealth } from "@/lib/adminTabletHealth";
 import { PageActions } from "@/components/admin/kit";
+import { RemoveMenu, useFeedHidden } from "@/components/admin/RemoveMenu";
 import { Button } from "@/components/ui/button";
 
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
@@ -98,6 +99,8 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
  const [scope,setScope]=useState("all");
  const [filter,setFilter]=useState("all");
  const [query,setQuery]=useState("");
+ // Needs attention: hidden on this device until the alert changes (never an SOS).
+ const attentionHidden=useFeedHidden("needs_attention");
  const [now,setNow]=useState(()=>Date.now());
  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(timer);},[]);
  const fleet=vehicles.filter(v=>scope==="all"||v.company_id===scope);
@@ -135,6 +138,8 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
   ...needsTablets.map(d=>({id:"tablet-"+d.id,icon:Smartphone,title:d.label||d.name||d.vehicle_name||"Tablet",detail:tabletStates[d.id].label,go:"kiosks",action:"View tablet",tone:"warning"})),
   ...signal.filter(v=>keyOf(v)==="lost").map(v=>({id:"lost-"+v.id,vehicle:v,icon:SatelliteDish,title:v.name+": signal lost",detail:"Last fix "+age(v.last_location_update),go:"fleet",action:"View fleet",tone:"warning"})),
  ];
+ const alertKey=a=>[a.id,a.title,a.detail].join("|");
+ const shownAlerts=alerts.filter(a=>a.id.startsWith("sos-")||!attentionHidden.isHidden(alertKey(a)));
  const tabletRows=[...devices].sort((a,b)=>Number(tabletStates[b.id]?.attention)-Number(tabletStates[a.id]?.attention)).slice(0,6);
  const totals=[["on board",occupancyReady?onBoard:"—","checkins"],["active trips",trips.filter(belongs).length,"trips"],["signal issues",signal.length,"fleet"],["maintenance due",due.length,"schedule"]];
  const split=SPLIT.filter(s=>s.key!=="sos"||sos.length).map(s=>({...s,n:fleet.filter(v=>s.keys.includes(keyOf(v))).length}));
@@ -184,13 +189,17 @@ export default function AdminOverview({ vehicles=[], routes=[], trips=[], faults
    <div className="tt-admin-home-side">
     <Panel title="Needs attention" go={()=>onNavigate("health")} goLabel="Fleet health">
      <div className="tt-admin-alert-list px-4 pb-4 space-y-2">
-      {alerts.slice(0,4).map(a=>{const Icon=a.icon;return <button type="button" key={a.id} onClick={()=>onNavigate(a.go)} className="tt-admin-attention-row">
+      {shownAlerts.slice(0,4).map(a=>{const Icon=a.icon;return <div key={a.id} className="flex items-center gap-1">
+       <button type="button" onClick={()=>onNavigate(a.go)} className="tt-admin-attention-row min-w-0 flex-1">
        <span className={cn("tt-admin-attention-icon",a.tone==="danger"?"text-danger":"text-warning")}><Icon className="w-5 h-5" aria-hidden="true" /></span>
        <span className="min-w-0 flex-1"><strong className="block break-words text-body-sm">{a.title}</strong><span className={cn("block text-caption mt-0.5",a.tone==="danger"?"text-danger":"text-warning")}>{a.detail}</span></span>
        <span className="tt-admin-attention-action">{a.action}<ChevronRight className="w-4 h-4" aria-hidden="true" /></span>
-      </button>})}
-      {!alerts.length&&<p className="flex gap-2 items-center py-6 text-sm text-muted-foreground"><CircleCheck className="w-5 h-5 text-success" aria-hidden="true" />No issues in the loaded fleet records.</p>}
-      {alerts.length>4&&<button type="button" onClick={()=>onNavigate("health")} className="text-caption font-semibold text-muted-foreground hover:text-foreground">{alerts.length-4} more in Fleet health</button>}
+       </button>
+       {!a.id.startsWith("sos-")&&<RemoveMenu label="this alert" canDelete={false} onHide={()=>attentionHidden.hide(alertKey(a))} />}
+      </div>})}
+      {attentionHidden.count>0&&alerts.length!==shownAlerts.length&&<button type="button" onClick={attentionHidden.showAll} className="text-caption font-semibold text-muted-foreground hover:text-foreground">Show {alerts.length-shownAlerts.length} hidden</button>}
+      {!shownAlerts.length&&<p className="flex gap-2 items-center py-6 text-sm text-muted-foreground"><CircleCheck className="w-5 h-5 text-success" aria-hidden="true" />No issues in the loaded fleet records.</p>}
+      {shownAlerts.length>4&&<button type="button" onClick={()=>onNavigate("health")} className="text-caption font-semibold text-muted-foreground hover:text-foreground">{shownAlerts.length-4} more in Fleet health</button>}
       {!kiosksReady&&<p role="status" className="text-sm text-warning">Tablet health could not be loaded.</p>}
      </div>
     </Panel>

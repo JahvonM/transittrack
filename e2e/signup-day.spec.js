@@ -18,7 +18,7 @@ function hotelServer(companyName, joinCode) {
     handle(body, helper) {
       switch (body.action) {
         case "signup_state":
-          return { status: 200, json: { company: { id: "a", name: companyName, join_code: joinCode }, me: helper.name,
+          return { status: 200, json: { company: { id: "a", name: companyName, join_code: joinCode }, me: helper.name, buses: this.buses || [],
             people: people.map((p) => { const c = claims.get(p.ref); return { ...p, helper: c ? { name: c.name, mine: c.id === helper.id } : null }; }) } };
         case "signup_claim": {
           const c = claims.get(body.person_ref);
@@ -32,6 +32,12 @@ function hotelServer(companyName, joinCode) {
           if (i < 0) return { status: 404, json: { error: "Passenger not found" } };
           people.splice(i, 1); claims.delete(body.person_ref);
           return { status: 200, json: { ok: true } };
+        }
+        case "set_bus": {
+          const p = people.find((x) => x.key === body.person_key);
+          const bus = (this.buses || []).find((b) => b.id === body.vehicle_id);
+          p.vehicle_id = bus?.id || ""; p.bus = bus?.name || "";
+          return { status: 200, json: { ok: true, person_key: p.key } };
         }
         case "signup_app": find(body.person_ref).app = body.has_app ? "ticked" : ""; return { status: 200, json: { ok: true } };
         case "signup_import":
@@ -134,7 +140,7 @@ test("helpers can remove a mistaken sign-up entry after confirmation", async ({ 
   await expect(sheet.getByRole("button", { name: "Remove passenger" })).toBeEnabled();
   await sheet.getByRole("button", { name: "Remove passenger" }).click();
   const confirmation = page.getByRole("alertdialog");
-  await confirmation.getByRole("button", { name: "Remove passenger", exact: true }).click();
+  await confirmation.getByRole("button", { name: "Remove and delete login", exact: true }).click();
   await expect(sheet).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Ben Charles/ })).toHaveCount(0);
   expect(server.people.some(p => p.name === "Ben Charles")).toBe(false);
@@ -161,4 +167,24 @@ test("passenger directory assigns a company with confirmation", async ({ page })
   await page.getByRole("alertdialog").getByRole("button", { name: "Assign company", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Company for Walk In", exact: true })).toContainText(data.company.name);
   expect(assignment).toMatchObject({ action: "set_company", person_key: "contact:walk-in", company_id: data.company.id });
+});
+
+test("the pickup step suggests the bus whose route passes the spot, one tap away", async ({ browser }) => {
+  const server = hotelServer("Hotel A", "JOIN12345678");
+  server.buses = [
+    { id: "bus-hills", name: "Bus Hills", route: { id: "r2", name: "Hills", path: [{ lat: 17.35, lng: -62.8 }, { lat: 17.35, lng: -62.78 }] } },
+    { id: "bus-coast", name: "Bus Coast", route: { id: "r1", name: "Coast road", path: [{ lat: 17.3, lng: -62.8 }, { lat: 17.3, lng: -62.78 }] } },
+  ];
+  Object.assign(server.people.find((p) => p.name === "Ana Joseph"), { pickup: true, pickup_name: "Coast stop", pickup_lat: 17.3005, pickup_lng: -62.79, vehicle_id: "", bus: "" });
+  const { context, page } = await helperDevice(browser, server, { id: "helper", name: "Helper" }, { width: 390, height: 844 });
+  await page.getByRole("button", { name: /Ana Joseph/ }).click();
+  const sheet = page.getByRole("dialog", { name: "Ana Joseph" });
+  await expect(sheet.getByText("Coast road passes Ana's pickup spot", { exact: false })).toBeVisible();
+  if (process.env.TT_SHOT) await page.screenshot({ path: process.env.TT_SHOT.replace(".png", "-before.png") });
+  await sheet.getByRole("button", { name: "Put Ana on Bus Coast" }).click();
+  await expect(sheet.getByText("Ana rides Bus Coast.")).toBeVisible();
+  expect(server.people.find((p) => p.name === "Ana Joseph").vehicle_id).toBe("bus-coast");
+  await expect(sheet.getByRole("button", { name: "Put Ana on Bus Coast" })).toHaveCount(0);
+  if (process.env.TT_SHOT) await page.screenshot({ path: process.env.TT_SHOT });
+  await context.close();
 });

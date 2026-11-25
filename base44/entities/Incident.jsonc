@@ -2,6 +2,11 @@
   "name": "Incident",
   "type": "object",
   "properties": {
+    "hidden_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When an administrator hid this from the admin lists (the record is kept). Empty: shown."
+    },
     "vehicle_id": {
       "type": "string"
     },

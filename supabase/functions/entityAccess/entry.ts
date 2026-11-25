@@ -30,6 +30,9 @@ ENTITY_FIELDS.Advertisement.push('company_id');
 // with a problem report (written only by the driverPhone function).
 ENTITY_FIELDS.Driver.push('phone_app_access','username','auth_user_id','must_change_password');
 ENTITY_FIELDS.Incident.push('photo_uris','source');
+// Admin lists: hide a record without deleting it (administrators only, below).
+const HIDEABLE=['Fault','Incident','Trip','InspectionResult','Broadcast','LostItemReport'];
+for(const name of HIDEABLE) ENTITY_FIELDS[name].push('hidden_at');
 ENTITY_FIELDS.DriverShift.push('started_with','ended_with');
 ENTITY_FIELDS.Vehicle.push('backup_gps_driver_email','backup_gps_since','road_next_stop','driver_id');
 // The latest Wi-Fi/hotspot command's status for Admin → Kiosk tablets (never the command itself, which can hold a Wi-Fi password).
@@ -88,6 +91,7 @@ ENTITY_FIELDS.WorkshopVehicle=['name','make','model','year','engine','transmissi
 ENTITY_FIELDS.WorkshopJob=['vehicle_kind','vehicle_id','vehicle_name','guide_id','title','symptom','fault_codes','fault_id','status','steps','fix','notes','odometer','done_at','done_by'];
 ENTITY_FIELDS.WorkshopJobPart=['job_id','part_id','part_name','part_number','qty','from_stock'];
 const ADMIN_ONLY_FIELDS={Driver:new Set(['phone_app_access']),Vehicle:new Set(['driver_id']),Trip:new Set(['client_id','client_name','price','currency','shared_with_company'])};
+for(const name of HIDEABLE) (ADMIN_ONLY_FIELDS[name] ||= new Set()).add('hidden_at');
 const SERVER_ONLY_FIELDS={StaffCheckIn:new Set(['person_key','run_key','shift_id','review_reason','saved_offline']),Driver:new Set(['username','auth_user_id','must_change_password']),Incident:new Set(['photo_uris','source']),KioskDevice:new Set(['recordings_request','support_request','network_status', 'control_status']),Trip:new Set([...JOB_SIGNATURE_FIELDS,'invoice_id','invoice_number'])};
 const JOB_TYPES=new Set(['airport_pickup','airport_dropoff','hotel_tour','staff_run','transfer']);
 const CURRENCIES=new Set(['XCD','USD']);
@@ -799,6 +803,8 @@ async function prepare(db,ctx,name,input,existing=null) {
    if(name==='Vehicle' && Object.keys(data).some(k=>!['current_odometer','last_inspection_date','in_service','hours','status'].includes(k))) fail(403,'Maintenance vehicle fields only');
   } else if(user.role==='company') {
    if(!COMPANY_READ.has(name) || (name==='Company' && !existing) || COMPANY_NO_HISTORY.has(name)) fail(403,'Forbidden');
+   // A company sees its buses and routes; McSween Transport adds, changes and removes them.
+   if(name==='Vehicle' || name==='Route') fail(403,'Buses and routes are view only. Ask McSween Transport to change them.');
    // Jobs are asked for (bookingRequest company_request); dispatch makes and changes them.
    if(name==='Trip' && (existing?.job_type || data.job_type)) fail(403,'Ask for a job from Jobs → Request a job');
   } else if (name!=='GroupMessage' && name!=='LostItemReport') fail(403,'Forbidden');

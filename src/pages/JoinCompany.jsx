@@ -12,7 +12,7 @@ const RETURN = "?returnTo=" + encodeURIComponent("/join");
 // Where a company's join QR lands. It keeps the code for this tab, then sends
 // a signed-in passenger to their home, which checks the code like a typed one.
 export default function JoinCompany() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoadingAuth, authChecked } = useAuth();
   const [ready, setReady] = useState(false);
   const [valid, setValid] = useState(false);
   const [invite, setInvite] = useState(false);
@@ -42,6 +42,11 @@ export default function JoinCompany() {
       </AuthLayout>
     );
   }
+
+  // Signed out: straight to making their account (the code is kept for this
+  // tab; the sign-up screen links to Log in for people who have one).
+  if (!isAuthenticated && (isLoadingAuth || !authChecked)) return null;
+  if (!isAuthenticated) return <Navigate to={"/register" + RETURN} replace />;
 
   return (
     <AuthLayout

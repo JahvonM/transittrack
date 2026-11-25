@@ -34,15 +34,44 @@ describe('passenger company changes', () => {
     expect((await call(admin, { action: 'set_company', person_key: 'contact:rider', company_id: 'missing' })).status).toBe(404);
     expect(admin.writes).toHaveLength(0);
   });
-  it('removes a mistaken signup entry but keeps the account and trip history', async () => {
+  it('removing someone on sign-up day deletes their passenger login too, and keeps trip history', async () => {
     const sdk = fixture();
     sdk.tables.Trip = [{ id: 'history', passenger_name: 'Rider', company_id: 'a' }];
-    expect((await call(sdk, { action: 'signup_remove', company_id: 'a', person_ref: 'email:rider@test.invalid' })).status).toBe(200);
+    const res = await call(sdk, { action: 'signup_remove', company_id: 'a', person_ref: 'email:rider@test.invalid' });
+    expect(res.status).toBe(200);
+    expect(res.body.login_deleted).toBe(true);
     expect(sdk.tables.Contact).toHaveLength(0);
-    expect(sdk.tables.User.find(u => u.id === 'rider-user')).toBeDefined();
+    expect(sdk.tables.User.find(u => u.id === 'rider-user')).toBeUndefined();
     expect(sdk.tables.Trip).toHaveLength(1);
     expect(sdk.tables.CompanyMembership.find(m => m.id === 'rider-membership').active).toBe(false);
     expect(sdk.tables.NfcCard[0].is_active).toBe(false);
+  });
+  it("a hotel manager deletes the login too, unless the person also rides with another company", async () => {
+    const own = fixture('company');
+    const alone = await call(own, { action: 'signup_remove', company_id: 'a', person_ref: 'email:rider@test.invalid' });
+    expect(alone.body.login_deleted).toBe(true);
+    expect(own.tables.User.find(u => u.id === 'rider-user')).toBeUndefined();
+
+    const shared = fixture('company');
+    shared.tables.CompanyMembership.push({ id: 'other-hotel', user_id: 'rider-user', company_id: 'b', scope: 'passenger', active: true });
+    const kept = await call(shared, { action: 'signup_remove', company_id: 'a', person_ref: 'email:rider@test.invalid' });
+    expect(kept.status).toBe(200);
+    expect(kept.body).toMatchObject({ login_deleted: false, kept_for_other_company: true });
+    expect(shared.tables.User.find(u => u.id === 'rider-user')).toBeDefined();
+    expect(shared.tables.CompanyMembership.find(m => m.id === 'other-hotel').active).toBe(true);
+    expect(shared.tables.Contact).toHaveLength(0);
+  });
+  it('deletes their sign-in as well, so they cannot sign straight back in', async () => {
+    const sdk = fixture();
+    sdk.tables.User.find(u => u.id === 'rider-user').auth_user_id = 'auth-rider';
+    expect((await call(sdk, { action: 'signup_remove', company_id: 'a', person_ref: 'email:rider@test.invalid' })).status).toBe(200);
+    expect(sdk.signInsDeleted).toEqual(['auth-rider']);
+  });
+  it('never deletes an admin, driver or manager login', async () => {
+    const sdk = fixture();
+    sdk.tables.User.find(u => u.id === 'rider-user').role = 'driver';
+    await call(sdk, { action: 'signup_remove', company_id: 'a', person_ref: 'email:rider@test.invalid' });
+    expect(sdk.tables.User.find(u => u.id === 'rider-user')).toBeDefined();
   });
   it('prevents a manager removing a passenger from another company', async () => {
     const sdk = fixture('company');

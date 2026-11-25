@@ -5,20 +5,17 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import ProfileInfo from "@/components/ProfileInfo";
-import { Bus, Plus, Pencil, Trash2, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, CalendarClock, Inbox, Navigation, ArrowRight } from "lucide-react";
+import { Bus, Plus, Pencil, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, CalendarClock, Inbox, Navigation, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, Kpi, KpiRow, Panel, StatusChip, humanize } from "@/components/admin/kit";
 import { StatusPill } from "@/components/admin/AdminOverview";
-import PlaceSearch from "@/components/PlaceSearch";
 import { useToast } from "@/components/ui/use-toast";
 import CompanyEditDialog from "@/components/CompanyEditDialog";
 import { loadFailed } from "@/lib/loadFailed";
 import BusLoader from "@/components/BusLoader";
-import VehicleFormDialog from "@/components/VehicleFormDialog";
 import { VehicleModelThumb } from "@/components/VehicleModelPicker";
 import { modelIdFor } from "@/lib/vehicleModels";
 import { loadScreen, saveScreen } from "@/lib/savedScreen";
@@ -119,8 +116,8 @@ export default function CompanyDashboard() {
     <AppLayout title={title || company.name} subtitle={subtitle || (section === "overview" ? "Your buses, jobs and passenger code" : undefined)}>
       {section === "overview" && <Overview company={company} vehicles={vehicles} routes={routes} trips={trips} workplace={workplace} onChange={loadAll} />}
       {section === "jobs" && <CompanyJobs company={company} trips={trips} vehicles={vehicles} routes={routes} />}
-      {section === "vehicles" && <VehiclesTab company={company} routes={routes} vehicles={vehicles} workplace={workplace} onChange={loadAll} />}
-      {section === "routes" && <RoutesTab company={company} routes={routes} workplace={workplace} onChange={loadAll} />}
+      {section === "vehicles" && <VehiclesTab routes={routes} vehicles={vehicles} workplace={workplace} />}
+      {section === "routes" && <RoutesTab routes={routes} workplace={workplace} />}
       {section === "profile" && (
         <div className="grid gap-4 lg:grid-cols-2">
           <AccessCode company={company} onChange={loadAll} />
@@ -333,36 +330,14 @@ function CreateCompany({ onCreated }) {
   );
 }
 
-function VehiclesTab({ company, routes, vehicles, workplace, onChange }) {
-  const { toast } = useToast();
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-
-  const remove = async (id) => {
-    try {
-      await base44.entities.Vehicle.delete(id);
-      onChange();
-    } catch (e) {
-      toast({ title: "Couldn't delete vehicle", description: e.message, variant: "destructive" });
-    }
-  };
-
-  const setRoute = async (v, route_id) => {
-    try {
-      await base44.entities.Vehicle.update(v.id, { route_id: route_id || null });
-      onChange();
-    } catch (e) {
-      toast({ title: "Couldn't update route", description: e.message, variant: "destructive" });
-    }
-  };
-
+function VehiclesTab({ routes, vehicles, workplace }) {
+  // View only: McSween Transport adds, changes and removes buses.
+  const routeName = (id) => routes.find((r) => r.id === id)?.name || "";
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
       <div className="space-y-2">
-        <div className="flex justify-end">
-          <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}><Plus className="w-4 h-4" /> Add vehicle</Button>
-        </div>
-        {vehicles.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No vehicles yet. Add your first bus or taxi.</p>}
+        <p className="text-body-sm text-muted-foreground">Your buses. To add, change or remove one, contact McSween Transport.</p>
+        {vehicles.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No buses yet.</p>}
         {vehicles.map((v) => (
           <div key={v.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-card p-3">
             <div className="shrink-0 rounded-xl bg-secondary"><VehicleModelThumb model={modelIdFor(v)} size={48} /></div>
@@ -371,28 +346,11 @@ function VehiclesTab({ company, routes, vehicles, workplace, onChange }) {
               <div className="text-xs text-muted-foreground truncate">
                 Driver: {v.driver_name || v.driver_email || "Unassigned"} · {busSharingLine(v)}
               </div>
+              <div className="text-xs text-muted-foreground truncate">Route: {routeName(v.route_id) || "No route"}</div>
             </div>
-            <div className="flex w-full items-center justify-end gap-1 sm:w-auto">
-            <Select value={v.route_id || "none"} onValueChange={(r) => setRoute(v, r)}>
-              <SelectTrigger className="mr-auto h-9 w-[150px] sm:mr-1" aria-label={`Route of ${v.name}`}><SelectValue placeholder="No route" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No route</SelectItem>
-                {routes.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <StatusPill status={companyBusStatus(v)} />
-            <Button variant="ghost" size="icon" onClick={() => { setEditing(v); setFormOpen(true); }} aria-label={`Edit ${v.name}`} title="Edit">
-              <Pencil className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => remove(v.id)} aria-label={`Delete ${v.name}`} title="Delete" className="text-danger hover:text-danger">
-              <Trash2 className="w-4 h-4" />
-            </Button>
-            </div>
           </div>
         ))}
-        <VehicleFormDialog open={formOpen} onOpenChange={setFormOpen} vehicle={editing} fixedCompany={company} routes={routes} onSaved={onChange} />
       </div>
 
       <Panel title="Live map" icon={MapPin} className="h-fit lg:sticky lg:top-20">
@@ -403,57 +361,18 @@ function VehiclesTab({ company, routes, vehicles, workplace, onChange }) {
   );
 }
 
-function RoutesTab({ company, routes, workplace, onChange }) {
-  const { toast } = useToast();
-  const [name, setName] = useState("");
-  const [type, setType] = useState("staff");
-  const [stops, setStops] = useState([]);
-  const [adding, setAdding] = useState(false);
-
-  const addPlace = (place) => setStops((prev) => [...prev, { name: place.name, lat: place.lat, lng: place.lng, order: prev.length }]);
-  const removeStop = (i) => setStops(stops.filter((_, x) => x !== i).map((s, idx) => ({ ...s, order: idx })));
-
-  const save = async () => {
-    if (!name || stops.length < 2) return;
-    setAdding(true);
-    try {
-      await base44.entities.Route.create({
-        name, type, stops,
-        company_id: company.id,
-        company_name: company.name,
-        active: true,
-      });
-      setName(""); setStops([]);
-      onChange();
-    } catch (e) {
-      toast({ title: "Couldn't create route", description: e.message, variant: "destructive" });
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const remove = async (id) => {
-    try {
-      await base44.entities.Route.delete(id);
-      onChange();
-    } catch (e) {
-      toast({ title: "Couldn't delete route", description: e.message, variant: "destructive" });
-    }
-  };
-
+function RoutesTab({ routes, workplace }) {
+  // View only: McSween Transport adds, changes and removes routes.
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
-      <div className="space-y-2">
-        {routes.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No routes yet. Create one with at least 2 stops.</p>}
+    <div className="space-y-2">
+        <p className="text-body-sm text-muted-foreground">Your routes. To add, change or remove one, contact McSween Transport.</p>
+        {routes.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No routes yet.</p>}
         {routes.map((r) => (
           <Card key={r.id}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2"><RouteIcon className="w-4 h-4" />{r.name}</CardTitle>
-                <div className="flex items-center gap-2">
-                  <StatusChip tone="neutral" dot={false}>{humanize(r.type)}</StatusChip>
-                  <Button variant="ghost" size="icon" onClick={() => remove(r.id)} aria-label={`Delete ${r.name}`} title="Delete route" className="text-danger hover:text-danger"><Trash2 className="w-4 h-4" /></Button>
-                </div>
+                <StatusChip tone="neutral" dot={false}>{humanize(r.type)}</StatusChip>
               </div>
             </CardHeader>
             <CardContent>
@@ -475,44 +394,6 @@ function RoutesTab({ company, routes, workplace, onChange }) {
             </CardContent>
           </Card>
         ))}
-      </div>
-
-      <Card>
-        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Plus className="w-4 h-4" /> New route</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>Route name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Airport Express" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Type</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="staff">Staff</SelectItem>
-                <SelectItem value="airport">Airport</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Stops ({stops.length})</Label>
-            <div className="space-y-1">
-              {stops.map((s, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-lg border">
-                  <span className="w-5 h-5 rounded-full bg-primary/10 text-primary grid place-items-center text-xs">{i + 1}</span>
-                  <span className="flex-1 truncate">{s.name}</span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeStop(i)}><Trash2 className="w-3.5 h-3.5" /></Button>
-                </div>
-              ))}
-            </div>
-            <PlaceSearch onSelect={addPlace} proximity={workplace} placeholder="Search a stop by name" />
-            <p className="text-xs text-muted-foreground">Search the stop by name and pick it from the results — its location is set for you.</p>
-          </div>
-          <Button className="w-full" onClick={save} disabled={adding || !name || stops.length < 2}>
-            {adding ? "Saving…" : "Save route"}
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }

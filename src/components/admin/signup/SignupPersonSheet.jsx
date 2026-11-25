@@ -2,16 +2,19 @@ import { confirmAction } from "@/components/ConfirmHost";
 import React, { useEffect, useRef, useState } from "react";
 import { Check, Mail, MapPin, Nfc, QrCode, Smartphone, UserCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { toast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import PassengerPickupDialog from "@/components/directory/PassengerPickupDialog";
 import { useCardReader, formatUid, normalizeUid } from "@/lib/cardReader";
-import { inviteText, isReady, stepsOf } from "@/lib/signupDay";
+import { busesForPickup, inviteText, isReady, stepsOf } from "@/lib/signupDay";
 import { JoinQrImage } from "./SignupDialogs";
 
 const errorText = (e, fallback) => e?.response?.data?.error || e?.message || fallback;
+const NO_BUS = "__none__";
 const firstName = (name) => String(name || "them").split(/\s+/)[0];
 
 function Step({ n, icon: Icon, title, done, status, children }) {
@@ -114,7 +117,51 @@ function SetupEmail({ person, call, onChanged }) {
   );
 }
 
-export default function SignupPersonSheet({ person, company, call, onChanged, onClose }) {
+// Which bus picks them up, chosen with their pickup spot (nfcCards set_bus
+// keeps their directory card and app account on the same bus).
+function BusChoice({ person, buses, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const change = async (value) => {
+    setBusy(true); setMsg(null);
+    try {
+      const vehicleId = value === NO_BUS ? "" : value;
+      const res = await base44.functions.invoke("nfcCards", { action: "set_bus", person_key: person.key, vehicle_id: vehicleId });
+      if (res.data?.error) throw new Error(res.data.error);
+      const name = buses.find((b) => b.id === vehicleId)?.name;
+      setMsg({ ok: true, text: name ? `${firstName(person.name)} rides ${name}.` : "Taken off their bus." });
+      await onChanged();
+    } catch (e) { setMsg({ ok: false, text: errorText(e, "Couldn't change the bus. Try again.") }); }
+    finally { setBusy(false); }
+  };
+  if (!buses.length) return <p className="text-body-sm text-muted-foreground">This hotel has no buses yet. Add them in Admin → Vehicles.</p>;
+  // The bus whose route drives past their pickup spot, one tap away.
+  const { passing, currentPasses } = busesForPickup(person, buses);
+  const suggestion = !person.vehicle_id || currentPasses === false ? passing[0] : null;
+  const first = firstName(person.name);
+  return (
+    <div className="space-y-1.5">
+      {suggestion && (
+        <div className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2" role="status">
+          <p className="text-body-sm">{suggestion.route?.name ? `${suggestion.route.name}` : "A route"} passes {first}'s pickup spot ({Math.round(suggestion.distanceM)} m away).</p>
+          <Button size="sm" onClick={() => change(suggestion.id)} disabled={busy}>Put {first} on {suggestion.name}</Button>
+        </div>
+      )}
+      {currentPasses === false && <p className="text-body-sm text-warning">{person.bus || "Their bus"} doesn't drive past {first}'s pickup spot.{passing.length ? "" : " No bus's route does yet, so check Plan pickups."}</p>}
+      {!person.vehicle_id && person.pickup && !passing.length && <p className="text-body-sm text-muted-foreground">No bus's route passes this pickup spot yet. Choose a bus below, or check Plan pickups.</p>}
+      <Select value={person.vehicle_id || NO_BUS} onValueChange={change} disabled={busy}>
+        <SelectTrigger aria-label={`${firstName(person.name)}'s bus`}><SelectValue placeholder="Choose their bus" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NO_BUS}>No bus yet</SelectItem>
+          {buses.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      {msg && <p role={msg.ok ? "status" : "alert"} className={`text-body-sm ${msg.ok ? "text-success" : "text-danger"}`}>{msg.text}</p>}
+    </div>
+  );
+}
+
+export default function SignupPersonSheet({ person, company, buses = [], call, onChanged, onClose }) {
   const [claim, setClaim] = useState({ state: "claiming" }); // claiming | mine | taken | free
   const [showQr, setShowQr] = useState(!person?.registered);
   const [pickupOpen, setPickupOpen] = useState(false);
@@ -147,9 +194,14 @@ export default function SignupPersonSheet({ person, company, call, onChanged, on
   const first = firstName(person.name);
   const letGo = async () => { await call("signup_claim", { person_ref: ref, release: true }).catch(() => {}); onChanged(); onClose(); };
   const remove = async () => {
-    if (!(await confirmAction({ title: `Remove ${person.name}?`, description: "Remove them from this company's sign-up list and passenger directory, and stop their company access, card and codes. Their login account and past trips are kept.", confirmLabel: "Remove passenger" }))) return;
+    if (!(await confirmAction({ title: `Remove ${person.name}?`, description: "This deletes their app login and sign-in, removes them from the sign-up list, passengers and users, and stops their card and codes. Past trips are kept. This can't be undone. (If they also ride with another company you don't manage, only this company is removed.)", confirmLabel: "Remove and delete login" }))) return;
     setRemoving(true); setError("");
-    try { const data = await call("signup_remove", { person_ref: ref }); if (!data?.ok) throw new Error(data?.error || "Removal failed"); onClose(); await onChanged(); }
+    try {
+      const data = await call("signup_remove", { person_ref: ref });
+      if (!data?.ok) throw new Error(data?.error || "Removal failed");
+      toast({ title: `${person.name} removed`, description: data.login_deleted ? "Their app login was deleted too." : data.kept_for_other_company ? "They also ride with another company, so their login was kept." : "They had no app login." });
+      onClose(); await onChanged();
+    }
     catch (e) { setError(errorText(e, "Couldn't remove this passenger.")); }
     finally { setRemoving(false); }
   };
@@ -196,7 +248,7 @@ export default function SignupPersonSheet({ person, company, call, onChanged, on
             status={person.app === "alerts" ? "The app is on their phone with alerts on." : person.app === "ticked" ? "Ticked: the app is on their phone." : "Not yet."}>
             {!steps.app && (
               <p className="text-body-sm text-muted-foreground">
-                iPhone: after signing in, Safari shows how to add the app to the Home Screen. Then they open it from there, sign in again and tap Allow all.
+                iPhone: after signing in, Safari shows how to add the app to the Home Screen. Then they open it from there straight away (it opens signed in and joined) and tap Allow all.
                 Android: they tap Install the app, then Allow all.
               </p>
             )}
@@ -209,9 +261,10 @@ export default function SignupPersonSheet({ person, company, call, onChanged, on
           </Step>
 
           <Step n={3} icon={MapPin} title="Pickup spot" done={steps.pickup}
-            status={steps.pickup ? person.pickup_name || "Pickup spot set." : "Not set yet."}>
+            status={[steps.pickup ? person.pickup_name || "Pickup spot set." : "Not set yet.", person.bus && `Rides ${person.bus}.`].filter(Boolean).join(" ")}>
             <Button variant={steps.pickup ? "outline" : "default"} onClick={() => setPickupOpen(true)}><MapPin className="h-4 w-4" aria-hidden="true" /> {steps.pickup ? "Change pickup spot" : "Set pickup spot"}</Button>
             {!steps.pickup && <p className="text-body-sm text-muted-foreground">Or {first} sets it in the app: More → My home pickup spot.</p>}
+            <BusChoice person={person} buses={buses} onChanged={onChanged} />
           </Step>
 
           <Step n={4} icon={Nfc} title="NFC card" done={steps.card}

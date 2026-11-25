@@ -335,6 +335,13 @@ export function createBackend() {
       if (error) throw authError(error);
       return { access_token: data.session?.access_token, user: data.user };
     },
+    // iPhone Home Screen app, first open: the one-time code Safari put in its
+    // start address becomes a sign-in (functions homeScreenSignIn).
+    async signInWithHomeScreenCode(code) {
+      const { data } = await invoke('homeScreenSignIn', { action: 'redeem', code });
+      const { error } = await sb().auth.verifyOtp({ token_hash: String(data?.token_hash || ''), type: 'magiclink' });
+      if (error) throw authError(error);
+    },
     async resendOtp(email) {
       const { error } = await sb().auth.resend({ type: 'signup', email: String(email || '').trim() });
       if (error) throw authError(error);

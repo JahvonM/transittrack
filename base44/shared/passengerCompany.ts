@@ -47,7 +47,9 @@ export async function changePassengerCompany(db, person, company, remove = false
 // manager login). Past trips, sign-ins and card records stay as history.
 // Callers must check the operator is an admin and resolve the person from
 // the directory.
-export async function removePassenger(db, person) {
+// deleteSignIn: base44.asServiceRole.deleteSignIn, to delete their Supabase
+// sign-in as well, so a deleted login can't simply be signed into again.
+export async function removePassenger(db, person, deleteSignIn = null) {
   const norm = value => String(value || '').trim().toLowerCase();
   const email = norm(person.email);
   const accounts = (await db.User.list()).filter(u => ['staff', 'passenger'].includes(u.role) &&
@@ -83,6 +85,8 @@ export async function removePassenger(db, person) {
   for (const u of accounts) {
     for (const e of new Set([u.email, norm(u.email)].filter(Boolean))) for (const t of await db.PushToken.filter({ email: e })) await db.PushToken.delete(t.id);
     await db.User.delete(u.id);
+    // And their sign-in itself, so they can't sign straight back in.
+    if (u.auth_user_id && deleteSignIn) await Promise.resolve(deleteSignIn(String(u.auth_user_id))).catch(() => false);
   }
   return { cards, logins: accounts.length, companies: [...companies] };
 }

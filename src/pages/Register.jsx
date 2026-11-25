@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Mail, Lock, Loader2 } from "lucide-react";
+import { UserPlus, Mail, Lock, Loader2, QrCode } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
@@ -16,6 +16,7 @@ import { safeReturnTo } from "@/lib/authReturnTo";
 import { phoneSignInAvailable, openPhoneSignIn } from "@/lib/phoneSignIn";
 import { emailProblem, passwordProblem, PASSWORD_HINT } from "@/lib/passwordRules";
 import { useSignInOptions } from "@/lib/signInOptions";
+import { hasPendingInvite, hasPendingJoinCode } from "@/lib/companyJoin";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -29,6 +30,8 @@ export default function Register() {
   const [inBrowser, setInBrowser] = useState(false);
   // Only the "Continue with ..." buttons that are turned on.
   const signInWith = useSignInOptions();
+  // Came from a company's join QR or setup link: they join once signed up.
+  const [joining] = useState(() => (hasPendingInvite() ? "invite" : hasPendingJoinCode() ? "code" : ""));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -170,7 +173,7 @@ export default function Register() {
     <AuthLayout
       icon={UserPlus}
       title="Create your account"
-      subtitle="Sign up to get started"
+      subtitle={joining ? "Make your account, and we'll add you to your bus company." : "Sign up to get started"}
       footer={
         <>
           Already have an account?{" "}
@@ -183,6 +186,12 @@ export default function Register() {
         </>
       }
     >
+      {joining && (
+        <div className="mb-5 flex items-center gap-3 rounded-xl bg-secondary p-3 text-body-sm" role="status">
+          <QrCode className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          {joining === "invite" ? "Setup link received. You won't need a company code. Use the email address this link was sent to." : "Company code received. You won't need to type it."}
+        </div>
+      )}
       {(signInWith.google || signInWith.apple) && (<>
       <div className="mb-6 grid gap-3">
         {signInWith.google && (googleButtonAvailable() ? (

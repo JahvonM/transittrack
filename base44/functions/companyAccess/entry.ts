@@ -3,7 +3,7 @@ import { retry429 } from '../../shared/retry429.ts';
 // Shared request budgets use the configured Supabase RPC and fail closed.
 import { reserveAttempt } from '../../shared/atomicOps.ts';
 import { readSignupInvite } from '../../shared/signupInvites.ts';
-import { assignedBusId } from '../../shared/assignedBus.ts';
+import { assignedBusId, adoptCardPickup } from '../../shared/assignedBus.ts';
 
 async function hashSecret(value) {
  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
@@ -90,6 +90,13 @@ async function assignedBus(base44, user, companyId) {
  return bus && bus.company_id === companyId ? { id: bus.id, name: bus.name || 'Bus' } : null;
 }
 
+// The pickup spot set for this passenger on a sign-up day reaches their app:
+// pickup_updated tells the app to reload the account. Never fails the call.
+async function cardPickup(base44, user, companyId) {
+ const copied = await adoptCardPickup(base44.asServiceRole.entities, user, companyId).catch(() => false);
+ return copied ? { pickup_updated: true } : {};
+}
+
 export default async function(req) {
  try {
   const base44 = createClientFromRequest(req);
@@ -112,12 +119,12 @@ export default async function(req) {
   if (body.action === 'context') {
    const requested = typeof body.grant === 'string' && /^[a-f0-9]{64}$/.test(body.grant) ? body.grant : null;
    const fromGrant = requested ? await companyFromGrant(base44, user, requested) : null;
-   if (fromGrant) return Response.json({ company: displayCompany(fromGrant), my_bus: await assignedBus(base44, user, fromGrant.id) });
+   if (fromGrant) return Response.json({ company: displayCompany(fromGrant), my_bus: await assignedBus(base44, user, fromGrant.id), ...await cardPickup(base44, user, fromGrant.id) });
    // No usable pass on this device. A signed-in member keeps their company; the
    // app asks for this only when the person has not deliberately switched.
    if (body.restore === true && ['staff','passenger'].includes(user.role)) {
     const restored = await companyFromMembership(base44, user);
-    if (restored) return Response.json({ company: displayCompany(restored.company), grant: restored.grant, my_bus: await assignedBus(base44, user, restored.company.id) });
+    if (restored) return Response.json({ company: displayCompany(restored.company), grant: restored.grant, my_bus: await assignedBus(base44, user, restored.company.id), ...await cardPickup(base44, user, restored.company.id) });
    }
    return Response.json({ error: 'Company code required', code: 'COMPANY_ACCESS_REQUIRED' }, { status: 401 });
   }
@@ -158,6 +165,6 @@ export default async function(req) {
   await retry429(async ()=>base44.asServiceRole.entities.CompanyAccessGrant.create({ user_id: user.id, company_id: company.id, token_hash: await hashSecret(grant), code_hash: await hashSecret(code) }));
   await recordPassengerMembership(base44,user,company,await hashSecret(code));
   // Verified passenger access never grants manager scope or ownership.
-  return Response.json({ company: displayCompany(company), grant, role:user.role, my_bus: await assignedBus(base44, user, company.id) });
+  return Response.json({ company: displayCompany(company), grant, role:user.role, my_bus: await assignedBus(base44, user, company.id), ...await cardPickup(base44, user, company.id) });
  } catch (error) { return Response.json({ error: 'Could not verify company access' }, { status: error.status || 500 }); }
 }

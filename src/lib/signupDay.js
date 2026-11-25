@@ -1,3 +1,6 @@
+import { drawnRoad } from "./routeRoad";
+import { nearestRoutePoint } from "./pickupSuggestion";
+import { ON_ROAD_M } from "./pickupOnBus";
 // Sign-up day at a hotel (Admin → Sign-up day): the four things each staff
 // member leaves with, in the order they work best on an iPhone (join and
 // sign in first in Safari, then add the app to the Home Screen).
@@ -108,4 +111,24 @@ export function inviteText(status, name = "") {
     case "not_on_list": return `${who} isn't on this hotel's list.`;
     default: return "The setup email couldn't be sent. Try again.";
   }
+}
+
+// Sign-up day's bus suggestion: the buses whose route drives past the
+// person's pickup spot (within the 200 m Plan pickups uses), nearest first,
+// and whether the bus they're on does.
+export function busesForPickup(person, buses = []) {
+  const lat = Number(person?.pickup_lat), lng = Number(person?.pickup_lng);
+  if (person?.pickup_lat == null || person?.pickup_lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return { passing: [], currentPasses: null };
+  const passing = buses
+    .map((b) => {
+      const road = drawnRoad(b.route);
+      const near = road ? nearestRoutePoint({ lat, lng }, road) : null;
+      return near && near.distanceM <= ON_ROAD_M ? { ...b, distanceM: near.distanceM } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.distanceM - b.distanceM);
+  // null: no bus yet, or its route has no drawn road to check against.
+  const current = person.vehicle_id ? buses.find((b) => b.id === person.vehicle_id) : null;
+  const currentPasses = current && drawnRoad(current.route) ? passing.some((b) => b.id === current.id) : null;
+  return { passing, currentPasses };
 }

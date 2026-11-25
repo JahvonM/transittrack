@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { useAuth } from "@/lib/AuthContext";
+import { RemoveMenu, useHiddenRows } from "@/components/admin/RemoveMenu";
 import { CheckCircle2, ClipboardList, FileSpreadsheet, FileText, Receipt, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,9 +49,11 @@ export default function CompletedTripsTab({ trips, clients = [], invoices = [], 
   const [open, setOpen] = useState(null);
   const set = (patch) => setFilters((f) => ({ ...f, ...patch }));
 
-  const completed = useMemo(() => trips
+  const admin = useAuth().user?.role === "admin";
+  const allCompleted = useMemo(() => trips
     .filter((t) => t.status === "completed")
     .sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || "")), [trips]);
+  const { visible: completed, toggle: hiddenToggle } = useHiddenRows(allCompleted, admin);
   const drivers = [...new Set(completed.map((t) => t.driver_name).filter(Boolean))].sort();
   const q = filters.q.trim().toLowerCase();
   const shown = completed.filter((t) => {
@@ -113,6 +117,7 @@ export default function CompletedTripsTab({ trips, clients = [], invoices = [], 
               <Input type="date" value={filters.to} onChange={(e) => set({ to: e.target.value })} aria-label="Completed to" className="w-auto" />
             </div>
           </div>
+          {admin && hiddenToggle}
           <p className="text-body-sm text-muted-foreground">
             {filtered ? `${shown.length} of ${completed.length}` : completed.length} completed job{completed.length === 1 ? "" : "s"}{hasMore ? " loaded" : ""}
             {filtered && hasMore ? " · Show more to search older ones" : ""}
@@ -125,6 +130,7 @@ export default function CompletedTripsTab({ trips, clients = [], invoices = [], 
                 <thead><tr>
                   <th className={tableClass.th}>Completed</th><th className={tableClass.th}>Job</th><th className={tableClass.th}>Client</th>
                   <th className={tableClass.th}>Driver</th><th className={tableClass.th}>Price</th><th className={tableClass.th}>Signed</th>
+                  {admin && <th className={tableClass.th}><span className="sr-only">Remove</span></th>}
                 </tr></thead>
                 <tbody>
                   {shown.map((t) => (
@@ -148,7 +154,12 @@ export default function CompletedTripsTab({ trips, clients = [], invoices = [], 
                           <span className={pickupSigned(t) ? "text-success" : "text-muted-foreground"}>{pickupSigned(t) && <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />}Pickup{t.pickup_signed_role === "reception" ? " · front desk" : ""}</span>
                           <span className={dropoffSigned(t) ? "text-success" : "text-muted-foreground"}>{dropoffSigned(t) && <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />}Drop-off{t.dropoff_signed_role === "reception" ? " · front desk" : ""}</span>
                         </span>
+                        {t.hidden_at && <span className="mt-1 block text-caption text-muted-foreground">Hidden</span>}
                       </td>
+                      {admin && <td className={tableClass.td} onClick={(e) => e.stopPropagation()}>
+                        <RemoveMenu entity="Trip" record={t} label="this job" onChanged={onChange}
+                          deleteNote={t.invoice_number ? `It is on invoice ${t.invoice_number}, which will no longer list it.` : "It leaves billing and reports."} />
+                      </td>}
                     </tr>
                   ))}
                 </tbody>

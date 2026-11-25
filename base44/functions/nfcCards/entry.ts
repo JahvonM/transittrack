@@ -347,7 +347,7 @@ export default async function (req) {
         const { people } = await loadPeople(base44, null);
         const person = people.find(p => p.key === body.person_key && p.type === 'staff');
         if (!person) return Response.json({ error: 'Passenger not found' }, { status: 404 });
-        const done = await removePassenger(sr, person);
+        const done = await removePassenger(sr, person, base44.asServiceRole.deleteSignIn?.bind(base44.asServiceRole));
         await audit(base44, user, { action: 'delete', entity: person.source === 'user' ? 'User' : 'Contact', record_id: person.id, page: '/admin/directory',
           summary: `Removed passenger ${person.name}: ${done.cards} card${done.cards === 1 ? '' : 's'} stopped${done.logins ? ', app login deleted' : ''}` });
         // Their boarding tablets drop them at the next list download.

@@ -18,6 +18,7 @@ async function setup(page,{fail=false}={}){
   }
   if(url.includes('/functions/v1/companyCleanupPreview')) return route.fulfill({json:{orphans:[{company_id:'removed',company_name:'Old Transit',counts:{Driver:1,Vehicle:2},history:{Incident:3,Trip:1}}],read_only:true}});
   if(url.includes('/functions/v1/deleteCompanySafely')) { calls.push({cleanup:b});return route.fulfill({json:{ok:true}}); }
+  if(url.includes('/functions/v1/companyHistoryCleanup')) { calls.push({history:b});return route.fulfill({json:{ok:true,deleted:Object.fromEntries((b.types||[]).map(t=>[t,t==='Incident'?3:1]))}}); }
   if(url.includes('/functions/v1/companyWorkspace')){
    calls.push({workspace:b});
    if(shouldFail){shouldFail=false;return route.fulfill({status:503,json:{error:'Company temporarily unavailable'}});}
@@ -71,7 +72,8 @@ test('orphan recovery requires confirmation and uses the protected endpoint',asy
  // Plain names and the company's old name, never its record ID.
  await expect(page.getByText('Old Transit (removed)')).toBeVisible();
  await expect(page.getByText('Still linked: 1 driver, 2 vehicles')).toBeVisible();
- await expect(page.getByText('History kept: 3 incidents, 1 job.',{exact:false})).toBeVisible();
+ await expect(page.getByRole('checkbox',{name:'3 incidents'})).toBeVisible();
+ await expect(page.getByRole('checkbox',{name:'1 job'})).toBeVisible();
  await expect(page.getByText('removed:',{exact:false})).toHaveCount(0);
  expect(calls.some(c=>c.cleanup)).toBe(false);
  await page.getByRole('button',{name:'Recover records',exact:true}).click();
@@ -82,5 +84,21 @@ test('orphan recovery requires confirmation and uses the protected endpoint',asy
  await expect.poll(()=>calls.find(c=>c.cleanup)?.cleanup).toEqual({company_id:'removed',action:'recover'});
  // Nothing is linked any more; the history stays listed, kept on purpose.
  await expect(page.getByText('Still linked:',{exact:false})).toHaveCount(0);
- await expect(page.getByText('History kept: 3 incidents, 1 job.',{exact:false})).toBeVisible();
+ await expect(page.getByRole('checkbox',{name:'3 incidents'})).toBeVisible();
+});
+
+test('a removed company\'s history: tick what to delete, confirm, and only that goes',async({page})=>{
+ const calls=await setup(page);await page.goto('/admin/companies');
+ await page.getByRole('button',{name:'Find records from removed companies'}).click();
+ const del=page.getByRole('button',{name:'Delete selected'});
+ await expect(del).toBeDisabled();
+ await page.getByRole('checkbox',{name:'3 incidents'}).check();
+ await del.click();
+ const dialog=page.getByRole('alertdialog');
+ await expect(dialog).toContainText('Delete 3 incidents?');
+ expect(calls.some(c=>c.history)).toBe(false);
+ await dialog.getByRole('button',{name:'Delete for good',exact:true}).click();
+ await expect.poll(()=>calls.find(c=>c.history)?.history).toEqual({company_id:'removed',types:['Incident']});
+ await expect(page.getByRole('checkbox',{name:'3 incidents'})).toHaveCount(0);
+ await expect(page.getByRole('checkbox',{name:'1 job'})).toBeVisible();
 });

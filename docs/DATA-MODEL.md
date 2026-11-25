@@ -233,6 +233,7 @@ Table `broadcast` · belongs to a company through `vehicle_id`, then `company_id
 
 | Field | Type | Notes |
 |---|---|---|
+| `hidden_at` | timestamptz | When an administrator hid this from the admin lists (the record is kept). Empty: shown. Not sent to the browser. |
 | `type` | text | One of: `bus_arrived`, `taxi_arrived`, `info`. Default `"info"`. Required. |
 | `title` | text |  |
 | `message` | text | Required. |
@@ -566,6 +567,7 @@ Table `fault` · belongs to a company through `vehicle_id`, then `company_id` ·
 
 | Field | Type | Notes |
 |---|---|---|
+| `hidden_at` | timestamptz | When an administrator hid this from the admin lists (the record is kept). Empty: shown. Not sent to the browser. |
 | `vehicle_id` | text | → Vehicle. Required. |
 | `vehicle_name` | text |  |
 | `company_id` | text | → Company. Required. |
@@ -664,6 +666,7 @@ Table `incident` · belongs to a company through `vehicle_id`, then `company_id`
 
 | Field | Type | Notes |
 |---|---|---|
+| `hidden_at` | timestamptz | When an administrator hid this from the admin lists (the record is kept). Empty: shown. Not sent to the browser. |
 | `vehicle_id` | text | → Vehicle. |
 | `vehicle_name` | text |  |
 | `company_id` | text | → Company. Required. |
@@ -716,6 +719,7 @@ Table `inspection_result` · belongs to a company through `vehicle_id`, then `co
 
 | Field | Type | Notes |
 |---|---|---|
+| `hidden_at` | timestamptz | When an administrator hid this from the admin lists (the record is kept). Empty: shown. Not sent to the browser. |
 | `vehicle_id` | text | → Vehicle. Required. |
 | `vehicle_name` | text |  |
 | `company_id` | text | → Company. |
@@ -869,6 +873,7 @@ Table `lost_item_report` · belongs to a company through `company_id` · read an
 
 | Field | Type | Notes |
 |---|---|---|
+| `hidden_at` | timestamptz | When an administrator hid this from the admin lists (the record is kept). Empty: shown. Not sent to the browser. |
 | `company_id` | text | → Company. |
 | `company_name` | text |  |
 | `reporter_name` | text |  |
@@ -1458,6 +1463,7 @@ Table `trip` · belongs to a company through `vehicle_id`, then `company_id` · 
 
 | Field | Type | Notes |
 |---|---|---|
+| `hidden_at` | timestamptz | When an administrator hid this from the admin lists (the record is kept). Empty: shown. Not sent to the browser. |
 | `vehicle_id` | text | → Vehicle. |
 | `vehicle_name` | text |  |
 | `plate_number` | text |  |
