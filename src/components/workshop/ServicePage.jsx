@@ -61,7 +61,7 @@ export default function ServicePage() {
       {!missing.schedules && bare.length > 0 && (
         <section aria-labelledby="svc-bare" className="mb-5">
           <h3 id="svc-bare" className="mb-2 text-body font-semibold text-muted-foreground">No services yet <span className="tabular-nums">({bare.length})</span></h3>
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {bare.map((v) => {
               const offers = v.guide && !missing.facts ? fromModelPage(facts, v.guide.id, []).length : 0;
               return (
