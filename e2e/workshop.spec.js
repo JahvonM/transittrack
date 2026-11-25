@@ -83,12 +83,12 @@ test('on the tablet: a vehicle page like a parts catalogue, and checking and add
   await expect(details).toContainText('KDH212R-JEMDY');
   await expect(details).toContainText('2KD-FTV 2.5 diesel turbo');
   const sections = page.getByRole('region', { name: 'Sections' });
-  await expect(sections.getByRole('link')).toHaveText([/Torque values \(1\)/, /Specs & service \(0\)/, /Parts that fit \(2\)/, /Photos & bolt maps \(1\)/, /Manuals \(0\)/, /Jobs \(0\)/, /Troubleshooting \(0\)/, /Engine \/ Fuel \/ Tool \(2\)/]);
+  await expect(sections.getByRole('link')).toHaveText([/Torque values \(1\)/, /Specs & service \(0\)/, /Parts that fit \(2\)/, /Photos & bolt maps \(1\)/, /Manuals \(0\)/, /Service \(0\)/, /Jobs \(0\)/, /Troubleshooting \(0\)/, /Engine \/ Fuel \/ Tool \(2\)/]);
   await page.screenshot({ path: '/tmp/tt-workshop-vehicle.png' });
 
   await sections.getByRole('link', { name: /Torque values/ }).click();
   const nav = page.getByRole('navigation', { name: 'Catalogue' });
-  await expect(nav.getByRole('link')).toHaveText([/Torque values\s*1/, /Specs & service\s*0/, /Parts that fit\s*2/, /Photos & bolt maps\s*1/, /Manuals\s*0/, /Jobs\s*0/, /Troubleshooting\s*0/, /Engine \/ Fuel \/ Tool\s*2/]);
+  await expect(nav.getByRole('link')).toHaveText([/Torque values\s*1/, /Specs & service\s*0/, /Parts that fit\s*2/, /Photos & bolt maps\s*1/, /Manuals\s*0/, /Service\s*0/, /Jobs\s*0/, /Troubleshooting\s*0/, /Engine \/ Fuel \/ Tool\s*2/]);
   await expect(page).toHaveURL(/\/workshop\/bus\/bus-a\/torque$/);
   await expect(nav.getByRole('link', { name: /Torque values/ })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('navigation', { name: 'Where you are' })).toContainText('Workshop');
