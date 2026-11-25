@@ -11,6 +11,7 @@ import { StatusChip } from "@/components/admin/kit";
 import { busRecordWarnings } from "@/lib/busLibrary";
 import { modelCodeFor, stockSummary, torqueCounts, workshopVehicles } from "@/lib/workshop";
 import { isOpen, openFaultsFor, openJobsFor } from "@/lib/workshopJobs";
+import { busServiceFlag, fleetDue, reminderDaysFrom, servicesFor } from "@/lib/serviceDue";
 import { Notice, Tile, WorkshopContext, pluralize, useWorkshop } from "@/components/workshop/kit";
 import VehiclePage from "@/components/workshop/VehiclePage";
 import DiagramPage from "@/components/workshop/DiagramPage";
@@ -21,7 +22,8 @@ import SearchPage, { SearchBox } from "@/components/workshop/SearchPage";
 import ReorderPage from "@/components/workshop/ReorderPage";
 import JobsPage from "@/components/workshop/JobsPage";
 import JobPage from "@/components/workshop/JobPage";
-import { ArrowLeft, BookOpen, Bus, Car, ClipboardList, LogOut, Package, Plus, RefreshCw, Search, Wrench } from "lucide-react";
+import ServicePage from "@/components/workshop/ServicePage";
+import { ArrowLeft, BookOpen, Bus, CalendarClock, Car, ClipboardList, LogOut, Package, Plus, RefreshCw, Search, Wrench } from "lucide-react";
 
 // The Workshop: app.mcsweenstransport.com/workshop, for the shared tablet in
 // the workshop (and phones), laid out like a parts catalogue. Every vehicle
@@ -49,11 +51,13 @@ const OPTIONAL = {
   jobs: () => base44.entities.WorkshopJob.list("-created_date", LIST),
   jobParts: () => base44.entities.WorkshopJobPart.list("-created_date", 5000),
   faults: () => base44.entities.Fault.list("-created_date", 500),
+  schedules: () => base44.entities.MaintenanceSchedule.list("-created_date", LIST),
+  serviceSettings: () => base44.entities.MaintenanceSettings.list(),
 };
 
 function useWorkshopData() {
   const [state, setState] = useState("loading");
-  const [data, setData] = useState({ buses: [], cars: [], guides: [], specs: [], diagrams: [], groups: [], parts: [], interchanges: [], facts: [], documents: [], jobs: [], jobParts: [], faults: [], missing: {} });
+  const [data, setData] = useState({ buses: [], cars: [], guides: [], specs: [], diagrams: [], groups: [], parts: [], interchanges: [], facts: [], documents: [], jobs: [], jobParts: [], faults: [], schedules: [], serviceSettings: [], missing: {} });
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setState("loading");
@@ -93,8 +97,10 @@ function useWorkshopData() {
 }
 
 function Home() {
-  const { vehicles, specs, diagrams, groups, parts, jobs, faults, missing, isAdmin, state } = useWorkshop();
+  const { vehicles, specs, diagrams, groups, parts, jobs, faults, schedules, serviceSettings, missing, isAdmin, state } = useWorkshop();
   const openJobs = jobs.filter(isOpen).length;
+  const reminderDays = reminderDaysFrom(serviceSettings);
+  const service = fleetDue(schedules, vehicles, { reminderDays });
   const stock = stockSummary(parts);
   const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
@@ -110,13 +116,16 @@ function Home() {
     const warnings = v.kind === "bus" ? busRecordWarnings(v.record) : [];
     const working = openJobsFor(jobs, v).length;
     const faulty = openFaultsFor(faults, v).length;
+    const serviceFlag = missing.schedules ? "" : busServiceFlag(servicesFor(schedules, v, { reminderDays }));
     return (
       <li key={`${v.kind}-${v.id}`}>
         <Tile
           to={`/workshop/${v.kind}/${v.id}`} icon={v.kind === "bus" ? Bus : Car} title={v.name}
           lines={[[v.model !== v.name ? v.model : "", code].filter(Boolean).join(" · "), v.engine, v.guide ? [pluralize(counts.total, "torque value"), catalogue.length ? pluralize(catalogue.length, "diagram") : "", pictures ? pluralize(pictures, "photo") : ""].filter(Boolean).join(" · ") : ""]}
-          badge={(!v.guide || counts.unchecked > 0 || warnings.length > 0 || working > 0 || faulty > 0) && (
+          badge={(!v.guide || counts.unchecked > 0 || warnings.length > 0 || working > 0 || faulty > 0 || serviceFlag) && (
             <span className="flex flex-wrap gap-1.5">
+              {serviceFlag === "overdue" && <StatusChip tone="danger">Service overdue</StatusChip>}
+              {serviceFlag === "due" && <StatusChip tone="warning">Service due</StatusChip>}
               {working > 0 && <StatusChip tone="info">{pluralize(working, "open job")}</StatusChip>}
               {faulty > 0 && <StatusChip tone="warning">{pluralize(faulty, "open fault")}</StatusChip>}
               {!v.guide && <StatusChip tone="warning">No model page</StatusChip>}
@@ -154,6 +163,20 @@ function Home() {
               badge={!missing.jobs && openJobs > 0 && <StatusChip tone="info">{openJobs} open</StatusChip>}
             />
           </li>
+          {vehicles.some((v) => v.kind === "bus") && (
+            <li>
+              <Tile
+                to="/workshop/service" icon={CalendarClock} title="Service"
+                lines={[
+                  missing.schedules ? "Couldn't load the services"
+                    : service.overdue.length || service.due.length ? [service.overdue.length && `${service.overdue.length} overdue`, service.due.length && `${service.due.length} due soon`].filter(Boolean).join(" · ")
+                      : service.total ? "Nothing due" : "No services set up yet",
+                  "What's due on each bus, by km or date",
+                ]}
+                badge={!missing.schedules && (service.overdue.length > 0 ? <StatusChip tone="danger">{service.overdue.length} overdue</StatusChip> : service.due.length > 0 ? <StatusChip tone="warning">{service.due.length} due</StatusChip> : null)}
+              />
+            </li>
+          )}
         </ul>
       </section>
       <section aria-labelledby="ws-stock" className="mb-6">
@@ -241,6 +264,7 @@ export default function Workshop() {
               <Route path="parts/:partId" element={<PartPage />} />
               <Route path="jobs" element={<JobsPage />} />
               <Route path="jobs/:jobId" element={<JobPage />} />
+              <Route path="service" element={<ServicePage />} />
               <Route path=":kind/:id" element={<VehiclePage />} />
               <Route path=":kind/:id/torque" element={<VehiclePage section="torque" />} />
               <Route path=":kind/:id/specs" element={<VehiclePage section="specs" />} />
@@ -249,6 +273,7 @@ export default function Workshop() {
               <Route path=":kind/:id/maps" element={<VehiclePage section="maps" />} />
               <Route path=":kind/:id/jobs" element={<VehiclePage section="jobs" />} />
               <Route path=":kind/:id/troubleshooting" element={<VehiclePage section="troubleshooting" />} />
+              <Route path=":kind/:id/service" element={<VehiclePage section="service" />} />
               <Route path=":kind/:id/c/:category" element={<VehiclePage section="category" />} />
               <Route path=":kind/:id/maps/:diagramId" element={<DiagramPage mode="picture" />} />
               <Route path=":kind/:id/group/:groupId" element={<DiagramPage mode="group" />} />
