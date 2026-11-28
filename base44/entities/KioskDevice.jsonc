@@ -1,6 +1,14 @@
 {
   "name": "KioskDevice",
   "properties": {
+    "signup_live": {
+      "type": "object",
+      "description": "Sign-up day iPad (kiosk_type signup): the step on screen and what is being typed, for the admin's live view. Written by functions signupKiosk only."
+    },
+    "signup_screen": {
+      "type": "object",
+      "description": "Sign-up day iPad: what the admin has put on its screen (company code, join QR, a message, back to start, locked). Written by functions signupKiosk only."
+    },
     "support_request": {
       "type": "object",
       "properties": {
@@ -314,7 +322,8 @@
         "front_desk",
         "badge_registry",
         "driver",
-        "job_signing"
+        "job_signing",
+        "signup"
       ],
       "type": "string"
     },

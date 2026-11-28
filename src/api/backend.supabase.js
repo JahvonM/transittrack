@@ -342,6 +342,12 @@ export function createBackend() {
       const { error } = await sb().auth.verifyOtp({ token_hash: String(data?.token_hash || ''), type: 'magiclink' });
       if (error) throw authError(error);
     },
+    // The personal code a sign-up day iPad gave them (functions signupKiosk).
+    async signInWithKioskCode(code) {
+      const { data } = await invoke('signupKiosk', { action: 'redeem', code });
+      const { error } = await sb().auth.verifyOtp({ token_hash: String(data?.token_hash || ''), type: 'magiclink' });
+      if (error) throw authError(error);
+    },
     async resendOtp(email) {
       const { error } = await sb().auth.resend({ type: 'signup', email: String(email || '').trim() });
       if (error) throw authError(error);

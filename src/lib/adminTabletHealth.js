@@ -2,6 +2,8 @@ import { helperLinkLost } from "./helperHealth";
 export function adminTabletHealth(device, now=Date.now()) {
  const report=(label,tone,attention=false)=>({label,tone,attention});
  const fresh=iso=>{const t=Date.parse(iso);return Number.isFinite(t) && t<=now+60000 && now-t<=10*60*1000;};
+ // Sign-up day iPads are switched off between sign-up days: never an alert.
+ if(device.kiosk_type==="signup")return report(device.paired?"Sign-up iPad":"Not paired","offline");
  if(device.status && device.status!=="active")return report("Inactive","offline");
  if(!device.paired)return report("Not paired","offline");
  if(!fresh(device.last_seen))return report(device.last_seen?"Not reporting":"No tablet report","warning",true);

@@ -14,6 +14,7 @@ import GoogleIcon from "@/components/GoogleIcon";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { googleButtonAvailable } from "@/lib/googleButton";
 import AppleIcon from "@/components/AppleIcon";
+import KioskCodeSignIn from "@/components/KioskCodeSignIn";
 import { useSignInOptions } from "@/lib/signInOptions";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { useAuth } from "@/lib/AuthContext";
@@ -338,6 +339,7 @@ export default function Login() {
         <ScanCompanyQrButton className="mb-3 w-full h-12 text-sm font-medium" onClick={() => setScanOpen(true)} />
       )}
       <ScanCompanyQrDialog open={scanOpen} onOpenChange={setScanOpen} onCode={onScan} />
+      {!driverLogin && <KioskCodeSignIn onSignedIn={() => { window.location.href = returnTo; }} />}
       </div>
     </AuthLayout>
   );

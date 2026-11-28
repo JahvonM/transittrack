@@ -817,6 +817,8 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `driver_
 
 | Field | Type | Notes |
 |---|---|---|
+| `signup_live` | jsonb | Sign-up day iPad (kiosk_type signup): the step on screen and what is being typed, for the admin's live view. Written by functions signupKiosk only. Not sent to the browser. |
+| `signup_screen` | jsonb | Sign-up day iPad: what the admin has put on its screen (company code, join QR, a message, back to start, locked). Written by functions signupKiosk only. Not sent to the browser. |
 | `support_request` | jsonb | Not sent to the browser. Set by the server only. |
 | `company_id` | text | → Company. |
 | `company_name` | text |  |
@@ -829,7 +831,7 @@ Table `kiosk_device` · belongs to a company through `vehicle_id`, then `driver_
 | `require_active_trip` | boolean | Refuse taps unless a driver's shift is open on the bus. Off: taps are recorded and marked 'no active trip'. Default `false`. |
 | `app_health` | jsonb | Reported by the TransitTrack app on the tablet every heartbeat: build, online, uploads waiting (GPS points, check-ins, other saved work), last GPS fix, the latitude/longitude the tablet's GPS is getting, card reader in use, saved staff list. |
 | `helper_health` | jsonb | Reported by the TransitTrack Helper Android app on the tablet (via the kiosk/driver page heartbeat): helper version, battery %, charging, parked, card reader state, last card time, USB GPS state, Wi-Fi hotspot state, and when it was reported. |
-| `kiosk_type` | text | One of: `bus_boarding`, `front_desk`, `badge_registry`, `driver`, `job_signing`. Default `"bus_boarding"`. Required. |
+| `kiosk_type` | text | One of: `bus_boarding`, `front_desk`, `badge_registry`, `driver`, `job_signing`, `signup`. Default `"bus_boarding"`. Required. |
 | `label` | text | Required. |
 | `personal` | boolean | A driver's own phone or tablet (the store app). It belongs to driver_id, not a bus: the driver picks the bus (vehicle_id) before each shift. Set only when it is added; never a kiosk. Default `false`. |
 | `driver_id` | text | → Driver. The driver who owns this device (personal devices only). |

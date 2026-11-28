@@ -12,6 +12,7 @@ import SignupPersonSheet from "./SignupPersonSheet";
 import { AddPersonDialog, ImportListDialog, TableQr } from "./SignupDialogs";
 // The map loads only when someone opens it (the map library is large).
 const SignupPeopleMap = lazy(() => import("./SignupPeopleMap"));
+import SignupKioskPanel from "./SignupKioskPanel";
 
 // Sign-up day at a hotel. Everyone helping opens this page on their own phone,
 // tablet or laptop and works from the same live list of the hotel's staff:
@@ -202,6 +203,7 @@ export default function SignupDayTab() {
               })}
             </div>
           )}
+          {state && <SignupKioskPanel hotelId={hotelId} />}
           {state && !state.company?.join_code && (
             <p className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-body-sm">{hotel?.name || "This hotel"} has no join code yet, so there's no QR to scan. Make one in Admin → Companies.</p>
           )}

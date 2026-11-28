@@ -245,3 +245,30 @@ test("the map shows everyone's pickup spots and opens a person from their pin", 
   await expect(page.getByRole("dialog", { name: "Ana Joseph" })).toBeVisible();
   await context.close();
 });
+
+test("Sign-up iPads: add one by QR, watch typing live, and choose what it shows", async ({ browser }) => {
+  const server = hotelServer("Hotel A", "JOIN12345678");
+  const { context, page } = await helperDevice(browser, server, { id: "helper", name: "Helper" }, { width: 1280, height: 900 });
+  const sent = [];
+  const kiosk = { id: "ipad-1", label: "Sign-up iPad 1", paired: true, online: true, screen: { kind: "none" }, live: { step: "details", draft: { name: "Ana Jo", email: "ana@test.invalid" } } };
+  await page.route("**/functions/v1/signupKiosk", async (route) => {
+    const body = route.request().postDataJSON();
+    sent.push(body);
+    if (body.action === "list") return route.fulfill({ json: { kiosks: [kiosk] } });
+    if (body.action === "pair_start") return route.fulfill({ json: { device_id: "ipad-2", pairing_code: "ABCDEFGHJK12", expires_at: new Date(Date.now() + 900000).toISOString() } });
+    if (body.action === "screen") { kiosk.screen = body.screen; return route.fulfill({ json: { ok: true } }); }
+    return route.fulfill({ json: { ok: true } });
+  });
+  const panel = page.getByRole("region", { name: "Sign-up iPads" });
+  await expect(panel.getByText("Typing their details")).toBeVisible();
+  await expect(panel.getByText("Ana Jo")).toBeVisible();
+  await panel.getByRole("button", { name: "Add an iPad" }).click();
+  await expect(panel.getByRole("img", { name: "QR to connect a sign-up iPad" })).toBeVisible();
+  await panel.getByRole("button", { name: "Show company code" }).click();
+  await expect.poll(() => sent.find((b) => b.action === "screen")?.screen).toEqual({ kind: "company_code" });
+  await expect(panel.getByText("Showing: Company code")).toBeVisible();
+  await panel.getByLabel("Message for Sign-up iPad 1").fill("Please see the desk");
+  await panel.getByRole("button", { name: "Show", exact: true }).click();
+  await expect.poll(() => sent.filter((b) => b.action === "screen").at(-1)?.screen).toEqual({ kind: "message", text: "Please see the desk" });
+  await context.close();
+});

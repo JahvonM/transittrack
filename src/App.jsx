@@ -84,6 +84,7 @@ function FirstOpenGate() {
 }
 const PassengerBookings = lazy(() => import('@/pages/PassengerBookings'));
 const Kiosk = lazy(() => import('@/pages/Kiosk'));
+const SignupKiosk = lazy(() => import('@/pages/SignupKiosk'));
 const RouteExplorer = lazy(() => import('@/pages/RouteExplorer'));
 const StaffDirectory = lazy(() => import('@/pages/StaffDirectory'));
 const ServiceHistory = lazy(() => import('@/pages/ServiceHistory'));
@@ -212,6 +213,8 @@ const AuthenticatedApp = () => {
       {/* One route for /driver and /driver/<tab> so tab changes don't remount the app */}
       <Route path="/driver/:stage?" element={<DriverApp />} />
       <Route path="/kiosk" element={<Kiosk />} />
+      {/* A sign-up day iPad (Admin → Sign-up day → Sign-up iPads): no account on it. */}
+      <Route path="/kiosk/signup" element={<SignupKiosk />} />
       <Route path="/tablet" element={<TabletStart />} />
       {/* The parts kiosk: signing in comes back here. */}
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login?returnTo=%2Fparts" replace />} />}>
