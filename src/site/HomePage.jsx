@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, MessageCircle } from "lucide-react";
 import { SITE_SERVICES } from "@/lib/bookingSite";
-import RideStory, { OpeningStill } from "@/site/RideStory";
+import RideStory, { OpeningStill } from "@/site/RideStory.jsx";
 import { routeNumber, showPhone, sitePath, usePageTitle, useSiteBase, useWhatsApp, whatsappTo } from "@/site/siteKit";
 
 const DESCRIPTION = "McSween Transport: airport pickups and drop-offs, transfers, island tours and staff transport in Grenada. Request a ride online and track your ride.";

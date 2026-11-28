@@ -191,12 +191,14 @@ function BusList({ vehicles, now = Date.now() }) {
     <ul className="divide-y divide-border">
       {[...vehicles].sort((a, b) => Number(busOnMap(b)) - Number(busOnMap(a)) || String(a.name).localeCompare(String(b.name), undefined, { numeric: true })).map((v) => (
         <li key={v.id} className="flex min-h-[56px] items-center gap-3 py-2">
-          <div className="shrink-0 rounded-xl bg-secondary"><VehicleModelThumb model={modelIdFor(v)} size={40} /></div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold">{v.name}</p>
-            <p className="truncate text-body-sm text-muted-foreground">{busSharingLine(v)}{v.driver_name && busOnMap(v) ? ` · ${v.driver_name}` : ""}</p>
-          </div>
-          <StatusPill status={companyBusStatus(v, now)} />
+            <Link to={`/vehicle/${encodeURIComponent(v.id)}`} className="flex min-h-[56px] w-full items-center gap-3 rounded-lg text-left hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`View ${v.name} bus information`}>
+              <div className="shrink-0 rounded-xl bg-secondary"><VehicleModelThumb model={modelIdFor(v)} size={40} /></div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">{v.name}</p>
+                <p className="truncate text-body-sm text-muted-foreground">{busSharingLine(v)}{v.driver_name && busOnMap(v) ? ` · ${v.driver_name}` : ""}</p>
+              </div>
+              <StatusPill status={companyBusStatus(v, now)} />
+            </Link>
         </li>
       ))}
     </ul>
@@ -339,7 +341,8 @@ function VehiclesTab({ routes, vehicles, workplace }) {
         <p className="text-body-sm text-muted-foreground">Your buses. To add, change or remove one, contact McSween Transport.</p>
         {vehicles.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No buses yet.</p>}
         {vehicles.map((v) => (
-          <div key={v.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-card p-3">
+          <Link key={v.id} to={`/vehicle/${encodeURIComponent(v.id)}`} aria-label={`View ${v.name} bus information`}
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-card p-3 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <div className="shrink-0 rounded-xl bg-secondary"><VehicleModelThumb model={modelIdFor(v)} size={48} /></div>
             <div className="min-w-[10rem] flex-1">
               <div className="font-medium truncate">{v.name} <span className="text-xs text-muted-foreground font-normal">· {[v.fleet_number, v.plate_number].filter(Boolean).join(" · ")}</span></div>
@@ -349,7 +352,7 @@ function VehiclesTab({ routes, vehicles, workplace }) {
               <div className="text-xs text-muted-foreground truncate">Route: {routeName(v.route_id) || "No route"}</div>
             </div>
             <StatusPill status={companyBusStatus(v)} />
-          </div>
+          </Link>
         ))}
       </div>
 
