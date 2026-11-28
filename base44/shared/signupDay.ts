@@ -9,14 +9,14 @@ import { changePassengerCompany, removePassenger } from './passengerCompany.ts';
 // can only ever reach their own hotel. Pickup spots and cards are saved with
 // nfcCards' own set_pickup and issue actions.
 //
-// Actions: signup_state · signup_claim · signup_app · signup_add · signup_import · signup_invite
+// Actions: signup_state · signup_claim · signup_app · signup_add · signup_import · signup_invite · signup_edit
 //
 // Setup emails: adding someone with an email address can send them a
 // personal link to set up the app (signupInvites.ts); signup_invite sends
 // it, or sends it again, to people on the list who haven't signed in yet.
 
 import { sendAccountEmail, signupInviteEmail } from './accountEmails.ts';
-import { INVITE_DAYS, issueSignupInvite } from './signupInvites.ts';
+import { INVITE_DAYS, INVITE_PURPOSE, inviteSubject, issueSignupInvite } from './signupInvites.ts';
 
 // A helper's claim lapses after this long without being renewed, so a
 // helper who walked away doesn't block the person forever.
@@ -38,7 +38,7 @@ export const signupRef = (p) => (emailOf(p.email) ? 'email:' + emailOf(p.email) 
 
 const CARD = { 'Card Issued': 'issued', Expired: 'expired', Revoked: 'stopped' };
 
-export async function signupDay(base44, user, body, { companyFilter, loadPeople, audit }) {
+export async function signupDay(base44, user, body, { companyFilter, loadPeople, linkedStaffIds, audit }) {
   const sr = base44.asServiceRole.entities;
   const asked = text(body.company_id, 60);
   if (companyFilter && asked && asked !== companyFilter) return Response.json({ error: 'You can only run sign-up days for your own company' }, { status: 403 });
@@ -107,6 +107,79 @@ export async function signupDay(base44, user, body, { companyFilter, loadPeople,
           if (tablet.company_id === id) await sr.KioskDevice.update(tablet.id, { directory_sent_at: new Date(now).toISOString() });
       }
       return Response.json({ ok: true, login_deleted: loginDeleted, kept_for_other_company: !loginDeleted && !!elsewhere && user.role !== 'admin' });
+    }
+    case 'signup_edit': {
+      const oldRef = text(body.person_ref, 200);
+      const person = await personFor(oldRef);
+      if (!person) return Response.json({ error: "That person isn't on this hotel's list" }, { status: 404 });
+      const name = text(body.name, 120);
+      if (!name) return Response.json({ error: 'Type their name' }, { status: 400 });
+      const typedEmail = text(body.email, 160);
+      const email = emailOf(typedEmail);
+      if (typedEmail && !email) return Response.json({ error: 'That email address looks wrong' }, { status: 400 });
+      const phone = text(body.phone, 40);
+      const oldEmail = emailOf(person.email);
+      if (person.registered && email !== oldEmail) {
+        return Response.json({ error: 'Change their sign-in email through their account instead' }, { status: 409 });
+      }
+      if (email && email !== oldEmail && (await staffOf()).some((p) => emailOf(p.email) === email)) {
+        return Response.json({ error: 'That email is already used by someone on this company list' }, { status: 409 });
+      }
+
+      const changed = [];
+      if (name !== person.name) changed.push('name');
+      if (email !== oldEmail) changed.push('email');
+      if (phone !== String(person.phone || '').trim()) changed.push('phone number');
+      const newPerson = { ...person, name, email, phone };
+      const newRef = signupRef(newPerson);
+      if (email !== oldEmail && oldEmail) {
+        const grants = await sr.VerificationGrant.filter({ purpose: INVITE_PURPOSE, subject: inviteSubject(oldEmail) }, '-created_date', 50);
+        for (const grant of grants) {
+          if (grant.company_id === companyId && Date.parse(grant.expires_at) > now) {
+            await sr.VerificationGrant.update(grant.id, { expires_at: new Date(now).toISOString() });
+          }
+        }
+      }
+
+      if (person.source === 'user') {
+        await sr.User.update(person.id, { display_name: name, phone });
+        if (oldEmail && person.company_id) {
+          const contacts = await sr.Contact.filter({ company_id: person.company_id }, '-updated_date', 2000);
+          for (const contact of contacts) {
+            if (contact.company_id === person.company_id && ['staff', 'passenger'].includes(contact.type || 'passenger') &&
+                emailOf(contact.email) === oldEmail) {
+              await sr.Contact.update(contact.id, { name, phone });
+            }
+          }
+        }
+      } else {
+        await sr.Contact.update(person.id, { name, email, phone });
+        if (person.registered && oldEmail) {
+          const [users, staffIds] = await Promise.all([
+            sr.User.list(),
+            linkedStaffIds ? linkedStaffIds(base44, companyId) : Promise.resolve(new Set()),
+          ]);
+          for (const account of users) {
+            if (emailOf(account.email) === oldEmail && ['staff', 'passenger'].includes(account.role) &&
+                (account.company_id === companyId || staffIds.has(account.id))) {
+              await sr.User.update(account.id, { display_name: name, phone });
+            }
+          }
+        }
+      }
+
+      const help = (await helps()).find((row) => row.person_ref === oldRef);
+      if (help) {
+        const patch = { person_name: name };
+        if (newRef !== oldRef) Object.assign(patch, { person_ref: newRef, invite_sent_at: null, invite_sent_by: '' });
+        await sr.SignupHelp.update(help.id, patch);
+      }
+      if (changed.length) {
+        await audit(base44, user, { action: 'update', entity: person.source === 'user' ? 'User' : 'Contact',
+          record_id: person.id, page: '/admin/signup-day',
+          summary: `Sign-up day: corrected ${changed.join(', ')} for ${name} at ${company.name || 'the hotel'}` });
+      }
+      return Response.json({ ok: true, person_ref: newRef });
     }
     case 'signup_state': {
       const [staff, rows, tokens, vehicles, routes] = await Promise.all([staffOf(), helps(), sr.PushToken.list('-updated_date', 5000), sr.Vehicle.filter({ company_id: companyId }, 'name', 500), sr.Route.filter({ company_id: companyId }, '-created_date', 200)]);

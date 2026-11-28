@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import Map, { Marker, NavigationControl } from "react-map-gl";
+import Map, { Layer, Marker, NavigationControl, Source } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN, declutterStyle, mapStyleFor } from "@/lib/mapbox";
+import { drawnRoad } from "@/lib/routeRoad";
 import { useIsDark } from "@/lib/useTheme";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,11 @@ import PlaceSearch from "@/components/PlaceSearch";
  */
 const SATELLITE_STYLE = "mapbox://styles/mapbox/satellite-streets-v12";
 const VIEWS = [["map", "Map"], ["satellite", "Satellite"]];
-export default function LocationPicker({ lat, lng, onChange, onPlace, showCoordinates = true }) {
+export default function LocationPicker({
+  lat, lng, onChange, onPlace, showCoordinates = true,
+  routes = [], suggestions = [], suggestionOrigin = null, selectedSuggestion = null,
+  selectedRouteId = "", onSelectSuggestion, pointHint = "",
+}) {
   const isDark = useIsDark();
   const [viewport, setViewport] = useState({
     longitude: lng ?? -61.7,
@@ -36,6 +41,8 @@ export default function LocationPicker({ lat, lng, onChange, onPlace, showCoordi
   const [big, setBig] = useState(false);
   const hasPoint = lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng);
   const showPin = () => { if (hasPoint) setViewport((v) => ({ ...v, longitude: lng, latitude: lat, zoom: Math.max(v.zoom, 16) })); };
+  const routeLines = routes.map((route) => ({ route, coords: drawnRoad(route) })).filter(({ coords }) => coords?.length > 1);
+  const walkCoordinates = selectedSuggestion?.geometry?.coordinates;
 
   const setPoint = (latitude, longitude) => onChange(latitude, longitude);
 
@@ -74,8 +81,8 @@ export default function LocationPicker({ lat, lng, onChange, onPlace, showCoordi
           {big ? <Minimize2 className="w-4 h-4 mr-1" aria-hidden="true" /> : <Maximize2 className="w-4 h-4 mr-1" aria-hidden="true" />}{big ? "Smaller map" : "Bigger map"}
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">{hasPoint ? "Drag the pin, or tap the map to move it." : "Tap the map where they get picked up."}</p>
-      <div data-vaul-no-drag className="rounded-lg overflow-hidden border border-border" style={{ height: big ? "min(65vh, 560px)" : 280 }}>
+      <p className="text-xs text-muted-foreground">{pointHint || (hasPoint ? "Drag the pin, or tap the map to move it." : "Tap the map where they get picked up.")}</p>
+      <div data-vaul-no-drag role="region" aria-label="Pickup map" className="rounded-lg overflow-hidden border border-border" style={{ height: big ? "min(65vh, 560px)" : 280 }}>
         <Map
           ref={mapRef}
           mapboxAccessToken={MAPBOX_TOKEN}
@@ -88,6 +95,29 @@ export default function LocationPicker({ lat, lng, onChange, onPlace, showCoordi
           onLoad={(e) => declutterStyle(e.target)}
         >
           <NavigationControl position="top-right" showCompass={false} />
+          {routeLines.map(({ route, coords }) => {
+            const id = `pickup-route-${route.id}`;
+            return <Source key={id} id={id} type="geojson" data={{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: coords } }}>
+              <Layer id={`${id}-line`} type="line" layout={{ "line-cap": "round", "line-join": "round" }}
+                paint={{ "line-color": route.id === selectedRouteId ? "#0f766e" : "#64748b", "line-width": route.id === selectedRouteId ? 5 : 3, "line-opacity": route.id === selectedRouteId ? 0.9 : 0.65 }} />
+            </Source>;
+          })}
+          {walkCoordinates?.length > 1 && <Source id="pickup-walk-route" type="geojson"
+            data={{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: walkCoordinates } }}>
+            <Layer id="pickup-walk-route-line" type="line" layout={{ "line-cap": "round", "line-join": "round" }}
+              paint={{ "line-color": "#0f766e", "line-width": 3, "line-dasharray": [2, 2], "line-opacity": 0.9 }} />
+          </Source>}
+          {suggestionOrigin && <Marker longitude={suggestionOrigin.lng} latitude={suggestionOrigin.lat} anchor="center">
+            <span className="grid h-4 w-4 place-items-center rounded-full border-2 border-white bg-sky-600 shadow" aria-label="Starting point" />
+          </Marker>}
+          {suggestions.map((suggestion, index) => <Marker key={`${suggestion.route_id}-${index}`}
+            longitude={suggestion.lng} latitude={suggestion.lat} anchor="bottom">
+            <button type="button" aria-label={`Choose ${suggestion.name}`} title={suggestion.name}
+              onClick={(event) => { event.stopPropagation(); onSelectSuggestion?.(suggestion); }}
+              className="grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-primary text-xs font-semibold text-primary-foreground shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              {index + 1}
+            </button>
+          </Marker>)}
           {hasPoint && (
             <Marker
               longitude={lng}
@@ -95,7 +125,7 @@ export default function LocationPicker({ lat, lng, onChange, onPlace, showCoordi
               anchor="bottom"
               draggable
               onDragEnd={(e) => setPoint(e.lngLat.lat, e.lngLat.lng)}
-            />
+            ><span className={`grid h-4 w-4 place-items-center rounded-full border-2 border-white shadow ${selectedSuggestion ? "bg-emerald-600" : "bg-primary"}`} aria-label={selectedSuggestion ? "Selected pickup" : "Pickup point"} /></Marker>
           )}
         </Map>
       </div>

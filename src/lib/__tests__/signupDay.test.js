@@ -90,6 +90,63 @@ describe("sign-up day", () => {
     expect((await call(sdk, { action: "signup_add", company_id: "a", name: "X", email: "not-an-email" })).status).toBe(400);
   });
 
+  it("corrects contact details, keeps helper progress and expires the old setup link", async () => {
+    const sdk = hotel();
+    sdk.tables.SignupHelp = [{
+      id: "ben-help", company_id: "a", person_ref: "email:ben@test.invalid", person_name: "Ben Charles",
+      helper_id: "helper-1", helper_name: "Helper", claimed_at: new Date().toISOString(),
+      has_app_at: new Date().toISOString(), has_app_by: "Helper",
+      invite_sent_at: new Date().toISOString(), invite_sent_by: "Helper",
+    }];
+    sdk.tables.VerificationGrant = [{
+      id: "ben-invite", company_id: "a", purpose: "signup_invite", subject: "email:ben@test.invalid",
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+    }];
+    const result = await call(sdk, {
+      action: "signup_edit", company_id: "a", person_ref: "email:ben@test.invalid",
+      name: "Ben Charles Jr", email: "Ben.Corrected@test.invalid", phone: "473 555 0199",
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({ ok: true, person_ref: "email:ben.corrected@test.invalid" });
+    expect(sdk.tables.Contact.find((contact) => contact.id === "ben")).toMatchObject({
+      name: "Ben Charles Jr", email: "ben.corrected@test.invalid", phone: "473 555 0199",
+    });
+    expect(sdk.tables.SignupHelp[0]).toMatchObject({
+      person_ref: "email:ben.corrected@test.invalid", person_name: "Ben Charles Jr",
+      helper_id: "helper-1", has_app_by: "Helper", invite_sent_at: null, invite_sent_by: "",
+    });
+    expect(Date.parse(sdk.tables.VerificationGrant[0].expires_at)).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("refuses to change a registered person's sign-in email", async () => {
+    const sdk = hotel();
+    const result = await call(sdk, {
+      action: "signup_edit", company_id: "a", person_ref: "email:ana@test.invalid",
+      name: "Ana Joseph", email: "ana.changed@test.invalid", phone: "473 555 0101",
+    });
+
+    expect(result.status).toBe(409);
+    expect(sdk.tables.Contact.find((contact) => contact.id === "ana").email).toBe("Ana@Test.invalid");
+    expect(sdk.writes).toEqual([]);
+  });
+
+  it("updates a registered person's contact name and phone without changing their email", async () => {
+    const sdk = hotel();
+    const result = await call(sdk, {
+      action: "signup_edit", company_id: "a", person_ref: "email:ana@test.invalid",
+      name: "Ana J", email: "ANA@test.invalid", phone: "473 555 0191",
+    });
+
+    expect(result.status).toBe(200);
+    expect(sdk.tables.Contact.find((contact) => contact.id === "ana")).toMatchObject({
+      name: "Ana J", email: "ana@test.invalid", phone: "473 555 0191",
+    });
+    expect(sdk.tables.User.find((account) => account.id === "ana-user")).toMatchObject({
+      display_name: "Ana J", email: "ana@test.invalid", phone: "473 555 0191",
+    });
+  });
+
   it("imports the hotel's staff list, skipping people already on it and rows it can't use", async () => {
     const sdk = hotel();
     const { body } = await call(sdk, { action: "signup_import", company_id: "a", rows: [

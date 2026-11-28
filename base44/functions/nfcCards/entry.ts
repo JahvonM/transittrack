@@ -604,8 +604,8 @@ export default async function (req) {
 
       // Sign-up day at a hotel (Admin → Sign-up day), for the same people:
       // admins, and a hotel's own approved manager for that hotel only.
-      case 'signup_remove': case 'signup_state': case 'signup_claim': case 'signup_app': case 'signup_add': case 'signup_import': case 'signup_invite':
-        return await signupDay(base44, user, body, { companyFilter, loadPeople, audit });
+      case 'signup_remove': case 'signup_state': case 'signup_claim': case 'signup_app': case 'signup_add': case 'signup_import': case 'signup_invite': case 'signup_edit':
+        return await signupDay(base44, user, body, { companyFilter, loadPeople, linkedStaffIds: approvedStaffIds, audit });
 
       default:
         return Response.json({ error: 'Unknown action' }, { status: 400 });
