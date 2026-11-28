@@ -70,6 +70,7 @@ export default function SignupDayTab() {
   const [openRef, setOpenRef] = useState("");
   const [dialog, setDialog] = useState(""); // add | import | qr
   const loading = useRef(false);
+  const reloadAfter = useRef(false);
 
   // Admins choose the hotel; it's remembered on this device for the day.
   useEffect(() => {
@@ -91,11 +92,18 @@ export default function SignupDayTab() {
   }, [hotelId]);
 
   const load = useCallback(async () => {
-    if (!hotelId || loading.current) return;
+    if (!hotelId) return;
+    if (loading.current) { reloadAfter.current = true; return; }
     loading.current = true;
     try { setState(await call("signup_state")); setLoadError(""); }
     catch (e) { setLoadError(errorText(e, "Couldn't load the list. Check the connection.")); }
-    finally { loading.current = false; }
+    finally {
+      loading.current = false;
+      if (reloadAfter.current) {
+        reloadAfter.current = false;
+        Promise.resolve().then(() => load());
+      }
+    }
   }, [hotelId, call]);
 
   useEffect(() => { setState(null); setOpenRef(""); setLoadError(""); }, [hotelId]);
@@ -236,7 +244,8 @@ export default function SignupDayTab() {
         </>
       )}
 
-      {open && <SignupPersonSheet key={open.ref} person={open} company={state?.company} buses={state?.buses || []} call={call} onChanged={load} onClose={() => setOpenRef("")} />}
+      {open && <SignupPersonSheet key={open.ref} person={open} company={state?.company} buses={state?.buses || []} call={call}
+        onChanged={async (nextRef) => { await load(); if (nextRef) setOpenRef(nextRef); }} onClose={() => setOpenRef("")} />}
       {dialog === "add" && <AddPersonDialog hotel={hotel?.name} onAdd={add} onClose={() => setDialog("")} />}
       {dialog === "import" && <ImportListDialog hotel={hotel?.name} onImport={importRows} onClose={() => setDialog("")} />}
       {dialog === "qr" && state?.company?.join_code && <TableQr code={state.company.join_code} hotel={state.company.name} onClose={() => setDialog("")} />}

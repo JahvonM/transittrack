@@ -7,8 +7,8 @@ import { fleetData, mockFleet } from "./helpers/fleetFixture.js";
 
 function hotelServer(companyName, joinCode) {
   const people = [
-    { key: "contact:ana", ref: "email:ana@test.local", name: "Ana Joseph", email: "ana@test.local", registered: true, app: "", pickup: false, pickup_name: "", card: "" },
-    { key: "contact:ben", ref: "email:ben@test.local", name: "Ben Charles", email: "ben@test.local", registered: false, app: "", pickup: false, pickup_name: "", card: "" },
+    { key: "contact:ana", ref: "email:ana@test.local", name: "Ana Joseph", email: "ana@test.local", phone: "473-555-0101", registered: true, app: "", pickup: false, pickup_name: "", card: "" },
+    { key: "contact:ben", ref: "email:ben@test.local", name: "Ben Charles", email: "ben@test.local", phone: "473-555-0102", registered: false, app: "", pickup: false, pickup_name: "", card: "" },
     { key: "contact:cal", ref: "email:cal@test.local", name: "Cal Noel", email: "cal@test.local", registered: true, app: "alerts", pickup: true, pickup_name: "Grand Anse", card: "issued", card_tail: "7C1B" },
   ];
   const claims = new Map();
@@ -32,6 +32,16 @@ function hotelServer(companyName, joinCode) {
           if (i < 0) return { status: 404, json: { error: "Passenger not found" } };
           people.splice(i, 1); claims.delete(body.person_ref);
           return { status: 200, json: { ok: true } };
+        }
+        case "signup_edit": {
+          const person = find(body.person_ref);
+          if (!person) return { status: 404, json: { error: "Passenger not found" } };
+          if (person.registered && body.email.toLowerCase() !== person.email.toLowerCase()) return { status: 409, json: { error: "Change their sign-in email through their account instead" } };
+          person.name = body.name;
+          person.email = body.email.toLowerCase();
+          person.phone = body.phone;
+          person.ref = person.email ? `email:${person.email}` : person.key;
+          return { status: 200, json: { ok: true, person_ref: person.ref } };
         }
         case "set_bus": {
           const p = people.find((x) => x.key === body.person_key);
@@ -144,6 +154,36 @@ test("helpers can remove a mistaken sign-up entry after confirmation", async ({ 
   await expect(sheet).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Ben Charles/ })).toHaveCount(0);
   expect(server.people.some(p => p.name === "Ben Charles")).toBe(false);
+  await context.close();
+});
+
+test("helpers can correct a staff member's name, email and phone number", async ({ browser }) => {
+  const server = hotelServer("Hotel A", "JOIN12345678");
+  const { context, page } = await helperDevice(browser, server, { id: "helper", name: "Helper" }, { width: 1280, height: 800 });
+  await page.getByRole("button", { name: /Ben Charles/ }).click();
+  const sheet = page.getByRole("dialog", { name: "Ben Charles" });
+  await sheet.getByRole("button", { name: "Edit contact details" }).click();
+  await sheet.getByLabel("Name", { exact: true }).fill("Ben Charles Jr");
+  await sheet.getByLabel("Email", { exact: true }).fill("ben.corrected@test.local");
+  await sheet.getByLabel("Phone number", { exact: true }).fill("473-555-0199");
+  await sheet.getByRole("button", { name: "Save details" }).click();
+  const updatedSheet = page.getByRole("dialog", { name: "Ben Charles Jr" });
+  await expect(updatedSheet).toBeVisible();
+  await expect(updatedSheet.getByText("ben.corrected@test.local, 473-555-0199")).toBeVisible();
+  expect(server.people.find((p) => p.key === "contact:ben")).toMatchObject({
+    ref: "email:ben.corrected@test.local", name: "Ben Charles Jr", email: "ben.corrected@test.local", phone: "473-555-0199",
+  });
+  await context.close();
+});
+
+test("registered staff can correct contact details without changing their sign-in email", async ({ browser }) => {
+  const server = hotelServer("Hotel A", "JOIN12345678");
+  const { context, page } = await helperDevice(browser, server, { id: "helper", name: "Helper" }, { width: 1280, height: 800 });
+  await page.getByRole("button", { name: /Ana Joseph/ }).click();
+  const sheet = page.getByRole("dialog", { name: "Ana Joseph" });
+  await sheet.getByRole("button", { name: "Edit contact details" }).click();
+  await expect(sheet.getByLabel("Email", { exact: true })).toBeDisabled();
+  await expect(sheet.getByText("Their sign-in email can only be changed through their account.")).toBeVisible();
   await context.close();
 });
 

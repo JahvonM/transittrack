@@ -228,12 +228,21 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
   };
   const editPickup = (person) => {
     review(person.key);
+    const personRouteId = person.key === active?.key
+      ? activeRoute?.id || person.route_id || person.nearby?.route_id || person.suggested?.route_id
+      : person.route_id || person.nearby?.route_id || person.suggested?.route_id;
+    const personRoute = routes.find((route) => route.id === personRouteId);
+    const pickupRoutes = personRoute
+      ? [personRoute]
+      : routes.filter((route) => route.company_id === person.company_id && route.active !== false);
     setPickupPerson({
       key: person.key,
       name: person.name,
       pickup_name: person.pickup?.name || "",
       pickup_lat: person.pickup?.lat ?? null,
       pickup_lng: person.pickup?.lng ?? null,
+      routes: pickupRoutes,
+      selected_route_id: personRoute?.id || "",
     });
   };
 
@@ -344,7 +353,7 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
           </details>
         </div>
       </div>
-      {pickupPerson && <PassengerPickupDialog person={pickupPerson} onClose={() => setPickupPerson(null)} onSaved={load} />}
+      {pickupPerson && <PassengerPickupDialog person={pickupPerson} routes={pickupPerson.routes} selectedRouteId={pickupPerson.selected_route_id} onClose={() => setPickupPerson(null)} onSaved={load} />}
     </div>
   );
 }

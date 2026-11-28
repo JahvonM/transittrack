@@ -1,10 +1,11 @@
 import { confirmAction } from "@/components/ConfirmHost";
 import React, { useEffect, useRef, useState } from "react";
-import { Check, Mail, MapPin, Nfc, QrCode, Smartphone, UserCheck } from "lucide-react";
+import { Check, Mail, MapPin, Nfc, Pencil, QrCode, Smartphone, UserCheck } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -167,6 +168,9 @@ export default function SignupPersonSheet({ person, company, buses = [], call, o
   const [pickupOpen, setPickupOpen] = useState(false);
   const [appBusy, setAppBusy] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [details, setDetails] = useState({ name: person?.name || "", email: person?.email || "", phone: person?.phone || "" });
+  const [detailsBusy, setDetailsBusy] = useState(false);
   const [error, setError] = useState("");
   const ref = person?.ref;
 
@@ -192,6 +196,11 @@ export default function SignupPersonSheet({ person, company, buses = [], call, o
   if (!person) return null;
   const steps = stepsOf(person);
   const first = firstName(person.name);
+  const pickupRoutes = [...new Map(buses.filter((bus) => bus.route).map((bus) => [bus.route.id, bus.route])).values()];
+  const selectedPickupRouteId = buses.find((bus) => bus.id === person.vehicle_id)?.route?.id || "";
+  const relevantPickupRoutes = selectedPickupRouteId
+    ? pickupRoutes.filter((route) => route.id === selectedPickupRouteId)
+    : pickupRoutes;
   const letGo = async () => { await call("signup_claim", { person_ref: ref, release: true }).catch(() => {}); onChanged(); onClose(); };
   const remove = async () => {
     if (!(await confirmAction({ title: `Remove ${person.name}?`, description: "This deletes their app login and sign-in, removes them from the sign-up list, passengers and users, and stops their card and codes. Past trips are kept. This can't be undone. (If they also ride with another company you don't manage, only this company is removed.)", confirmLabel: "Remove and delete login" }))) return;
@@ -211,6 +220,17 @@ export default function SignupPersonSheet({ person, company, buses = [], call, o
     catch (e) { setError(errorText(e, "Couldn't save that. Try again.")); }
     finally { setAppBusy(false); }
   };
+  const saveDetails = async (event) => {
+    event.preventDefault();
+    setDetailsBusy(true); setError("");
+    try {
+      const result = await call("signup_edit", { person_ref: ref, ...details });
+      if (!result?.ok) throw new Error(result?.error || "Couldn't update their details");
+      setEditingDetails(false);
+      await onChanged(result.person_ref);
+    } catch (e) { setError(errorText(e, "Couldn't update their details. Try again.")); }
+    finally { setDetailsBusy(false); }
+  };
 
   return (
     <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -219,6 +239,37 @@ export default function SignupPersonSheet({ person, company, buses = [], call, o
           <SheetTitle className="text-title-md">{person.name}</SheetTitle>
           <SheetDescription>{[person.email || "No email yet", person.phone].filter(Boolean).join(", ")}</SheetDescription>
         </SheetHeader>
+        <div className="mt-3">
+          {editingDetails ? (
+            <form className="space-y-3 rounded-xl border border-border p-3" onSubmit={saveDetails}>
+              <div className="space-y-1.5">
+                <Label htmlFor="signup-person-name">Name</Label>
+                <Input id="signup-person-name" value={details.name} maxLength={120} required
+                  disabled={detailsBusy} onChange={(e) => setDetails((v) => ({ ...v, name: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="signup-person-email">Email</Label>
+                <Input id="signup-person-email" type="email" value={details.email} maxLength={160}
+                  disabled={detailsBusy || person.registered}
+                  onChange={(e) => setDetails((v) => ({ ...v, email: e.target.value }))} />
+                {person.registered && <p className="text-body-sm text-muted-foreground">Their sign-in email can only be changed through their account.</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="signup-person-phone">Phone number</Label>
+                <Input id="signup-person-phone" type="tel" value={details.phone} maxLength={40}
+                  disabled={detailsBusy} onChange={(e) => setDetails((v) => ({ ...v, phone: e.target.value }))} />
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={detailsBusy || !details.name.trim()}>{detailsBusy ? "Saving…" : "Save details"}</Button>
+                <Button type="button" variant="outline" disabled={detailsBusy} onClick={() => setEditingDetails(false)}>Cancel</Button>
+              </div>
+            </form>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => { setDetails({ name: person.name || "", email: person.email || "", phone: person.phone || "" }); setEditingDetails(true); }}>
+              <Pencil className="h-4 w-4" aria-hidden="true" /> Edit contact details
+            </Button>
+          )}
+        </div>
 
         <div className="mt-3 rounded-xl bg-secondary px-3 py-2 text-body-sm" role="status">
           {claim.state === "mine" ? <span className="flex flex-wrap items-center justify-between gap-2">You're helping {first}.<Button variant="ghost" size="sm" onClick={letGo}>Let go</Button></span>
@@ -283,7 +334,7 @@ export default function SignupPersonSheet({ person, company, buses = [], call, o
         <div className="mt-6 border-t pt-4">
           <Button variant="outline" className="text-danger" disabled={removing || claim.state !== "mine"} onClick={remove}>{removing ? "Removing…" : "Remove passenger"}</Button>
         </div>
-        {pickupOpen && <PassengerPickupDialog person={person} onClose={() => setPickupOpen(false)} onSaved={async () => onChanged()} />}
+        {pickupOpen && <PassengerPickupDialog person={person} routes={relevantPickupRoutes} selectedRouteId={selectedPickupRouteId} onClose={() => setPickupOpen(false)} onSaved={async () => onChanged()} />}
       </SheetContent>
     </Sheet>
   );
