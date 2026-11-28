@@ -24,7 +24,7 @@ export default function AppLayout(props) {
     return <div>{props.children}</div>;
   }
   // A company account sees every page in its portal's sidebar, like Admin.
-  if (user?.role === "company") return <CompanyShell title={props.title} subtitle={props.subtitle}>{props.children}</CompanyShell>;
+  if (user?.role === "company") return <CompanyShell title={props.title} subtitle={props.subtitle} hideTitle={props.hideTitle}>{props.children}</CompanyShell>;
   if (props.variant === "passenger") return <PassengerLayout {...props} />;
   return <FullLayout {...props} />;
 }

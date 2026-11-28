@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { CalendarPlus, Bus, Contact, LayoutDashboard, LogOut, MapPin, Menu, Route as RouteIcon, Settings, User } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -11,9 +11,12 @@ import { useAuth } from "@/lib/AuthContext";
 import useFutureAppearance from "@/hooks/useFutureAppearance";
 import { accountName, nameInitials } from "@/lib/userName";
 import { cn } from "@/lib/utils";
+import "@/components/admin/adminApple.css";
+import "@/components/admin/adminSea.css";
 
 // The company portal's chrome: the same sidebar, top bar, colours and
-// light/dark look as Admin, with the company's own sections.
+// light/dark look as Admin (adminApple.css and adminSea.css, the website's
+// deep sea and wide capitals), with the company's own sections.
 export const COMPANY_NAV = [
   { to: "/company", label: "Overview", icon: LayoutDashboard, exact: true },
   { to: "/company/jobs", label: "Jobs", icon: CalendarPlus },
@@ -59,7 +62,7 @@ function AccountPicture({ user, initials }) {
 
 const today = () => new Date().toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 
-export default function CompanyShell({ title, subtitle, children }) {
+export default function CompanyShell({ title, subtitle, hideTitle = false, children }) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
@@ -67,22 +70,28 @@ export default function CompanyShell({ title, subtitle, children }) {
   const [introEl, setIntroEl] = useState(null);
   const slots = useMemo(() => ({ actions: actionsEl, intro: introEl }), [actionsEl, introEl]);
   useFutureAppearance(true, "tt-admin-app");
+  // The admin look (adminSea.css), on <html> as Admin does, so dialogs get it too.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add("tt-admin-sea");
+    return () => root.classList.remove("tt-admin-sea");
+  }, []);
   const initials = nameInitials(user) || "C";
   const current = [...COMPANY_NAV, PROFILE].find((item) => isOn(item, pathname));
   const close = () => setOpen(false);
 
   const sidebar = (
     <div className="flex h-full flex-col">
-      <Link to="/company" onClick={close} className="flex h-16 shrink-0 items-center gap-2.5 px-5 font-heading text-title-sm font-bold text-sidebar-foreground">
+      <Link to="/company" onClick={close} className="tt-admin-brand flex h-16 shrink-0 items-center gap-2.5 px-5 font-heading text-title-sm font-bold text-sidebar-foreground">
         <Logo className="h-8 w-8" />
         <span>McSween <span className="text-sidebar-primary">Transport</span></span>
       </Link>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
-        <nav aria-label="Company" className="space-y-1">
+        <nav aria-label="Company" className="tt-admin-nav space-y-1">
           {COMPANY_NAV.map((item) => <NavLink key={item.to} item={item} pathname={pathname} onNavigate={close} />)}
           <div className="tt-admin-nav-secondary space-y-1">
             <NavLink item={PROFILE} pathname={pathname} onNavigate={close} />
-            <NavLink item={{ to: "/account", label: "Account and appearance", icon: Settings }} pathname={pathname} onNavigate={close} />
+            <NavLink item={{ to: "/account", label: "Account", icon: Settings }} pathname={pathname} onNavigate={close} />
           </div>
         </nav>
       </div>
@@ -111,7 +120,7 @@ export default function CompanyShell({ title, subtitle, children }) {
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
             <Menu className="h-5 w-5" aria-hidden="true" />
           </Button>
-          <span className="truncate text-body-sm text-muted-foreground">Company <span className="mx-2">/</span> {current?.label || title || "Overview"}</span>
+          <span className="tt-admin-breadcrumb truncate text-body-sm text-muted-foreground">Company <span className="mx-2">/</span> {current?.label || title || "Overview"}</span>
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <p className="hidden whitespace-nowrap text-body-sm text-muted-foreground md:block">
               {today()} <LiveClock seconds={false} mono={false} className="ml-1 font-semibold text-foreground" />
@@ -133,10 +142,11 @@ export default function CompanyShell({ title, subtitle, children }) {
         </header>
 
         <main className="min-w-0 flex-1 px-4 pb-24 pt-6 sm:px-6 lg:px-8">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+          <div className={cn("flex flex-wrap items-end justify-between gap-x-4 gap-y-3", !hideTitle && "mb-5")}>
             <div className="min-w-0">
-              <h1 className="text-headline font-bold">{title || current?.label || "Company"}</h1>
-              {subtitle && <p className="mt-1 text-body-sm text-muted-foreground">{subtitle}</p>}
+              {/* The overview's photo strip carries its own headline, as on Admin. */}
+              <h1 className={hideTitle ? "sr-only" : "text-headline font-bold"}>{title || current?.label || "Company"}</h1>
+              {subtitle && !hideTitle && <p className="mt-1 text-body-sm text-muted-foreground">{subtitle}</p>}
               <div ref={setIntroEl} />
             </div>
             <div ref={setActionsEl} className="empty:hidden" />
