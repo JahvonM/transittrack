@@ -10,6 +10,7 @@ import useAdminFocus from "@/hooks/useAdminFocus";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import PassengerPickupDialog from "@/components/directory/PassengerPickupDialog";
 import { DEFAULT_BUS_ART } from "@/components/BusArtwork";
 import { Link } from "react-router-dom";
 import BusLoader from "@/components/BusLoader";
@@ -79,6 +80,7 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
   const [issue, setIssue] = useState("all");
   const [search, setSearch] = useState("");
   const [activeKey, setActiveKey] = useState("");
+  const [pickupPerson, setPickupPerson] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const [choice, setChoice] = useState(null);
   const detailRef = useRef(null);
@@ -224,6 +226,16 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
     setChoice(null);
     if (window.matchMedia("(max-width: 1023px)").matches) requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
+  const editPickup = (person) => {
+    review(person.key);
+    setPickupPerson({
+      key: person.key,
+      name: person.name,
+      pickup_name: person.pickup?.name || "",
+      pickup_lat: person.pickup?.lat ?? null,
+      pickup_lng: person.pickup?.lng ?? null,
+    });
+  };
 
   if (error) return <EmptyState icon={TriangleAlert} title="Couldn't load the plan" action={<Button onClick={load}>Try again</Button>}>{error}</EmptyState>;
   if (!data) return <div className="grid place-items-center py-16"><BusLoader label="Sorting passengers onto buses…" /></div>;
@@ -273,10 +285,14 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
               return <li key={p.key} className={cn("flex items-start gap-3 rounded-xl border p-3 transition-colors", active?.key === p.key ? "border-primary bg-primary/8" : "border-border hover:bg-accent/40")}>
                 {canSelect && <Checkbox className="mt-2 h-5 w-5 shrink-0 max-md:h-11 max-md:w-11 max-md:min-w-11" aria-label={`Select ${p.name}`} checked={selected.has(p.key)} disabled={!!busy} onCheckedChange={(checked) => toggle(p.key, checked)} />}
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-caption font-bold text-primary" aria-hidden="true">{p.name.split(" ").slice(0, 2).map((n) => n[0]).join("")}</span><span className="min-w-0 break-words font-semibold">{p.name}</span><StatusChip tone={s.tone || "neutral"}>{s.label}</StatusChip></div>
-                  <p className="mt-2 text-body-sm text-muted-foreground"><MapPin className="mr-1 inline h-3.5 w-3.5" />{p.pickup?.name || (p.pickup ? "Saved pickup" : "No pickup set")}{p.route_name ? " · " + p.route_name : ""}</p>
-                  <p className="mt-1 text-body-sm">Current: <span className="text-muted-foreground">{p.bus_name || "No bus"}</span>{p.suggested && <> → <span className="font-semibold text-primary">{p.suggested.name}</span></>}</p>
-                  <Button className="mt-2 h-9" size="sm" variant="outline" aria-label={`Review ${p.name}`} onClick={() => review(p.key)}>Review pickup</Button>
+                  <button type="button" className="block w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Review ${p.name}`} onClick={() => review(p.key)}>
+                    <span className="flex flex-wrap items-center gap-2"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-caption font-bold text-primary" aria-hidden="true">{p.name.split(" ").slice(0, 2).map((n) => n[0]).join("")}</span><span className="min-w-0 break-words font-semibold">{p.name}</span><StatusChip tone={s.tone || "neutral"}>{s.label}</StatusChip></span>
+                    <span className="mt-2 block text-body-sm text-muted-foreground"><MapPin className="mr-1 inline h-3.5 w-3.5" />{p.pickup?.name || (p.pickup ? "Saved pickup" : "No pickup set")}{p.route_name ? " · " + p.route_name : ""}</span>
+                    <span className="mt-1 block text-body-sm">Current: <span className="text-muted-foreground">{p.bus_name || "No bus"}</span>{p.suggested && <> → <span className="font-semibold text-primary">{p.suggested.name}</span></>}</span>
+                  </button>
+                  <Button className="mt-2 h-9" size="sm" variant="outline" onClick={() => editPickup(p)} disabled={!!busy}>
+                    <MapPin className="mr-1.5 h-4 w-4" aria-hidden="true" />{p.pickup ? "Change pickup" : "Set pickup"}
+                  </Button>
                 </div>
               </li>;
             })}</ul>}
@@ -328,6 +344,7 @@ export default function PlanPickupsTab({ companyId: fixedCompanyId = '' }) {
           </details>
         </div>
       </div>
+      {pickupPerson && <PassengerPickupDialog person={pickupPerson} onClose={() => setPickupPerson(null)} onSaved={load} />}
     </div>
   );
 }

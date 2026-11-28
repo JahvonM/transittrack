@@ -70,6 +70,11 @@ test('dispatch creates an airport pickup and the day board shows it', async ({ p
   const lane = page.getByRole('region', { name: 'Bus 12' });
   await expect(lane.getByText('Maurice Bishop Airport', { exact: false })).toBeVisible();
   await expect(lane.getByText('Flight AA 1234', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: /^Scheduled/ }).click();
+  await expect(page.getByRole('heading', { name: 'Scheduled jobs', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Bus 12' })).toContainText('Maurice Bishop Airport');
+  await page.getByRole('button', { name: 'Clear status filter', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
 });
 
 test('the driver tablet alerts a new job and records the pickup signature with the guest count', async ({ page }) => {

@@ -121,7 +121,28 @@ export default function JobsTab({ vehicles = [], routes = [], trips = [], comple
     ...[...vehicles].sort((a, b) => String(a.name).localeCompare(String(b.name))).map((v) => ({ id: v.id, name: v.name, driver: v.driver_name || "" })),
   ];
   const completedToday = all.filter((t) => t.status === "completed" && t.completed_at && dayKey(new Date(t.completed_at)) === today).length;
+  const [statusFilter, setStatusFilter] = useState("");
   const openJob = (job) => setDialog({ open: true, job, draft: null, request: null });
+  const statusCards = [
+    { key: "scheduled", label: "Scheduled", value: active.filter((t) => t.status === "scheduled").length, icon: CalendarClock },
+    { key: "on_the_way", label: "On the way", value: active.filter((t) => t.status === "on_the_way").length, icon: Navigation, tone: "info" },
+    { key: "arrived", label: "Arrived", value: active.filter((t) => t.status === "arrived").length, icon: MapPin },
+    { key: "completed_today", label: "Completed today", value: completedToday, icon: CircleCheck, tone: "success" },
+  ];
+  const statusTitles = Object.fromEntries(statusCards.map(({ key, label }) => [key, label]));
+  const boardJobs = statusFilter
+    ? all.filter((t) => statusFilter === "completed_today"
+      ? t.status === "completed" && t.completed_at && dayKey(new Date(t.completed_at)) === today
+      : t.status === statusFilter)
+    : [...dayJobs, ...undated];
+  const boardLanes = statusFilter
+    ? [
+      ...(boardJobs.some((t) => !t.vehicle_id) ? [{ id: "", name: "Not given to a bus", driver: "" }] : []),
+      ...[...vehicles].filter((v) => boardJobs.some((t) => t.vehicle_id === v.id))
+        .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+        .map((v) => ({ id: v.id, name: v.name, driver: v.driver_name || "" })),
+    ]
+    : lanes;
   const dayLabel = day === today ? "Today" : day === shiftDay(today, 1) ? "Tomorrow" : day === shiftDay(today, -1) ? "Yesterday"
     : new Date(`${day}T12:00`).toLocaleDateString([], { weekday: "long", day: "numeric", month: "short" });
 
@@ -138,10 +159,14 @@ export default function JobsTab({ vehicles = [], routes = [], trips = [], comple
   return (
     <div>
       <KpiRow>
-        <Kpi label="Scheduled" value={active.filter((t) => t.status === "scheduled").length} icon={CalendarClock} />
-        <Kpi label="On the way" value={active.filter((t) => t.status === "on_the_way").length} icon={Navigation} tone="info" />
-        <Kpi label="Arrived" value={active.filter((t) => t.status === "arrived").length} icon={MapPin} />
-        <Kpi label="Completed today" value={completedToday} icon={CircleCheck} tone="success" />
+        {statusCards.map(({ key, label, value, icon, tone }) => (
+          <button key={key} type="button" aria-pressed={statusFilter === key}
+            onClick={() => { setView("board"); setStatusFilter((current) => current === key ? "" : key); }}
+            className="w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Kpi label={label} value={value} icon={icon} tone={tone}
+              className={`h-full transition-colors hover:border-primary/50 ${statusFilter === key ? "border-primary ring-2 ring-primary/30" : ""}`} />
+          </button>
+        ))}
       </KpiRow>
 
       <Toolbar actions={view === "board" || view === "requests" ? <Button onClick={() => openJob(null)}><Plus className="h-4 w-4" /> New job</Button>
@@ -169,24 +194,31 @@ export default function JobsTab({ vehicles = [], routes = [], trips = [], comple
 
       {view === "board" && (
         <Panel
-          title={dayLabel}
+          title={statusFilter ? `${statusTitles[statusFilter]} jobs` : dayLabel}
           icon={CalendarClock}
           actions={(
-            <div className="flex items-center gap-1">
-              <Button variant="outline" size="icon" onClick={() => setDay(shiftDay(day, -1))} aria-label="Previous day"><ChevronLeft className="h-4 w-4" /></Button>
-              {day !== today && <Button variant="outline" onClick={() => setDay(today)}>Today</Button>}
-              <Input type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} className="w-auto" aria-label="Day" />
-              <Button variant="outline" size="icon" onClick={() => setDay(shiftDay(day, 1))} aria-label="Next day"><ChevronRight className="h-4 w-4" /></Button>
-            </div>
+            statusFilter
+              ? <Button variant="outline" onClick={() => setStatusFilter("")}>Clear status filter</Button>
+              : <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" onClick={() => setDay(shiftDay(day, -1))} aria-label="Previous day"><ChevronLeft className="h-4 w-4" /></Button>
+                {day !== today && <Button variant="outline" onClick={() => setDay(today)}>Today</Button>}
+                <Input type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} className="w-auto" aria-label="Day" />
+                <Button variant="outline" size="icon" onClick={() => setDay(shiftDay(day, 1))} aria-label="Next day"><ChevronRight className="h-4 w-4" /></Button>
+              </div>
           )}
         >
-          {lanes.length === 0 ? (
-            <EmptyState icon={CalendarClock} title="No buses yet" className="border-0">Add a vehicle first, then give it jobs.</EmptyState>
+          {boardLanes.length === 0 ? (
+            <EmptyState icon={CalendarClock}
+              title={statusFilter ? `No ${statusTitles[statusFilter].toLowerCase()} jobs` : "No buses yet"}
+              className="border-0"
+              action={statusFilter ? <Button variant="outline" onClick={() => setStatusFilter("")}>Show today's board</Button> : undefined}>
+              {statusFilter ? "Choose another status above or clear the filter to return to the day board." : "Add a vehicle first, then give it jobs."}
+            </EmptyState>
           ) : (
             <div className="space-y-4">
-              {lanes.map((lane) => {
-                const jobs = dayJobs.filter((t) => (t.vehicle_id || "") === lane.id);
-                const noTime = undated.filter((t) => (t.vehicle_id || "") === lane.id);
+              {boardLanes.map((lane) => {
+                const jobs = boardJobs.filter((t) => (t.vehicle_id || "") === lane.id && t.scheduled_time);
+                const noTime = boardJobs.filter((t) => (t.vehicle_id || "") === lane.id && !t.scheduled_time);
                 return (
                   <section key={lane.id || "unassigned"} aria-label={lane.name}>
                     <h3 className="flex items-baseline gap-2 px-1 pb-1.5">

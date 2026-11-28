@@ -137,18 +137,20 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange, fau
             const on = focusIds.includes(v.id);
             const driverName = v.driver_name || v.driver_email;
             const driverCell = v.driver_id
-              ? <Link to={`/admin/drivers?driver=${enc(v.driver_id)}&bus=${enc(v.id)}`} className="underline-offset-4 hover:underline" aria-label={`Open driver ${driverName || ""} of ${v.name}`}>{driverName || "Open driver"}</Link>
-              : driverName || <Link to={`/admin/drivers?bus=${enc(v.id)}`} className="font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground" aria-label={`Assign a driver to ${v.name}`}>Assign a driver</Link>;
+              ? <Link to={`/admin/drivers?driver=${enc(v.driver_id)}&bus=${enc(v.id)}`} className="pointer-events-auto underline-offset-4 hover:underline" aria-label={`Open driver ${driverName || ""} of ${v.name}`}>{driverName || "Open driver"}</Link>
+              : driverName || <Link to={`/admin/drivers?bus=${enc(v.id)}`} className="pointer-events-auto font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground" aria-label={`Assign a driver to ${v.name}`}>Assign a driver</Link>;
             return (
-              <li key={v.id} id={"vehicle-" + v.id} aria-current={on ? "true" : undefined} className={cn("flex flex-col rounded-2xl border border-border bg-card", on && "ring-2 ring-ring")}>
-                <div className="flex items-start gap-3 p-4">
+              <li key={v.id} id={"vehicle-" + v.id} aria-current={on ? "true" : undefined} className={cn("relative isolate flex flex-col rounded-2xl border border-border bg-card", on && "ring-2 ring-ring")}>
+                <Link to={`/vehicle/${enc(v.id)}`} aria-label={`View ${v.name} bus information`}
+                  className="absolute inset-0 z-0 rounded-2xl hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                <div className="pointer-events-none relative z-10 flex items-start gap-3 p-4">
                   <div className="shrink-0 rounded-xl bg-secondary" title={getModel(modelIdFor(v)).label}>
                     {v.image_url ? <BusArtwork vehicle={v} width={90} loading="lazy" className="h-16 w-24" alt={`${v.name} artwork`} /> : <VehicleModelThumb model={modelIdFor(v)} size={60} />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <h2 className="min-w-0 truncate text-title-sm font-bold">
-                        <button type="button" onClick={() => pick(v)} aria-pressed={on} title={on ? "Unpick this bus" : "Pick this bus for the other tabs"} className="max-w-full truncate text-left underline-offset-4 hover:underline">{v.name}</button>
+                        {v.name}
                       </h2>
                       <StatusChip status={bucket(v)} tone={bucket(v) === "on_trip" ? "success" : "neutral"} />
                     </div>
@@ -156,31 +158,35 @@ export default function VehiclesTab({ vehicles, companies, routes, onChange, fau
                     {v.vin && <p className="truncate text-caption text-muted-foreground">VIN {v.vin}</p>}
                   </div>
                 </div>
-                <dl className="grid grid-cols-3 gap-3 border-t border-border px-4 py-3 text-body-sm">
-                  {[["Company", v.company_name || "None"], ["Driver", driverCell], ["Route", v.route_id && routeName(v.route_id) ? <Link to={`/admin/route-planner?route=${enc(v.route_id)}`} className="underline-offset-4 hover:underline" aria-label={`Open route ${routeName(v.route_id)} of ${v.name}`}>{routeName(v.route_id)}</Link> : "None"]].map(([k, val]) => (
+                <dl className="pointer-events-none relative z-10 grid grid-cols-3 gap-3 border-t border-border px-4 py-3 text-body-sm">
+                  {[["Company", v.company_name || "None"], ["Driver", driverCell], ["Route", v.route_id && routeName(v.route_id) ? <Link to={`/admin/route-planner?route=${enc(v.route_id)}`} className="pointer-events-auto underline-offset-4 hover:underline" aria-label={`Open route ${routeName(v.route_id)} of ${v.name}`}>{routeName(v.route_id)}</Link> : "None"]].map(([k, val]) => (
                     <div key={k} className="min-w-0">
                       <dt className="text-caption text-muted-foreground">{k}</dt>
                       <dd className="truncate font-semibold">{val}</dd>
                     </div>
                   ))}
                 </dl>
-                <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-border px-3 py-2">
+                <div className="pointer-events-none relative z-10 mt-auto flex flex-wrap items-center gap-2 border-t border-border px-3 py-2">
                   {nFaults > 0 && <StatusChip tone="danger" dot={false}><OctagonAlert className="h-3.5 w-3.5" aria-hidden="true" />{nFaults} open fault{nFaults === 1 ? "" : "s"}</StatusChip>}
                   {due && <StatusChip tone={due === "overdue" ? "danger" : "warning"} dot={false}><Wrench className="h-3.5 w-3.5" aria-hidden="true" />Service {due}</StatusChip>}
+                  <Button type="button" variant="outline" size="sm" className="pointer-events-auto"
+                    aria-pressed={on} title={on ? "Unpick this bus" : "Pick this bus for the other tabs"} onClick={() => pick(v)}>
+                    {on ? "Picked" : "Pick for other tabs"}
+                  </Button>
                   <Button variant="outline" size="sm" asChild>
-                    <Link to={"/vehicle/" + encodeURIComponent(v.id) + "?tab=studio"} aria-label={`Open 360 degree photo viewer for ${v.name}`}>
+                    <Link to={"/vehicle/" + encodeURIComponent(v.id) + "?tab=studio"} className="pointer-events-auto" aria-label={`Open 360 degree photo viewer for ${v.name}`}>
                       <Images className="mr-1.5 h-4 w-4" aria-hidden="true" /> 360° View
                     </Link>
                   </Button>
                   <Button variant="outline" size="sm" asChild>
-                    <Link to={`/admin/shifts?bus=${enc(v.id)}`} aria-label={`Shifts on ${v.name}`}>
+                    <Link to={`/admin/shifts?bus=${enc(v.id)}`} className="pointer-events-auto" aria-label={`Shifts on ${v.name}`}>
                       <Timer className="mr-1.5 h-4 w-4" aria-hidden="true" /> Shifts
                     </Link>
                   </Button>
                   <span className="ml-auto flex items-center">
-                    <Button variant="ghost" size="icon" onClick={() => setHistoryVehicle(v)} aria-label={`History of ${v.name}`} title="History"><History className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(v)} aria-label={`Edit ${v.name}`} title="Edit"><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => remove(v)} aria-label={`Delete ${v.name}`} title="Delete" className="text-danger hover:text-danger"><Trash2 className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="pointer-events-auto" onClick={() => setHistoryVehicle(v)} aria-label={`History of ${v.name}`} title="History"><History className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="pointer-events-auto" onClick={() => openEdit(v)} aria-label={`Edit ${v.name}`} title="Edit"><Pencil className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="pointer-events-auto text-danger hover:text-danger" onClick={() => remove(v)} aria-label={`Delete ${v.name}`} title="Delete"><Trash2 className="h-4 w-4" /></Button>
                   </span>
                 </div>
               </li>
