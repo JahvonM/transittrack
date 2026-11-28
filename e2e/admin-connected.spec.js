@@ -28,6 +28,14 @@ async function open(page, path, data = linkedData()) {
 }
 const tabs = (page, hub) => page.getByRole('navigation', { name: `${hub} tabs` });
 
+test('a vehicle card opens bus information when clicked', async ({ page }) => {
+  const { errors } = await open(page, '/admin/vehicles');
+  await page.locator('#vehicle-bus-a').getByRole('link', { name: 'View Bus 1 bus information' }).click({ position: { x: 400, y: 20 } });
+  await expect(page).toHaveURL('/vehicle/bus-a');
+  await expect(page.getByText('Vehicle information', { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('Vehicles & drivers: a bus leads to its driver and their shifts, and the pick follows the tabs', async ({ page }) => {
   const { errors, session } = await open(page, '/admin/vehicles');
   await page.getByRole('link', { name: 'Open driver Kevin Thomas of Bus 1' }).click();

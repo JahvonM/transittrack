@@ -34,17 +34,27 @@ function planData(){
  };
 }
 
-async function admin(page){
- const calls={setBus:[],vehicle:[],plans:0};
+async function admin(page,{walking=false}={}){
+ const calls={setBus:[],setPickup:[],vehicle:[],plans:0};
  let plan=planData();
  await page.addInitScript(()=>{ localStorage.setItem('sb-localhost-auth-token',JSON.stringify({access_token:'mock-authenticated-session',refresh_token:'test-refresh-token',token_type:'bearer',expires_in:3600,expires_at:4102444800,user:{id:'test-user'}})); });
- await page.route('https://api.mapbox.com/**',r=>r.fulfill({status:404,body:''}));
+ await page.route('https://api.mapbox.com/**',r=>{
+  const url=new URL(r.request().url());
+  if(walking&&url.pathname.includes('/directions/v5/mapbox/walking/')){
+   const coordinates=url.pathname.split('/walking/')[1].split(';').map(part=>part.split(',').map(Number));
+   const [start,end]=coordinates;
+   return r.fulfill({json:{routes:[{geometry:{coordinates:[start,end]},distance:700,duration:420,legs:[{steps:[{maneuver:{instruction:'Follow the road to the bus stop'}}]}]}],waypoints:[{location:start},{location:end}]}});
+  }
+  return r.fulfill({status:404,body:''});
+ });
  await page.route(/basemaps|cartocdn|tile/,r=>r.fulfill({status:404,body:''}));
  await page.route('**/api/**',withAdminBatch(async route=>{
   const url=route.request().url();
   if(url.includes('/functions/v1/routeStops')){ calls.plans++; return route.fulfill({json:plan}); }
   if(url.includes('/functions/v1/nfcCards')){
-   const body=route.request().postDataJSON();calls.setBus.push(body);
+   const body=route.request().postDataJSON();
+   if(body.action==='set_pickup'){calls.setPickup.push(body);return route.fulfill({json:{ok:true}});}
+   calls.setBus.push(body);
    // The server moves them onto the bus; the next plan shows them as sorted,
    // except someone the bus only passes nearby (they still need a new pickup).
    plan={...plan,people:plan.people.map(p=>{
@@ -112,6 +122,49 @@ test('pickup workspace searches, filters, reviews details and fits tablet and ph
    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  }
  await shot(page,'plan-pickups-phone');
+});
+
+test('a passenger tile opens review and lets the pickup be changed from the list',async({page})=>{
+ const calls=await admin(page);
+ await page.goto('/admin/plan-pickups');
+ const list=page.getByRole('list',{name:'Pickup passengers'});
+ const nia=list.getByRole('button',{name:'Review Nia Needs',exact:true});
+ await nia.getByText('Nia Needs',{exact:true}).click();
+ await expect(page.getByText('Nia Needs’s pickup',{exact:true})).toBeVisible();
+ const niaRow=list.locator('li').filter({hasText:'Nia Needs'});
+ await niaRow.getByRole('button',{name:'Change pickup',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Pickup spot for Nia Needs'});
+ await expect(dialog).toBeVisible();
+ const pickupName=dialog.locator('#passenger-pickup-name');
+ await expect(pickupName).toHaveValue('Church');
+ await pickupName.fill('Church junction');
+ await dialog.getByRole('button',{name:'Save pickup spot',exact:true}).click();
+ await expect.poll(()=>calls.setPickup.length).toBe(1);
+ expect(calls.setPickup[0]).toMatchObject({action:'set_pickup',person_key:'contact:needs',pickup_name:'Church junction',pickup_lat:12,pickup_lng:-61.75});
+});
+
+test('pickup editor shows route-side spots with walking time and directions',async({page})=>{
+ const calls=await admin(page,{walking:true});
+ await page.goto('/admin/plan-pickups');
+ const list=page.getByRole('list',{name:'Pickup passengers'});
+ await list.getByRole('button',{name:'Review Nia Needs',exact:true}).click();
+ await list.locator('li').filter({hasText:'Nia Needs'}).getByRole('button',{name:'Change pickup',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Pickup spot for Nia Needs'});
+ await expect(dialog.getByRole('region',{name:'Pickup map'})).toBeVisible();
+ await expect(dialog.getByRole('button',{name:'Find walkable pickup spots'})).toBeEnabled();
+ await dialog.getByRole('button',{name:'Find walkable pickup spots'}).click();
+ const options=dialog.getByRole('region',{name:'Nearby pickup options'});
+ await expect(options.getByText('Coastal',{exact:true}).first()).toBeVisible();
+ await expect(options.getByText('7 min walk · 700 m',{exact:true}).first()).toBeVisible();
+ await options.getByRole('button',{name:'Use this spot'}).first().click();
+ await expect(options.getByRole('button',{name:'Selected'})).toBeVisible();
+ await options.getByText('Walking directions',{exact:true}).click();
+ await expect(options.getByText('Follow the road to the bus stop')).toBeVisible();
+ await dialog.getByRole('button',{name:'Save pickup spot',exact:true}).click();
+ await expect.poll(()=>calls.setPickup.length).toBe(1);
+ expect(calls.setPickup[0]).toMatchObject({action:'set_pickup',person_key:'contact:needs',pickup_name:'Roadside pickup · Coastal'});
+ expect(Number.isFinite(calls.setPickup[0].pickup_lat)).toBe(true);
+ expect(Number.isFinite(calls.setPickup[0].pickup_lng)).toBe(true);
 });
 
 test('single and selected assignments require confirmation and send exact passenger and bus IDs',async({page})=>{

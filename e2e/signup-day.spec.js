@@ -7,8 +7,8 @@ import { fleetData, mockFleet } from "./helpers/fleetFixture.js";
 
 function hotelServer(companyName, joinCode) {
   const people = [
-    { key: "contact:ana", ref: "email:ana@test.local", name: "Ana Joseph", email: "ana@test.local", registered: true, app: "", pickup: false, pickup_name: "", card: "" },
-    { key: "contact:ben", ref: "email:ben@test.local", name: "Ben Charles", email: "ben@test.local", registered: false, app: "", pickup: false, pickup_name: "", card: "" },
+    { key: "contact:ana", ref: "email:ana@test.local", name: "Ana Joseph", email: "ana@test.local", phone: "473-555-0101", registered: true, app: "", pickup: false, pickup_name: "", card: "" },
+    { key: "contact:ben", ref: "email:ben@test.local", name: "Ben Charles", email: "ben@test.local", phone: "473-555-0102", registered: false, app: "", pickup: false, pickup_name: "", card: "" },
     { key: "contact:cal", ref: "email:cal@test.local", name: "Cal Noel", email: "cal@test.local", registered: true, app: "alerts", pickup: true, pickup_name: "Grand Anse", card: "issued", card_tail: "7C1B" },
   ];
   const claims = new Map();
@@ -32,6 +32,16 @@ function hotelServer(companyName, joinCode) {
           if (i < 0) return { status: 404, json: { error: "Passenger not found" } };
           people.splice(i, 1); claims.delete(body.person_ref);
           return { status: 200, json: { ok: true } };
+        }
+        case "signup_edit": {
+          const person = find(body.person_ref);
+          if (!person) return { status: 404, json: { error: "Passenger not found" } };
+          if (person.registered && body.email.toLowerCase() !== person.email.toLowerCase()) return { status: 409, json: { error: "Change their sign-in email through their account instead" } };
+          person.name = body.name;
+          person.email = body.email.toLowerCase();
+          person.phone = body.phone;
+          person.ref = person.email ? `email:${person.email}` : person.key;
+          return { status: 200, json: { ok: true, person_ref: person.ref } };
         }
         case "set_bus": {
           const p = people.find((x) => x.key === body.person_key);
@@ -147,6 +157,36 @@ test("helpers can remove a mistaken sign-up entry after confirmation", async ({ 
   await context.close();
 });
 
+test("helpers can correct a staff member's name, email and phone number", async ({ browser }) => {
+  const server = hotelServer("Hotel A", "JOIN12345678");
+  const { context, page } = await helperDevice(browser, server, { id: "helper", name: "Helper" }, { width: 1280, height: 800 });
+  await page.getByRole("button", { name: /Ben Charles/ }).click();
+  const sheet = page.getByRole("dialog", { name: "Ben Charles" });
+  await sheet.getByRole("button", { name: "Edit contact details" }).click();
+  await sheet.getByLabel("Name", { exact: true }).fill("Ben Charles Jr");
+  await sheet.getByLabel("Email", { exact: true }).fill("ben.corrected@test.local");
+  await sheet.getByLabel("Phone number", { exact: true }).fill("473-555-0199");
+  await sheet.getByRole("button", { name: "Save details" }).click();
+  const updatedSheet = page.getByRole("dialog", { name: "Ben Charles Jr" });
+  await expect(updatedSheet).toBeVisible();
+  await expect(updatedSheet.getByText("ben.corrected@test.local, 473-555-0199")).toBeVisible();
+  expect(server.people.find((p) => p.key === "contact:ben")).toMatchObject({
+    ref: "email:ben.corrected@test.local", name: "Ben Charles Jr", email: "ben.corrected@test.local", phone: "473-555-0199",
+  });
+  await context.close();
+});
+
+test("registered staff can correct contact details without changing their sign-in email", async ({ browser }) => {
+  const server = hotelServer("Hotel A", "JOIN12345678");
+  const { context, page } = await helperDevice(browser, server, { id: "helper", name: "Helper" }, { width: 1280, height: 800 });
+  await page.getByRole("button", { name: /Ana Joseph/ }).click();
+  const sheet = page.getByRole("dialog", { name: "Ana Joseph" });
+  await sheet.getByRole("button", { name: "Edit contact details" }).click();
+  await expect(sheet.getByLabel("Email", { exact: true })).toBeDisabled();
+  await expect(sheet.getByText("Their sign-in email can only be changed through their account.")).toBeVisible();
+  await context.close();
+});
+
 test("passenger directory assigns a company with confirmation", async ({ page }) => {
   const data = fleetData();
   await mockFleet(page, { role: "admin", data });
@@ -186,5 +226,22 @@ test("the pickup step suggests the bus whose route passes the spot, one tap away
   expect(server.people.find((p) => p.name === "Ana Joseph").vehicle_id).toBe("bus-coast");
   await expect(sheet.getByRole("button", { name: "Put Ana on Bus Coast" })).toHaveCount(0);
   if (process.env.TT_SHOT) await page.screenshot({ path: process.env.TT_SHOT });
+  await context.close();
+});
+
+test("the map shows everyone's pickup spots and opens a person from their pin", async ({ browser }) => {
+  const server = hotelServer("Hotel A", "JOIN12345678");
+  server.buses = [{ id: "bus-coast", name: "Bus Coast", route: { id: "r1", name: "Coast road", path: [{ lat: 17.3, lng: -62.8 }, { lat: 17.3, lng: -62.78 }] } }];
+  Object.assign(server.people.find((p) => p.name === "Ana Joseph"), { pickup: true, pickup_name: "Coast stop", pickup_lat: 17.3005, pickup_lng: -62.79, vehicle_id: "", bus: "" });
+  Object.assign(server.people.find((p) => p.name === "Ben Charles"), { pickup: true, pickup_name: "Hill stop", pickup_lat: 17.31, pickup_lng: -62.785, vehicle_id: "bus-coast", bus: "Bus Coast" });
+  const { context, page } = await helperDevice(browser, server, { id: "helper", name: "Helper" }, { width: 390, height: 844 });
+  await page.getByRole("group", { name: "Layout" }).getByRole("button", { name: "Map" }).click();
+  await expect(page.getByRole("button", { name: "Ana Joseph: Coast stop, needs a bus" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ben Charles: Hill stop, rides Bus Coast" })).toBeVisible();
+  await expect(page.getByLabel("Map key")).toContainText("Coast road (Bus Coast)");
+  await expect(page.getByLabel("Map key")).toContainText("Needs a bus (1)");
+  if (process.env.TT_SHOT) { await page.getByLabel("Map key").scrollIntoViewIfNeeded(); await page.screenshot({ path: process.env.TT_SHOT }); }
+  await page.getByRole("button", { name: "Ana Joseph: Coast stop, needs a bus" }).click();
+  await expect(page.getByRole("dialog", { name: "Ana Joseph" })).toBeVisible();
   await context.close();
 });

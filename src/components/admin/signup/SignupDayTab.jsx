@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ClipboardCheck, MapPin, Nfc, QrCode, Search, Smartphone, Upload, UserCheck, UserPlus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import BusLoader from "@/components/BusLoader";
 import { INVITE_BATCH, STEPS, inviteText, progress, stepsOf, isReady, visiblePeople } from "@/lib/signupDay";
 import SignupPersonSheet from "./SignupPersonSheet";
 import { AddPersonDialog, ImportListDialog, TableQr } from "./SignupDialogs";
+// The map loads only when someone opens it (the map library is large).
+const SignupPeopleMap = lazy(() => import("./SignupPeopleMap"));
 
 // Sign-up day at a hotel. Everyone helping opens this page on their own phone,
 // tablet or laptop and works from the same live list of the hotel's staff:
@@ -63,10 +65,12 @@ export default function SignupDayTab() {
   const [state, setState] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [view, setView] = useState("todo");
+  const [layout, setLayout] = useState("list");
   const [query, setQuery] = useState("");
   const [openRef, setOpenRef] = useState("");
   const [dialog, setDialog] = useState(""); // add | import | qr
   const loading = useRef(false);
+  const reloadAfter = useRef(false);
 
   // Admins choose the hotel; it's remembered on this device for the day.
   useEffect(() => {
@@ -88,11 +92,18 @@ export default function SignupDayTab() {
   }, [hotelId]);
 
   const load = useCallback(async () => {
-    if (!hotelId || loading.current) return;
+    if (!hotelId) return;
+    if (loading.current) { reloadAfter.current = true; return; }
     loading.current = true;
     try { setState(await call("signup_state")); setLoadError(""); }
     catch (e) { setLoadError(errorText(e, "Couldn't load the list. Check the connection.")); }
-    finally { loading.current = false; }
+    finally {
+      loading.current = false;
+      if (reloadAfter.current) {
+        reloadAfter.current = false;
+        Promise.resolve().then(() => load());
+      }
+    }
   }, [hotelId, call]);
 
   useEffect(() => { setState(null); setOpenRef(""); setLoadError(""); }, [hotelId]);
@@ -207,12 +218,21 @@ export default function SignupDayTab() {
                   { value: "todo", label: "To do", count: viewCount("todo") }, { value: "mine", label: "Mine", count: viewCount("mine") },
                   { value: "ready", label: "All set", count: viewCount("ready") }, { value: "all", label: "Everyone", count: people.length },
                 ]} />
+                <Segmented label="Layout" size="sm" value={layout} onChange={setLayout} options={[
+                  { value: "list", label: "List" }, { value: "map", label: "Map" },
+                ]} />
                 <div className="relative min-w-[180px] flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
                   <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email or phone" aria-label="Search staff" className="pl-9" />
                 </div>
               </div>
-              {shown.length ? (
+              {layout === "map" ? (
+                <div className="p-1">
+                  <Suspense fallback={<BusLoader className="py-12" />}>
+                    <SignupPeopleMap people={shown} buses={state?.buses || []} onOpen={setOpenRef} />
+                  </Suspense>
+                </div>
+              ) : shown.length ? (
                 <ul className="divide-y divide-border/70">{shown.map((p) => <PersonRow key={p.ref} person={p} onOpen={setOpenRef} />)}</ul>
               ) : (
                 <p className="px-3 py-8 text-center text-body-sm text-muted-foreground">
@@ -224,7 +244,8 @@ export default function SignupDayTab() {
         </>
       )}
 
-      {open && <SignupPersonSheet key={open.ref} person={open} company={state?.company} buses={state?.buses || []} call={call} onChanged={load} onClose={() => setOpenRef("")} />}
+      {open && <SignupPersonSheet key={open.ref} person={open} company={state?.company} buses={state?.buses || []} call={call}
+        onChanged={async (nextRef) => { await load(); if (nextRef) setOpenRef(nextRef); }} onClose={() => setOpenRef("")} />}
       {dialog === "add" && <AddPersonDialog hotel={hotel?.name} onAdd={add} onClose={() => setDialog("")} />}
       {dialog === "import" && <ImportListDialog hotel={hotel?.name} onImport={importRows} onClose={() => setDialog("")} />}
       {dialog === "qr" && state?.company?.join_code && <TableQr code={state.company.join_code} hotel={state.company.name} onClose={() => setDialog("")} />}

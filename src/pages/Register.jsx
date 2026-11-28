@@ -165,6 +165,15 @@ export default function Register() {
             Resend
           </button>
         </p>
+        <p className="text-center text-sm">
+          <button
+            type="button"
+            onClick={() => { setShowOtp(false); setOtpCode(""); setError(""); }}
+            className="text-primary font-medium hover:underline"
+          >
+            Edit email address
+          </button>
+        </p>
       </AuthLayout>
     );
   }

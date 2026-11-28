@@ -55,7 +55,7 @@ export default function ConfirmEmailCode({ email, onConfirmed, onBack }) {
       </Button>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm">
         <button type="button" onClick={resend} className="font-medium text-primary hover:underline">Send another code</button>
-        <button type="button" onClick={onBack} className="text-muted-foreground hover:underline">Back to sign in</button>
+        <button type="button" onClick={onBack} className="text-muted-foreground hover:underline">Edit email address</button>
       </div>
     </AuthLayout>
   );

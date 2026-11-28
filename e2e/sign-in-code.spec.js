@@ -63,14 +63,14 @@ test('an unconfirmed email gets a new code from the sign-in page and finishes si
   expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key) || 'null')?.access_token, SESSION_KEY)).toBe('confirmed-session');
 });
 
-test('Back to sign in leaves the code screen', async ({ page }) => {
+test('Edit email address returns to sign in from the code screen', async ({ page }) => {
   await mockApi(page);
   await page.goto('/login');
   await page.getByLabel(/email/i).first().fill('pat@example.com');
   await page.getByLabel(/^password$/i).fill('a-good-password');
   await page.getByRole('button', { name: /^sign in$/i }).click();
   await page.getByRole('button', { name: 'Send a new code' }).click();
-  await page.getByRole('button', { name: 'Back to sign in' }).click();
+  await page.getByRole('button', { name: 'Edit email address' }).click();
   await expect(page.getByRole('button', { name: /^sign in$/i })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Send a new code' })).toHaveCount(0);
 });

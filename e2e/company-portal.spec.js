@@ -18,7 +18,7 @@ async function portal(page, { vehicles = [], trips = [], requests = [] } = {}) {
       let result = [];
       if (body.entity === 'User') result = { id: 'caller', role: 'company', company_id: 'a', email: 'desk@hotel.invalid', full_name: 'Front Desk' };
       else if (body.entity === 'Company') result = [company];
-      else if (body.entity === 'Vehicle') result = vehicles;
+      else if (body.entity === 'Vehicle') result = body.operation === 'get' ? vehicles.find((v) => v.id === body.id) || null : vehicles;
       else if (body.entity === 'Trip') result = trips;
       else if (body.entity === 'LiveLists') result = { lists: { Vehicle: vehicles, Trip: trips }, errors: {} };
       return route.fulfill({ json: { result } });
@@ -51,6 +51,18 @@ test('the overview shows a bus only while it is on shift', async ({ page }) => {
   const nav = page.getByRole('navigation', { name: 'Company' });
   for (const name of ['Overview', 'Jobs', 'Live map', 'Buses', 'Routes', 'Passengers']) await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page');
+});
+
+test('bus tiles open vehicle information from the overview and Buses page', async ({ page }) => {
+  await portal(page, { vehicles: [bus('bus-a', 'Bus A', '', { fleet_number: '12', plate_number: 'GR-1234' })] });
+  await page.goto('/company');
+  await page.getByRole('link', { name: 'View Bus A bus information' }).click();
+  await expect(page).toHaveURL('/vehicle/bus-a');
+  await expect(page.getByText('Vehicle information', { exact: true })).toBeVisible();
+  await page.goto('/company/vehicles');
+  await page.getByRole('link', { name: 'View Bus A bus information' }).click();
+  await expect(page).toHaveURL('/vehicle/bus-a');
+  await expect(page.getByText('Vehicle information', { exact: true })).toBeVisible();
 });
 
 test('a company asks for a job and dispatch is told', async ({ page }) => {
