@@ -42,7 +42,11 @@ test('the overview shows a bus only while it is on shift', async ({ page }) => {
   await expect(buses.getByText('Bus A', { exact: true })).toBeVisible();
   await expect(buses.getByText('Off shift', { exact: true })).toBeVisible();
   await expect(buses.getByText('On shift', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('On the map now', { exact: true })).toBeVisible();
+  // The admin-style photo strip: its headline, the summary and the numbers.
+  const today = page.getByRole('region', { name: 'Today' });
+  await expect(today.getByRole('heading', { name: 'Your buses today' })).toBeVisible();
+  await expect(today.getByText('1 of 2 buses is on the map now.', { exact: false })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Company overview' }).getByRole('button', { name: /On the map now/ })).toContainText('1');
   // Same sidebar as Admin, with the company's sections.
   const nav = page.getByRole('navigation', { name: 'Company' });
   for (const name of ['Overview', 'Jobs', 'Live map', 'Buses', 'Routes', 'Passengers']) await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();

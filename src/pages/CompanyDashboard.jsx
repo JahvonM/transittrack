@@ -1,17 +1,17 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import CompanyJoinQr from "@/components/CompanyJoinQr";
-import { Navigate, useParams, Link } from "react-router-dom";
+import { Navigate, useParams, Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import ProfileInfo from "@/components/ProfileInfo";
-import { Bus, Plus, Pencil, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, CalendarClock, Inbox, Navigation, ArrowRight } from "lucide-react";
+import { Bus, Plus, Pencil, Route as RouteIcon, MapPin, Building2, Phone, KeyRound, Copy, Check, RefreshCw, CalendarClock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState, Kpi, KpiRow, Panel, StatusChip, humanize } from "@/components/admin/kit";
-import { StatusPill } from "@/components/admin/AdminOverview";
+import { EmptyState, Panel, StatusChip, humanize } from "@/components/admin/kit";
+import { Stat, StatusPill } from "@/components/admin/AdminOverview";
 import { useToast } from "@/components/ui/use-toast";
 import CompanyEditDialog from "@/components/CompanyEditDialog";
 import { loadFailed } from "@/lib/loadFailed";
@@ -21,7 +21,7 @@ import { modelIdFor } from "@/lib/vehicleModels";
 import { loadScreen, saveScreen } from "@/lib/savedScreen";
 import CompanyJobs, { useCompanyRequests } from "@/components/company/CompanyJobs";
 import { companyBusStatus } from "@/components/company/BusStatus";
-import { busOnMap, busSharingLine, jobGroups } from "@/lib/companyPortal";
+import { busOnMap, busSharingLine, jobGroups, todaySummary } from "@/lib/companyPortal";
 import { TRANSIT_TIME_ZONE } from "@/lib/localTime";
 
 const LiveTransitMap = lazy(() => import("@/components/map3d/LiveTransitMap"));
@@ -113,7 +113,7 @@ export default function CompanyDashboard() {
 
   const { title, subtitle } = SECTIONS[section];
   return (
-    <AppLayout title={title || company.name} subtitle={subtitle || (section === "overview" ? "Your buses, jobs and passenger code" : undefined)}>
+    <AppLayout title={title || company.name} subtitle={subtitle} hideTitle={section === "overview"}>
       {section === "overview" && <Overview company={company} vehicles={vehicles} routes={routes} trips={trips} workplace={workplace} onChange={loadAll} />}
       {section === "jobs" && <CompanyJobs company={company} trips={trips} vehicles={vehicles} routes={routes} />}
       {section === "vehicles" && <VehiclesTab routes={routes} vehicles={vehicles} workplace={workplace} />}
@@ -227,19 +227,33 @@ function SharedMap({ vehicles, routes, workplace, label, className = "h-[420px]"
   );
 }
 
+// The day, in Grenada: "Wednesday, 25 November".
+const heroDay = (now = Date.now()) => new Date(now).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", timeZone: TRANSIT_TIME_ZONE });
+
 function Overview({ company, vehicles, routes, trips, workplace, onChange }) {
   const { requests } = useCompanyRequests();
   const { live, upcoming, todayCount } = jobGroups(trips);
   const onMap = vehicles.filter(busOnMap).length;
   const waiting = (requests || []).filter((r) => r.status === "new").length;
+  const navigate = useNavigate();
   return (
     <div className="space-y-4">
-      <KpiRow>
-        <Kpi label="Buses" value={vehicles.length} icon={Bus} />
-        <Kpi label="On the map now" value={onMap} icon={Navigation} tone={onMap ? "success" : undefined} detail="On shift or on your job" />
-        <Kpi label="Jobs today" value={todayCount} icon={CalendarClock} />
-        <Kpi label="Requests waiting" value={requests === null ? "…" : waiting} icon={Inbox} tone={waiting ? "warning" : undefined} />
-      </KpiRow>
+      {/* Today, as on the admin home: the van on the coast road, the day's
+          headline and the company's main numbers as frosted cards. */}
+      <section aria-label="Today" className="tt-admin-hero">
+        <img className="tt-admin-hero-photo" src="/images/van-top.webp" alt="" width="1672" height="941" decoding="async" />
+        <div>
+          <p className="tt-admin-hero-date">{heroDay()}, {company.name}</p>
+          <h2 className="tt-admin-hero-title">Your buses<br />today</h2>
+          <p className="tt-admin-hero-sum">{todaySummary({ buses: vehicles.length, onMap, jobs: todayCount, waiting: requests === null ? null : waiting })}</p>
+        </div>
+        <section aria-label="Company overview" className="tt-admin-stats">
+          <Stat value={vehicles.length} label="Buses" onClick={() => navigate("/company/vehicles")} />
+          <Stat value={onMap} label="On the map now" detail="On shift or on your job" onClick={() => navigate("/manager")} />
+          <Stat value={todayCount} label="Jobs today" onClick={() => navigate("/company/jobs")} />
+          <Stat tone={waiting ? "warn" : null} value={requests === null ? "…" : waiting} label="Requests waiting" onClick={() => navigate("/company/jobs")} />
+        </section>
+      </section>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <Panel title="Your buses" icon={Bus}>
           <BusList vehicles={vehicles} />

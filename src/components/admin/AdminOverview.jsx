@@ -44,7 +44,7 @@ export function StatusPill({ status }) {
 
 // The main numbers, as frosted cards on the photo. Only a count that needs
 // action (faults, tablets) takes a colour.
-function Stat({ tone, value, label, detail, onClick }) {
+export function Stat({ tone, value, label, detail, onClick }) {
   return (
     <button type="button" onClick={onClick} className={cn("tt-admin-tile", tone && "tt-admin-tile-" + tone)}>
       <span className="tt-admin-tile-value">{value}</span>

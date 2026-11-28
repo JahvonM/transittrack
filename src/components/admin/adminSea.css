@@ -150,6 +150,14 @@ html.tt-admin-sea .tt-admin-nav button[aria-current="page"] { background: #fffff
 html.tt-admin-sea .tt-admin-nav button[aria-current="page"] svg { color: inherit; }
 html.tt-admin-sea .tt-admin-nav button[aria-current="page"] > span.absolute { display: none; }
 html.tt-admin-sea .tt-admin-group-current { color: #ffffff; background: #ffffff12; }
+/* The company portal's menu (CompanyShell) is links rather than buttons: the
+   same pills and wide capitals, and the open page on the same soft pill. */
+html.tt-admin-sea .tt-company-shell .tt-admin-nav a {
+  border-radius: 999px; min-height: 42px; font-stretch: 125%; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+}
+html.tt-admin-sea .tt-company-shell .tt-admin-nav a[aria-current="page"] { background: hsl(var(--primary) / .16); color: hsl(var(--sidebar-foreground)); }
+html.tt-admin-sea .tt-company-shell .tt-admin-nav a[aria-current="page"] svg { color: hsl(var(--primary)); }
+html.tt-admin-sea .tt-company-shell .tt-admin-nav a[aria-current="page"] > span.absolute { display: none; }
 
 /* A section's tabs: pills with wide capitals; the open one filled. */
 html.tt-admin-sea .tt-admin-shell nav.tt-admin-hub-tabs [aria-current="page"] {

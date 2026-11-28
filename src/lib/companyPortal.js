@@ -78,3 +78,14 @@ export function companyRequestBody(form) {
 }
 
 export const serviceName = (id) => SITE_SERVICES.find((s) => s.id === id)?.name || "Ride";
+
+// The line under the company overview's headline: how many of its buses are
+// on the map, today's jobs, and requests waiting (left out while unknown).
+export function todaySummary({ buses = 0, onMap = 0, jobs = 0, waiting = null } = {}) {
+  const n = (count, one, many) => `${count} ${count === 1 ? one : many}`;
+  return [
+    buses ? `${onMap} of ${n(buses, "bus", "buses")} ${onMap === 1 ? "is" : "are"} on the map now.` : "No buses yet.",
+    jobs ? `${n(jobs, "job", "jobs")} today.` : "No jobs today.",
+    waiting ? `${n(waiting, "request is", "requests are")} waiting for an answer.` : "",
+  ].filter(Boolean).join(" ");
+}
